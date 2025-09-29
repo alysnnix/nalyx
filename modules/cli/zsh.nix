@@ -1,0 +1,41 @@
+{ pkgs, ... }:
+
+{
+  programs.zsh = {
+    enable = true;
+    enableAutosuggestions = true;
+    enableSyntaxHighlighting = true;
+    enableCompletion = true;
+    autocd = true;
+    shellAliases = {
+      ll = "ls -lha";
+      update = "cd ~/nix-config && home-manager switch --flake .#aly";
+      zshrc = "code ~/.zshrc";
+      bashrc = "code ~/.bashrc";
+    };
+    oh-my-zsh = {
+      enable = true;
+      theme = "robbyrussell";
+      plugins = [ "git" ];
+    };
+    history = {
+      expireDuplicatesFirst = true;
+      extended = true;
+      ignoreAllDups = true;
+      ignoreDups = true;
+      ignoreSpace = true;
+    };
+    initExtra = ''
+      # Script do Tab inteligente
+      zle -N autosuggest-accept-or-complete _autosuggest-accept-or-complete
+      _autosuggest-accept-or-complete() {
+        if [[ -n "''${ZSH_AUTOSUGGEST_SUGGESTION-}" ]]; then
+          zle autosuggest-accept
+        else
+          zle expand-or-complete
+        fi
+      }
+      bindkey '^I' autosuggest-accept-or-complete
+    '';
+  };
+}
