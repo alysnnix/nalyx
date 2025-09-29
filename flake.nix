@@ -1,5 +1,5 @@
 {
-  description = "Home Manager configuration for Aly";
+  description = "Aly";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
