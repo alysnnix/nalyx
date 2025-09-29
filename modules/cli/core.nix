@@ -3,7 +3,6 @@
 {
   home.packages = with pkgs; [
     wget
-    pciutils
     httpie
     bind
     killall
@@ -11,13 +10,5 @@
     unzip
     file
     zip
-    gptfdisk
-
-    neofetch
-    bat
-    eza
-
-    silver-searcher
-    nix-index
   ];
 }
