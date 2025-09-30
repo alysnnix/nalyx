@@ -7,6 +7,7 @@
     ./modules/cli/git.nix
     ./modules/cli/zsh.nix
     ./modules/cli/docker.nix
+    ./modules/cli/b4a.nix
 
     # -- lang --
     ./modules/lang/go.nix

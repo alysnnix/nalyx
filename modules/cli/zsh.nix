@@ -26,7 +26,14 @@
       ignoreSpace = true;
     };
     initExtra = ''
-      # Script do Tab inteligente
+      # --- ADICIONE ESTE BLOCO ---
+      # Garante que o ambiente Nix seja carregado no shell
+      if [ -e "$HOME/.nix-profile/etc/profile.d/nix-daemon.sh" ]; then
+        . "$HOME/.nix-profile/etc/profile.d/nix-daemon.sh"
+      fi
+      # --- FIM DO BLOCO ---
+
+      # Script do Tab inteligente (que já estava aqui)
       zle -N autosuggest-accept-or-complete _autosuggest-accept-or-complete
       _autosuggest-accept-or-complete() {
         if [[ -n "''${ZSH_AUTOSUGGEST_SUGGESTION-}" ]]; then

@@ -2,7 +2,7 @@
   description = "Aly";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -26,6 +26,11 @@
         pkgs = nixpkgs.legacyPackages.${system};
         extraSpecialArgs = { inherit system username; };
         modules = [ ./home.nix ];
+      };
+
+      apps.${system}.default = {
+        type = "app";
+        program = "${self.homeConfigurations.${username}.activationPackage}/bin/home-manager";
       };
     };
 }
