@@ -1,29 +1,13 @@
+# home.nix (versão mínima de teste)
 { pkgs, ... }:
 
 {
-  imports = [
-    # -- setup and core --
-    ./modules/cli/core.nix
-    ./modules/cli/git.nix
-    ./modules/cli/zsh.nix
-    ./modules/cli/docker.nix
-    ./modules/cli/b4a.nix
-
-    # -- lang --
-    ./modules/lang/go.nix
-    ./modules/lang/rust.nix
-    ./modules/lang/nodejs.nix
-    ./modules/lang/python.nix
-  ];
-
-  home.username = "aly";
-  home.homeDirectory = "/home/aly";
+  # Apenas o essencial para o teste
   home.stateVersion = "24.05";
 
+  # Esta opção deve instalar o comando 'home-manager'
   programs.home-manager.enable = true;
 
-  home.packages = [
-    pkgs.neovim
-    pkgs.ripgrep
-  ];
+  # Vamos adicionar um único pacote bem pequeno para testar a instalação
+  home.packages = [ pkgs.hello ];
 }
