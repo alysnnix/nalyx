@@ -1,13 +1,17 @@
-# home.nix (versão mínima de teste)
+# home.nix (versão mínima CORRIGIDA)
 { pkgs, ... }:
 
 {
-  # Apenas o essencial para o teste
+  # --- ADICIONE ESTAS LINHAS ---
+  home.username = "aly";
+  home.homeDirectory = "/home/aly";
+  # ---------------------------
+
   home.stateVersion = "24.05";
 
   # Esta opção deve instalar o comando 'home-manager'
   programs.home-manager.enable = true;
 
-  # Vamos adicionar um único pacote bem pequeno para testar a instalação
+  # Pacote de teste
   home.packages = [ pkgs.hello ];
 }
