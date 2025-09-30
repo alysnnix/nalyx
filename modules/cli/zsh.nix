@@ -33,6 +33,10 @@
       fi
       # --- FIM DO BLOCO ---
 
+      # --- ADICIONE ESTA LINHA ---
+      # Ativa o corepack manualmente ao iniciar o shell
+      corepack enable
+
       # Script do Tab inteligente (que já estava aqui)
       zle -N autosuggest-accept-or-complete _autosuggest-accept-or-complete
       _autosuggest-accept-or-complete() {
