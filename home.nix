@@ -1,17 +1,29 @@
-# home.nix (versão mínima CORRIGIDA)
 { pkgs, ... }:
 
 {
-  # --- ADICIONE ESTAS LINHAS ---
+  imports = [
+    # -- setup and core --
+    ./modules/cli/core.nix
+    ./modules/cli/git.nix
+    ./modules/cli/zsh.nix
+    ./modules/cli/docker.nix
+    ./modules/cli/b4a.nix
+
+    # -- lang --
+    ./modules/lang/go.nix
+    ./modules/lang/rust.nix
+    ./modules/lang/nodejs.nix
+    ./modules/lang/python.nix
+  ];
+
   home.username = "aly";
   home.homeDirectory = "/home/aly";
-  # ---------------------------
-
   home.stateVersion = "24.05";
 
-  # Esta opção deve instalar o comando 'home-manager'
   programs.home-manager.enable = true;
 
-  # Pacote de teste
-  home.packages = [ pkgs.hello ];
+  home.packages = [
+    pkgs.neovim
+    pkgs.ripgrep
+  ];
 }
