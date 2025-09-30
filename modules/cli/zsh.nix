@@ -3,9 +3,9 @@
 {
   programs.zsh = {
     enable = true;
-    enableAutosuggestions = true;
-    enableSyntaxHighlighting = true;
-    enableCompletion = true;
+    programs.zsh.completions.enable = true;
+    programs.zsh.autosuggestion.enable = true;
+    programs.zsh.syntaxHighlighting.enable = true;
     autocd = true;
     shellAliases = {
       ll = "ls -lha";
