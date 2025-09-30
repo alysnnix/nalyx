@@ -32,5 +32,9 @@
         type = "app";
         program = "${self.homeConfigurations.${username}.activationPackage}/bin/home-manager";
       };
+
+      packages.${system}.b4a =
+        self.homeConfigurations.${username}.pkgs.callPackage ./modules/cli/b4a.nix
+          { };
     };
 }
