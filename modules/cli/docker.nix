@@ -6,6 +6,6 @@
     docker-compose
   ];
 
-  # virtualisation.docker.enable = true;
-  # users.extraGroups.docker.members = [ "aly" ];
+  virtualisation.docker.enable = true;
+  users.extraGroups.docker.members = [ "aly" ];
 }
