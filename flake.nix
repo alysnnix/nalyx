@@ -1,5 +1,5 @@
 {
-  description = "Aly";
+  description = "Aly flake's setup";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -19,7 +19,7 @@
     }:
     let
       system = "x86_64-linux";
-      username = "aly";
+      username = "szn";
     in
     {
       homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
