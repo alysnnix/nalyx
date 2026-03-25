@@ -1,0 +1,157 @@
+/*
+ * ROFI THEME - ADAPTADO (Dusky/NixOS)
+ */
+
+configuration {
+    show-icons:      true;
+    icon-theme:      "Papirus-Dark";
+    font:            "JetBrainsMono Nerd Font 11";
+
+    display-drun:       " Apps";
+    display-run:        " Run";
+    display-clipboard:  "󰅌 Clip";
+    
+    kb-cancel:              "Escape";
+    kb-remove-char-back:    "BackSpace,Shift+BackSpace";
+    kb-accept-entry:        "Return,KP_Enter";
+    
+    kb-custom-1:            "Alt+u";
+    kb-custom-2:            "Alt+y";
+    
+    scroll-method:          0;
+    click-to-exit:          true;
+}
+
+/* Importa as cores do arquivo vizinho */
+@import "colors.rasi"
+
+* {
+    /* Mapeando variáveis do Matugen para variáveis do Rofi */
+    var-win-bg:            @surface;
+    var-input-bg:          @surface-container-high;
+    var-urgent-bg:         @error-container;
+    var-active-bg:         @primary;
+    var-message-bg:        @surface-container;
+    
+    var-text-def:          @on-surface;
+    var-text-dim:          @on-surface-variant;
+    var-text-urgent:       @on-error-container;
+    var-text-active:       @on-primary;
+    
+    var-border:            @outline;
+
+    background-color:      @var-win-bg;
+    text-color:            @var-text-def;
+    border-color:          @var-border;
+
+    /* Element States */
+    normal-background:             transparent; 
+    normal-foreground:             @var-text-def;
+    alternate-normal-background:   transparent;
+    alternate-normal-foreground:   @var-text-def;
+
+    selected-normal-background:    @var-active-bg;
+    selected-normal-foreground:    @var-text-active;
+    active-background:             @var-active-bg;
+    active-foreground:             @var-text-active;
+
+    urgent-background:             @var-urgent-bg;
+    urgent-foreground:             @var-text-urgent;
+    selected-urgent-background:    @var-urgent-bg;
+    selected-urgent-foreground:    @var-text-urgent;
+}
+
+window {
+    location:            center;
+    anchor:              center;
+    width:               40%;
+    background-color:    @var-win-bg;
+    border:              2px;
+    border-radius:       12px;
+    padding:             20px;
+}
+
+mainbox {
+    children:            [ inputbar, message, listview ];
+    spacing:             15px;
+    background-color:    transparent;
+    border:              0;
+    padding:             0;
+}
+
+inputbar {
+    children:            [ prompt, entry ];
+    spacing:             10px;
+    padding:             12px;
+    border-radius:       8px;
+    background-color:    @var-input-bg;
+    text-color:          @var-text-def;
+}
+
+prompt {
+    enabled:             true;
+    background-color:    inherit;
+    text-color:          @var-text-dim;
+    font:                "JetBrainsMono Nerd Font Bold 11";
+}
+
+entry {
+    placeholder:         "Search...";
+    placeholder-color:   @var-text-dim;
+    background-color:    inherit;
+    text-color:          @var-text-def;
+    cursor:              text;
+}
+
+message {
+    background-color:    transparent;
+    border:              0;
+    padding:             0;
+}
+
+textbox {
+    background-color:    @var-message-bg;
+    text-color:          @var-text-dim;
+    padding:             8px 12px;
+    border-radius:       6px;
+    markup:              true;
+    font:                "JetBrainsMono Nerd Font 9";
+    horizontal-align:    0.5;
+}
+
+listview {
+    columns:             1;
+    lines:               8;
+    cycle:               true;
+    scrollbar:           false;
+    spacing:             8px;
+    fixed-height:        false;
+    background-color:    transparent;
+    border:              0;
+    padding:             0;
+}
+
+element {
+    padding:             8px 12px;
+    border-radius:       8px;
+    cursor:              pointer;
+    spacing:             6px;
+    border:              0;
+}
+
+element-icon {
+    size:                1.2em;
+    vertical-align:      0.5;
+    background-color:    transparent;
+    text-color:          inherit;
+    cursor:              inherit;
+}
+
+element-text {
+    vertical-align:      0.5;
+    background-color:    transparent;
+    text-color:          inherit;
+    highlight:           bold underline;
+    cursor:              inherit;
+    horizontal-align:    0;
+}

@@ -1,0 +1,23 @@
+result
+result-*
+.direnv
+.envrc
+AI_WORKFLOW.md
+
+# Security - prevent accidental secret commits
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+*.age
+keys.txt
+
+# Sub-repositories (independent git repos)
+nalyx-public/
+nalyx-private/
+
+# Private configurations - ignore everything except the placeholder
+private/*
+!private/default.nix

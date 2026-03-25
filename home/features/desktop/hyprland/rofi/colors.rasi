@@ -1,0 +1,25 @@
+/* Cores Catppuccin Mocha (Estático para fallback) */
+* {
+    background:     #1e1e2e;
+    background-alt: #181825;
+    foreground:     #cdd6f4;
+    selected:       #cba6f7;
+    active:         #cba6f7;
+    urgent:         #f38ba8;
+
+    /* Mapeando para as variáveis do Dusky/Matugen */
+    surface:                 #1e1e2e;
+    surface-container-high:  #313244;
+    surface-container:       #181825;
+    
+    primary:                 #cba6f7; /* Roxo */
+    on-primary:              #1e1e2e;
+    
+    outline:                 #cba6f7;
+    
+    error-container:         #f38ba8;
+    on-error-container:      #1e1e2e;
+    
+    on-surface:              #cdd6f4;
+    on-surface-variant:      #a6adc8;
+}

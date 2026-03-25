@@ -1,0 +1,277 @@
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
+let
+  claude-notify = pkgs.writeShellScriptBin "claude-notify" ''
+    if command -v powershell.exe &>/dev/null; then
+      powershell.exe -Command "[console]::beep(330, 60); [console]::beep(250, 60); [console]::beep(330, 60); [console]::beep(250, 60); [console]::beep(440, 90); [console]::beep(520, 110)" &>/dev/null
+    elif command -v paplay &>/dev/null; then
+      paplay /usr/share/sounds/freedesktop/stereo/complete.oga &>/dev/null
+    fi
+    exit 0
+  '';
+
+  claude-statusline = pkgs.writeShellScript "claude-statusline" ''
+    JQ="${pkgs.jq}/bin/jq"
+    input=$(cat)
+
+    model=$(echo "$input" | $JQ -r '.model.display_name // "Unknown"' | sed 's/^Claude //')
+    used_pct=$(echo "$input" | $JQ -r '.context_window.used_percentage // empty')
+
+    RST="\033[0m"
+    GRN="\033[32m"
+    YLW="\033[33m"
+    RED="\033[31m"
+    DIM="\033[2m"
+    PAC="\033[1;33m"
+
+    if [ -n "$used_pct" ]; then
+      pct_int=$(printf "%.0f" "$used_pct")
+      total=15
+      filled=$(( pct_int * total / 100 ))
+      [ "$filled" -gt "$total" ] && filled=$total
+      remaining=$(( total - filled ))
+
+      if [ "$pct_int" -ge 90 ]; then C="$RED"
+      elif [ "$pct_int" -ge 70 ]; then C="$YLW"
+      else C="$GRN"
+      fi
+
+      eaten=""
+      for (( i = 0; i < filled; i++ )); do eaten="''${eaten}·"; done
+      dots=""
+      for (( i = 0; i < remaining; i++ )); do dots="''${dots}●"; done
+
+      bar="''${DIM}''${eaten}''${RST} ''${PAC}ᗧ ''${RST}''${C}''${dots}''${RST}"
+      ctx="''${bar} ''${C}''${pct_int}%''${RST}"
+    else
+      ctx="''${DIM}ᗧ●●●●●●●●●●●●●●● --%''${RST}"
+    fi
+
+    # Alternate dance frames on each update
+    if (( $(date +%s) % 2 == 0 )); then
+      dance="''${DIM}┗(^o^)┛''${RST}"
+    else
+      dance="''${DIM}┏(^o^)┓''${RST}"
+    fi
+
+    printf "%b" "''${ctx}  ''${DIM}''${RST}$model  $dance"
+  '';
+
+  claudeSettingsBase = builtins.toJSON {
+    enabledPlugins = {
+      "figma@claude-plugins-official" = true;
+    };
+    statusLine = {
+      type = "command";
+      command = "${claude-statusline}";
+    };
+    hooks = {
+      Stop = [
+        {
+          matcher = "";
+          hooks = [
+            {
+              type = "command";
+              command = "claude-notify";
+            }
+          ];
+        }
+      ];
+    };
+    mcpServers = {
+      anytype = {
+        command = "npx";
+        args = [
+          "-y"
+          "@anyproto/anytype-mcp"
+        ];
+        env = {
+          OPENAPI_MCP_HEADERS = "__ANYTYPE_TOKEN_PLACEHOLDER__";
+        };
+      };
+      slack = {
+        command = "npx";
+        args = [
+          "-y"
+          "@modelcontextprotocol/server-slack"
+        ];
+        env = {
+          SLACK_BOT_TOKEN = "__SLACK_TOKEN_PLACEHOLDER__";
+          SLACK_TEAM_ID = "";
+        };
+      };
+    };
+  };
+
+  # Skills managed by nix: destination (relative to ~/.claude/skills/) -> source
+  skillFiles = {
+    "global-devcontainer/SKILL.md" = ./skills/global-devcontainer/SKILL.md;
+    "global-generate-claude-doc/SKILL.md" = ./skills/global-generate-claude-doc/SKILL.md;
+    "global-git-workflow/SKILL.md" = ./skills/global-git-workflow/SKILL.md;
+
+    # Templates - Stack specific rules
+    "global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =
+      ./skills/global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md;
+    "global-generate-claude-doc/templates/stack/typescript/rules/typescript.md" =
+      ./skills/global-generate-claude-doc/templates/stack/typescript/rules/typescript.md;
+
+    # Templates - Universal
+    "global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
+      ./skills/global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md;
+    "global-generate-claude-doc/templates/universal/rules/quality.md" =
+      ./skills/global-generate-claude-doc/templates/universal/rules/quality.md;
+
+    # Impeccable Skills
+    "global-impeccable-adapt/SKILL.md" = ./skills/impeccable/skills/global-impeccable-adapt/SKILL.md;
+    "global-impeccable-animate/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-animate/SKILL.md;
+    "global-impeccable-arrange/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-arrange/SKILL.md;
+    "global-impeccable-audit/SKILL.md" = ./skills/impeccable/skills/global-impeccable-audit/SKILL.md;
+    "global-impeccable-bolder/SKILL.md" = ./skills/impeccable/skills/global-impeccable-bolder/SKILL.md;
+    "global-impeccable-clarify/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-clarify/SKILL.md;
+    "global-impeccable-colorize/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-colorize/SKILL.md;
+    "global-impeccable-critique/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-critique/SKILL.md;
+    "global-impeccable-delight/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-delight/SKILL.md;
+    "global-impeccable-distill/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-distill/SKILL.md;
+    "global-impeccable-extract/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-extract/SKILL.md;
+    "global-impeccable-harden/SKILL.md" = ./skills/impeccable/skills/global-impeccable-harden/SKILL.md;
+    "global-impeccable-normalize/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-normalize/SKILL.md;
+    "global-impeccable-onboard/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-onboard/SKILL.md;
+    "global-impeccable-optimize/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-optimize/SKILL.md;
+    "global-impeccable-overdrive/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-overdrive/SKILL.md;
+    "global-impeccable-polish/SKILL.md" = ./skills/impeccable/skills/global-impeccable-polish/SKILL.md;
+    "global-impeccable-quieter/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-quieter/SKILL.md;
+    "global-impeccable-teach/SKILL.md" = ./skills/impeccable/skills/global-impeccable-teach/SKILL.md;
+    "global-impeccable-typeset/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-typeset/SKILL.md;
+
+    # Frontend Design Skill (with reference files)
+    "global-impeccable-frontend-design/SKILL.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/SKILL.md;
+    "global-impeccable-frontend-design/reference/color-and-contrast.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/color-and-contrast.md;
+    "global-impeccable-frontend-design/reference/interaction-design.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/interaction-design.md;
+    "global-impeccable-frontend-design/reference/motion-design.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/motion-design.md;
+    "global-impeccable-frontend-design/reference/responsive-design.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/responsive-design.md;
+    "global-impeccable-frontend-design/reference/spatial-design.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/spatial-design.md;
+    "global-impeccable-frontend-design/reference/typography.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/typography.md;
+    "global-impeccable-frontend-design/reference/ux-writing.md" =
+      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/ux-writing.md;
+  };
+
+  # Build a derivation with all skill files collected in one directory tree
+  claudeSkillsSrc = pkgs.runCommandLocal "claude-skills" { } (
+    "mkdir -p $out\n"
+    + lib.concatStringsSep "\n" (
+      lib.mapAttrsToList (dest: src: ''
+        mkdir -p "$out/$(dirname '${dest}')"
+        cp '${src}' "$out/${dest}"
+      '') skillFiles
+    )
+  );
+in
+{
+  programs.zsh.initContent = ''
+    cc() {
+      local dir="$HOME/wrk/claude-dangerously"
+      (
+        cd "$dir"
+        local service=$(docker compose config --services | head -1)
+        docker compose up -d 2>/dev/null || (docker compose down && docker compose up -d)
+        docker compose exec "$service" claude --dangerously-skip-permissions "$@"
+      )
+    }
+  '';
+
+  home = {
+    packages = [
+      pkgs.claude-code
+      claude-notify
+    ];
+
+    # Copy skills as real files so ~/.claude/ stays fully writeable
+    # (home.file creates read-only symlinks that break marketplace/plugins)
+    activation.claudeSkills = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      SKILLS_DST="$HOME/.claude/skills"
+      mkdir -p "$SKILLS_DST"
+
+      # Remove old symlinks from previous home.file approach
+      ${pkgs.findutils}/bin/find "$SKILLS_DST" -type l -lname '*/nix/store/*' -delete 2>/dev/null || true
+
+      # Copy managed skills as real writeable files
+      cp -rL --no-preserve=mode "${claudeSkillsSrc}/." "$SKILLS_DST/"
+    '';
+
+    # Generate settings.json at activation time with sops secret
+    # Merges managed keys (plugins, mcpServers) into existing settings
+    # so Claude Code can write its own keys (effort, etc.) without being overwritten
+    activation.claudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      SETTINGS_FILE="$HOME/.claude/settings.json"
+      ANYTYPE_SECRET="/run/secrets/anytype_api_token"
+      SLACK_SECRET="/run/secrets/slack_bot_token"
+      JQ="${pkgs.jq}/bin/jq"
+
+      mkdir -p "$HOME/.claude"
+
+      # Remove symlink from previous home-manager generation if it exists
+      if [ -L "$SETTINGS_FILE" ]; then
+        rm "$SETTINGS_FILE"
+      fi
+
+      MANAGED=$(echo ${lib.escapeShellArg claudeSettingsBase})
+
+      # Inject Anytype token or remove MCP entry
+      if [ -f "$ANYTYPE_SECRET" ]; then
+        TOKEN=$(cat "$ANYTYPE_SECRET")
+        HEADERS=$($JQ -c -n \
+          --arg token "$TOKEN" \
+          '{"Authorization": ("Bearer " + $token), "Anytype-Version": "2025-11-08"}')
+        MANAGED=$(echo "$MANAGED" | \
+          $JQ --arg headers "$HEADERS" \
+          '.mcpServers.anytype.env.OPENAPI_MCP_HEADERS = $headers')
+      else
+        MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcpServers.anytype)')
+      fi
+
+      # Inject Slack token or remove MCP entry
+      if [ -f "$SLACK_SECRET" ]; then
+        SLACK_TOKEN=$(cat "$SLACK_SECRET")
+        MANAGED=$(echo "$MANAGED" | \
+          $JQ --arg token "$SLACK_TOKEN" \
+          '.mcpServers.slack.env.SLACK_BOT_TOKEN = $token')
+      else
+        MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcpServers.slack)')
+      fi
+
+      # Merge: existing settings * managed settings (managed keys win)
+      if [ -f "$SETTINGS_FILE" ]; then
+        EXISTING=$(cat "$SETTINGS_FILE")
+        echo "$EXISTING" | $JQ --argjson managed "$MANAGED" '. * $managed' > "$SETTINGS_FILE.tmp"
+        mv "$SETTINGS_FILE.tmp" "$SETTINGS_FILE"
+      else
+        echo "$MANAGED" > "$SETTINGS_FILE"
+      fi
+    '';
+  };
+}
