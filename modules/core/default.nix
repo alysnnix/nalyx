@@ -101,6 +101,7 @@
       anytype_api_token.owner = vars.user.name;
       slack_bot_token.owner = vars.user.name;
       tailscale_auth_key = { };
+      wifi_password = { };
     };
   };
 

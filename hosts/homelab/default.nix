@@ -1,6 +1,9 @@
 {
   vars,
   pkgs,
+  config,
+  lib,
+  hasPrivate ? false,
   ...
 }:
 {
@@ -20,6 +23,36 @@
       allowedUDPPorts = [ ];
       trustedInterfaces = [ "tailscale0" ];
     };
+
+    # WiFi — auto-connect to home network
+    networkmanager.ensureProfiles = {
+      environmentFiles = lib.mkIf hasPrivate [
+        config.sops.templates."wifi-env".path
+      ];
+      profiles.home-wifi = {
+        connection = {
+          id = "Aly 5G";
+          type = "wifi";
+          autoconnect = true;
+          autoconnect-priority = 100;
+        };
+        wifi = {
+          ssid = "Aly 5G";
+          mode = "infrastructure";
+        };
+        wifi-security = {
+          key-mgmt = "wpa-psk";
+          psk = "$WIFI_PSK";
+        };
+      };
+    };
+  };
+
+  # SOPS template: env file with WiFi password for NetworkManager
+  sops.templates."wifi-env" = lib.mkIf hasPrivate {
+    content = ''
+      WIFI_PSK=${config.sops.placeholder.wifi_password}
+    '';
   };
 
   # SSH access (only reachable via Tailscale due to firewall)
