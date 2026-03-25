@@ -66,6 +66,7 @@
 
     tailscale = {
       enable = true;
+      authKeyFile = if hasPrivate then config.sops.secrets.tailscale_auth_key.path else null;
     };
 
     envfs = {
@@ -99,6 +100,7 @@
       password.neededForUsers = true;
       anytype_api_token.owner = vars.user.name;
       slack_bot_token.owner = vars.user.name;
+      tailscale_auth_key = { };
     };
   };
 

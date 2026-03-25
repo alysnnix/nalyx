@@ -12,7 +12,7 @@
 
       "github.com" = {
         hostname = "github.com";
-        user = vars.user.social.github;
+        user = "git";
         identityFile = "~/.ssh/id_ed25519";
       };
     };
