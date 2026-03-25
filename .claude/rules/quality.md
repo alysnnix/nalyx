@@ -5,99 +5,99 @@ paths:
 
 # Quality Rules
 
-## CRITICAL: Validação Antes de Commit
+## CRITICAL: Validation Before Commit
 
 ```
-TODA MUDANÇA DEVE SER VALIDADA ANTES DO COMMIT
+EVERY CHANGE MUST BE VALIDATED BEFORE COMMIT
 ```
 
-- **Sem exceções**: Toda alteração deve passar nas verificações
-- **Validar primeiro**: Rodar checks antes de commitar
-- **Cada commit deve ser funcional**: Sistema deve rebuildar sem erros
+- **No exceptions**: Every change must pass the checks
+- **Validate first**: Run checks before committing
+- **Each commit must be functional**: System must rebuild without errors
 
-## Antes de Cada Commit
+## Before Each Commit
 
 ```bash
-# 1. Formatar código
+# 1. Format code
 nix fmt
 
-# 2. Verificar configurações (sem build)
+# 2. Validate configurations (without building)
 nix flake check --no-build
 
-# 3. Testar rebuild (opcional, mas recomendado)
+# 3. Test rebuild (optional, but recommended)
 sudo nixos-rebuild dry-run --flake .#<host>
 ```
 
-### Checklist de Commit
+### Commit Checklist
 
 ```
-[ ] Código formatado (nix fmt)
-[ ] Flake check passa
-[ ] Sem imports quebrados
-[ ] Sem syntax errors
-[ ] Variáveis usadas corretamente
+[ ] Code formatted (nix fmt)
+[ ] Flake check passes
+[ ] No broken imports
+[ ] No syntax errors
+[ ] Variables used correctly
 ```
 
-## Requisitos por Tipo de Mudança
+## Requirements by Change Type
 
-| Tipo de Mudança | Requisito |
-|-----------------|-----------|
-| Novo módulo | Verificar imports, testar em dry-run |
-| Mudança em host | Testar rebuild do host específico |
-| Mudança em vars.nix | Verificar todos os hosts |
-| Novo pacote | Verificar se existe no nixpkgs |
-| Driver/Hardware | Testar em ambiente real |
+| Change Type | Requirement |
+|-------------|-------------|
+| New module | Verify imports, test with dry-run |
+| Host change | Test rebuild of the specific host |
+| Change in vars.nix | Verify all hosts |
+| New package | Verify it exists in nixpkgs |
+| Driver/Hardware | Test in real environment |
 
-## O Que Verificar
+## What to Verify
 
-### Módulos Nix
-
-```
-[ ] Imports corretos (caminhos existem)
-[ ] Atributos bem formados
-[ ] Variáveis definidas usadas
-[ ] Sem código morto (deadnix)
-[ ] Formatação correta (nixfmt)
-```
-
-### Configurações de Programa
+### Nix Modules
 
 ```
-[ ] Pacote existe no nixpkgs
-[ ] Configuração válida para o programa
-[ ] Caminhos de arquivo corretos
-[ ] Permissões adequadas
+[ ] Correct imports (paths exist)
+[ ] Well-formed attributes
+[ ] Defined variables are used
+[ ] No dead code (deadnix)
+[ ] Correct formatting (nixfmt)
 ```
 
-## Práticas Proibidas
+### Program Configurations
+
+```
+[ ] Package exists in nixpkgs
+[ ] Valid configuration for the program
+[ ] Correct file paths
+[ ] Proper permissions
+```
+
+## Forbidden Practices
 
 ```nix
-# NUNCA commitar:
+# NEVER commit:
 
-# Imports de arquivos inexistentes
-imports = [ ./nao-existe.nix ];
+# Imports of nonexistent files
+imports = [ ./does-not-exist.nix ];
 
-# Variáveis não definidas
+# Undefined variables
 programs.${undefined}.enable = true;
 
-# Código comentado sem propósito
-# imports = [ ./velho ]; # TODO: remover
+# Commented-out code without purpose
+# imports = [ ./old ]; # TODO: remove
 
-# hardware-configuration.nix editado manualmente
+# Manually edited hardware-configuration.nix
 ```
 
-## Se o Check Falhar
+## If the Check Fails
 
-1. **NÃO** commitar
-2. **NÃO** usar --no-verify
-3. **CORRIGIR** o problema
-4. **VERIFICAR** novamente
-5. **ENTÃO** commitar
+1. **DO NOT** commit
+2. **DO NOT** use --no-verify
+3. **FIX** the problem
+4. **VERIFY** again
+5. **THEN** commit
 
-## Resumo
+## Summary
 
 ```
-FLAKE CHECK FALHOU = NÃO COMMITAR
-FORMATO ERRADO = NÃO COMMITAR
-REBUILD FALHOU = NÃO COMMITAR
+FLAKE CHECK FAILED = DO NOT COMMIT
+WRONG FORMAT = DO NOT COMMIT
+REBUILD FAILED = DO NOT COMMIT
 ```

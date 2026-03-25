@@ -1,6 +1,6 @@
 ---
 name: explore-hyprland
-description: "Explorar configuração Hyprland. Use para debug de desktop, modificar keybinds, Waybar, Rofi, ou temas Matugen."
+description: "Explore Hyprland configuration. Use for desktop debugging, modifying keybinds, Waybar, Rofi, or Matugen themes."
 user-invocable: true
 ---
 
@@ -8,63 +8,63 @@ user-invocable: true
 
 ## Overview
 
-| Aspecto | Valor |
-|---------|-------|
-| Diretório | `home/features/desktop/hyprland/` |
+| Aspect | Value |
+|--------|-------|
+| Directory | `home/features/desktop/hyprland/` |
 | Entry Point | `home/features/desktop/hyprland/default.nix` |
-| Condição | `vars.desktop == "hyprland"` |
+| Condition | `vars.desktop == "hyprland"` |
 
-## Estrutura
+## Structure
 
 ```
 home/features/desktop/hyprland/
-├── default.nix           # Módulo principal Hyprland
-├── hyprland.conf         # Configuração Hyprland (keybinds, rules)
-├── waybar/               # Barra de status
-│   ├── default.nix       # Módulo Waybar
-│   ├── config.jsonc      # Configuração módulos
-│   └── style.css         # Estilos
+├── default.nix           # Main Hyprland module
+├── hyprland.conf         # Hyprland configuration (keybinds, rules)
+├── waybar/               # Status bar
+│   ├── default.nix       # Waybar module
+│   ├── config.jsonc      # Module configuration
+│   └── style.css         # Styles
 ├── rofi/                 # Launcher
-│   ├── default.nix       # Módulo Rofi
-│   ├── config.rasi       # Configuração
-│   ├── style.rasi        # Estilos
-│   └── colors.rasi       # Cores
-├── matugen/              # Gerador de temas Material You
-│   ├── default.nix       # Módulo Matugen
-│   └── templates/        # Templates de cores para apps
+│   ├── default.nix       # Rofi module
+│   ├── config.rasi       # Configuration
+│   ├── style.rasi        # Styles
+│   └── colors.rasi       # Colors
+├── matugen/              # Material You theme generator
+│   ├── default.nix       # Matugen module
+│   └── templates/        # Color templates for apps
 │       ├── hyprland-colors.conf
 │       ├── waybar-colors.css
 │       ├── rofi-colors.rasi
 │       ├── kitty-colors.conf
 │       ├── neovim/
 │       └── ...
-└── scripts/              # Scripts auxiliares
+└── scripts/              # Helper scripts
 ```
 
-## Arquivos-Chave
+## Key Files
 
 ```
 hyprland.conf             # Keybinds, window rules, monitors
-waybar/config.jsonc       # Módulos da barra
-waybar/style.css          # Estilos da barra
-rofi/config.rasi          # Configuração do launcher
-matugen/templates/        # Templates de temas
+waybar/config.jsonc       # Bar modules
+waybar/style.css          # Bar styles
+rofi/config.rasi          # Launcher configuration
+matugen/templates/        # Theme templates
 ```
 
-## Fluxo de Configuração
+## Configuration Flow
 
-1. **hyprland.conf** define keybinds e regras
-2. **waybar** mostra informações do sistema
-3. **rofi** é o launcher de aplicativos
-4. **matugen** gera cores baseado em wallpaper
+1. **hyprland.conf** defines keybinds and rules
+2. **waybar** displays system information
+3. **rofi** is the application launcher
+4. **matugen** generates colors based on wallpaper
 
-## Matugen (Temas Material You)
+## Matugen (Material You Themes)
 
-### O Que Faz
+### What It Does
 
-Gera paleta de cores a partir de uma imagem e aplica em todos os apps.
+Generates a color palette from an image and applies it across all apps.
 
-### Templates Suportados
+### Supported Templates
 
 | App | Template |
 |-----|----------|
@@ -79,18 +79,18 @@ Gera paleta de cores a partir de uma imagem e aplica em todos os apps.
 | Btop | `btop.theme` |
 | Yazi | `yazi-theme.toml` |
 
-### Adicionar Novo Template
+### Adding a New Template
 
-1. Criar template em `matugen/templates/<app>.ext`
-2. Usar variáveis Matugen: `{{colors.primary}}`, `{{colors.surface}}`
-3. Registrar em `matugen/default.nix`
+1. Create a template in `matugen/templates/<app>.ext`
+2. Use Matugen variables: `{{colors.primary}}`, `{{colors.surface}}`
+3. Register in `matugen/default.nix`
 
-## Keybinds Comuns
+## Common Keybinds
 
-Definidos em `hyprland.conf`:
+Defined in `hyprland.conf`:
 
 ```conf
-# Padrão
+# Default
 $mod = SUPER
 bind = $mod, Return, exec, kitty
 bind = $mod, D, exec, rofi -show drun
@@ -104,9 +104,9 @@ windowrulev2 = float, class:^(pavucontrol)$
 windowrulev2 = workspace 2, class:^(firefox)$
 ```
 
-## Waybar Módulos
+## Waybar Modules
 
-Definidos em `waybar/config.jsonc`:
+Defined in `waybar/config.jsonc`:
 
 ```json
 {
@@ -116,21 +116,21 @@ Definidos em `waybar/config.jsonc`:
 }
 ```
 
-## Como Modificar
+## How to Modify
 
-### Adicionar Keybind
+### Add a Keybind
 
-Editar `hyprland.conf`:
+Edit `hyprland.conf`:
 
 ```conf
 bind = $mod SHIFT, S, exec, screenshot-script
 ```
 
-### Adicionar Módulo Waybar
+### Add a Waybar Module
 
-1. Editar `waybar/config.jsonc` - adicionar módulo
-2. Editar `waybar/style.css` - estilizar
+1. Edit `waybar/config.jsonc` - add module
+2. Edit `waybar/style.css` - style it
 
-### Mudar Tema
+### Change Theme
 
-Executar matugen com nova imagem de wallpaper.
+Run matugen with a new wallpaper image.

@@ -1,6 +1,6 @@
 ---
 name: git-workflow
-description: "Git workflow para Nalyx. Use ao criar branches, fazer commits, ou preparar PRs."
+description: "Git workflow for Nalyx. Use when creating branches, making commits, or preparing PRs."
 user-invocable: true
 ---
 
@@ -8,28 +8,28 @@ user-invocable: true
 
 ## Branches
 
-### Formato
+### Format
 
 ```bash
 type/short-description
 
-# Exemplos
+# Examples
 feat/add-hyprland-keybinds
 fix/nvidia-driver-config
 refactor/split-cli-modules
 ```
 
-### Prefixos
+### Prefixes
 
-| Prefixo | Uso |
-|---------|-----|
-| `feat` | Nova feature/módulo |
-| `fix` | Correção de bug |
-| `refactor` | Refatoração |
-| `chore` | Manutenção |
-| `docs` | Documentação |
+| Prefix | Usage |
+|--------|-------|
+| `feat` | New feature/module |
+| `fix` | Bug fix |
+| `refactor` | Refactoring |
+| `chore` | Maintenance |
+| `docs` | Documentation |
 
-### Criar Branch
+### Create a Branch
 
 ```bash
 git checkout main
@@ -39,7 +39,7 @@ git checkout -b feat/my-feature
 
 ## Commits
 
-### Formato
+### Format
 
 ```
 type: short description (max 72 chars)
@@ -48,58 +48,58 @@ type: short description (max 72 chars)
 - another detail
 ```
 
-### Regras
+### Rules
 
-- Max 50 caracteres no título
+- Max 50 characters in the title
 - Lowercase
-- Sem ponto no final
-- Modo imperativo ("add" não "added")
-- **NÃO** adicionar `Co-Authored-By` nas mensagens de commit
+- No period at the end
+- Imperative mood ("add" not "added")
+- **DO NOT** add `Co-Authored-By` to commit messages
 
-### Exemplos
+### Examples
 
 ```bash
-# Simples
+# Simple
 feat: add waybar module
 
-# Com detalhes
+# With details
 fix: resolve nvidia sleep issues
 
 - add power management options
 - update kernel params
 ```
 
-## Antes de Commitar
+## Before Committing
 
-### Validar
+### Validate
 
 ```bash
-# 1. Formatar
+# 1. Format
 nix fmt
 
-# 2. Verificar
+# 2. Verify
 nix flake check --no-build
 
-# 3. (Opcional) Testar rebuild
+# 3. (Optional) Test rebuild
 sudo nixos-rebuild dry-run --flake .#<host>
 ```
 
 ### Checklist
 
 ```
-[ ] nix fmt executado
-[ ] nix flake check passa
-[ ] Commit message segue convenção
-[ ] Sem secrets expostos
+[ ] nix fmt executed
+[ ] nix flake check passes
+[ ] Commit message follows convention
+[ ] No secrets exposed
 ```
 
 ## Pull Requests
 
 ### Target
 
-**SEMPRE** `main`
+**ALWAYS** `main`
 
-### Título
+### Title
 
 ```
 type: description
@@ -108,31 +108,31 @@ type: description
 ### Body
 
 ```markdown
-## O que este PR faz?
+## What does this PR do?
 
-- Mudança 1
-- Mudança 2
+- Change 1
+- Change 2
 
-## Como testar?
+## How to test?
 
 1. `sudo nixos-rebuild switch --flake .#<host>`
-2. Verificar comportamento esperado
+2. Verify expected behavior
 ```
 
-### Criar PR
+### Create a PR
 
 ```bash
 gh pr create \
   --base main \
   --title "feat: add feature description" \
   --body "$(cat <<'EOF'
-## O que este PR faz?
+## What does this PR do?
 
-- Descrição das mudanças
+- Description of changes
 
-## Como testar?
+## How to test?
 
-1. Passos de teste
+1. Testing steps
 EOF
 )"
 ```

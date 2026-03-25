@@ -7,20 +7,20 @@ paths:
 
 # Nix Coding Rules
 
-## Estrutura de Módulos
+## Module Structure
 
-### Padrão Básico
+### Basic Pattern
 
 ```nix
 { pkgs, vars, lib, config, ... }:
 {
   imports = [ ];
 
-  # Configurações aqui
+  # Configurations here
 }
 ```
 
-### Com Condicionais
+### With Conditionals
 
 ```nix
 { pkgs, vars, lib, ... }:
@@ -32,70 +32,70 @@ paths:
 }
 ```
 
-## Formatação
+## Formatting
 
-### Usar nixfmt
+### Use nixfmt
 
 ```bash
-# Formatar arquivo específico
+# Format a specific file
 nix fmt path/to/file.nix
 
-# Formatar todo o projeto
+# Format the entire project
 nix fmt
 ```
 
-### Indentação
+### Indentation
 
-- 2 espaços
-- Sem tabs
+- 2 spaces
+- No tabs
 
 ## Imports
 
-### Ordem de Imports
+### Import Order
 
-1. Módulos locais obrigatórios
+1. Required local modules
 2. Hardware configuration
-3. Módulos condicionais
+3. Conditional modules
 
 ```nix
 imports = [
-  # 1. Base obrigatória
+  # 1. Required base
   ./hardware-configuration.nix
   ../../modules/core
 
   # 2. Drivers
   ../../modules/drivers/nvidia.nix
 
-  # 3. Condicionais
+  # 3. Conditionals
 ] ++ (lib.optional condition ./optional);
 ```
 
-### Caminhos
+### Paths
 
-- Usar caminhos relativos
-- `./` para mesmo diretório
-- `../` para subir níveis
+- Use relative paths
+- `./` for the same directory
+- `../` to go up levels
 
-## Pacotes
+## Packages
 
-### Declaração
+### Declaration
 
 ```nix
-# Preferir with pkgs para listas
+# Prefer with pkgs for lists
 environment.systemPackages = with pkgs; [
   vim
   git
   curl
 ];
 
-# Ou explícito para poucos pacotes
+# Or explicit for few packages
 home.packages = [ pkgs.htop ];
 ```
 
-### Overlays e Overrides
+### Overlays and Overrides
 
 ```nix
-# Override com argumentos
+# Override with arguments
 (pkgs.google-chrome.override {
   commandLineArgs = [ "--flag" ];
 })
@@ -103,34 +103,34 @@ home.packages = [ pkgs.htop ];
 
 ## Home-Manager
 
-### Estrutura
+### Structure
 
 ```nix
 home = {
   username = vars.user.name;
   homeDirectory = "/home/${vars.user.name}";
-  stateVersion = "25.11";  # Não mudar sem migração
+  stateVersion = "25.11";  # Do not change without migration
 
   packages = with pkgs; [ ];
   sessionVariables = { };
 };
 ```
 
-### Programas
+### Programs
 
 ```nix
-programs.nome = {
+programs.name = {
   enable = true;
-  # configurações específicas
+  # specific configurations
 };
 ```
 
-## Variáveis (vars.nix)
+## Variables (vars.nix)
 
-### Acessar Variáveis
+### Accessing Variables
 
 ```nix
-# No módulo
+# In the module
 { vars, ... }:
 {
   users.users.${vars.user.name} = { };
@@ -138,24 +138,24 @@ programs.nome = {
 }
 ```
 
-### Adicionar Novas
+### Adding New Variables
 
 ```nix
-# Em vars.nix
+# In vars.nix
 {
   user = {
     name = "aly";
     email = "email@example.com";
-    newVar = "value";  # Nova variável
+    newVar = "value";  # New variable
   };
 
-  newTopLevel = "value";  # Nova variável top-level
+  newTopLevel = "value";  # New top-level variable
 }
 ```
 
 ## Secrets (SOPS)
 
-### Declaração
+### Declaration
 
 ```nix
 sops = {
@@ -163,41 +163,41 @@ sops = {
   defaultSopsFormat = "yaml";
   age.sshKeyPaths = [ "/home/${vars.user.name}/.ssh/id_ed25519" ];
 
-  secrets.nome_secret.neededForUsers = true;
+  secrets.secret_name.neededForUsers = true;
 };
 ```
 
-### Uso
+### Usage
 
 ```nix
-# Referência ao arquivo descriptografado
-config.sops.secrets.nome_secret.path
+# Reference to the decrypted file
+config.sops.secrets.secret_name.path
 ```
 
 ## Anti-Patterns
 
-### Evitar
+### Avoid
 
 ```nix
-# ❌ Import de string
+# ❌ String import
 imports = [ "/absolute/path" ];
 
-# ❌ with em escopo muito amplo
+# ❌ with in overly broad scope
 with pkgs; with lib; { }
 
 # ❌ Hardcoded paths
 home.file."/home/aly/.config" = { };
 
-# ❌ Duplicação de código
-# Extrair para módulo compartilhado
+# ❌ Code duplication
+# Extract to a shared module
 
-# ❌ Atributos repetidos (statix W:20)
-# Atribuir a mesma key várias vezes causa warning
+# ❌ Repeated attributes (statix W:20)
+# Assigning the same key multiple times causes a warning
 sops.secrets.password.neededForUsers = true;
 sops.secrets.anytype_api_token.owner = vars.user.name;
 sops.secrets.slack_bot_token.owner = vars.user.name;
 
-# ✅ Agrupar num único bloco
+# ✅ Group into a single block
 sops.secrets = {
   password.neededForUsers = true;
   anytype_api_token.owner = vars.user.name;
@@ -205,25 +205,25 @@ sops.secrets = {
 };
 ```
 
-### Preferir
+### Prefer
 
 ```nix
-# ✅ Import relativo
+# ✅ Relative import
 imports = [ ./relative/path ];
 
-# ✅ with em escopo limitado
+# ✅ with in limited scope
 packages = with pkgs; [ vim git ];
 
-# ✅ Variáveis
+# ✅ Variables
 home.file."${config.home.homeDirectory}/.config" = { };
 
-# ✅ Módulos reutilizáveis
+# ✅ Reusable modules
 imports = [ ../../shared/common.nix ];
 ```
 
 ## Flakes
 
-### Estrutura do flake.nix
+### flake.nix Structure
 
 ```nix
 {
@@ -231,7 +231,7 @@ imports = [ ../../shared/common.nix ];
 
   inputs = {
     nixpkgs.url = "...";
-    # outros inputs
+    # other inputs
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {
@@ -242,12 +242,12 @@ imports = [ ../../shared/common.nix ];
 }
 ```
 
-### Atualizar Inputs
+### Updating Inputs
 
 ```bash
-# Atualizar todos
+# Update all
 nix flake update
 
-# Atualizar específico
+# Update a specific one
 nix flake lock --update-input nixpkgs
 ```

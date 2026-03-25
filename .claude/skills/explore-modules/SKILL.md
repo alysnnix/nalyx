@@ -1,6 +1,6 @@
 ---
 name: explore-modules
-description: "Explorar módulos NixOS. Use para debug de sistema, drivers, desktop modules, ou core config."
+description: "Explore NixOS modules. Use for system debugging, drivers, desktop modules, or core config."
 user-invocable: true
 ---
 
@@ -8,44 +8,44 @@ user-invocable: true
 
 ## Overview
 
-| Aspecto | Valor |
-|---------|-------|
-| Diretório | `modules/` |
-| Tipos | core, desktop, drivers, secureboot |
+| Aspect | Value |
+|--------|-------|
+| Directory | `modules/` |
+| Types | core, desktop, drivers, secureboot |
 
-## Estrutura
+## Structure
 
 ```
 modules/
-├── core/                 # Configuração base do sistema
-│   └── default.nix       # Nix settings, users, packages base
-├── desktop/              # Módulos de ambiente gráfico
+├── core/                 # Base system configuration
+│   └── default.nix       # Nix settings, users, base packages
+├── desktop/              # Graphical environment modules
 │   ├── gnome.nix         # GNOME Desktop
 │   └── hyprland.nix      # Hyprland compositor
-├── drivers/              # Drivers de hardware
+├── drivers/              # Hardware drivers
 │   ├── nvidia.nix        # NVIDIA GPU
 │   └── intel.nix         # Intel GPU
 └── secureboot/           # Secure Boot (Lanzaboote)
     └── default.nix
 ```
 
-## Módulo Core
+## Core Module
 
-### Localização
+### Location
 
 ```
 modules/core/default.nix
 ```
 
-### O Que Configura
+### What It Configures
 
-| Categoria | Configuração |
-|-----------|--------------|
+| Category | Configuration |
+|----------|---------------|
 | Nix | Flakes, auto-optimise, gc |
 | Boot | systemd-boot, kernel modules |
-| Rede | NetworkManager, Tailscale |
-| Users | User principal, grupos |
-| Shell | ZSH como padrão |
+| Network | NetworkManager, Tailscale |
+| Users | Main user, groups |
+| Shell | ZSH as default |
 | Secrets | SOPS-nix |
 | Fonts | JetBrains Mono, Fira Code |
 
@@ -54,43 +54,43 @@ modules/core/default.nix
 ```nix
 kernelModules = [
   "v4l2loopback"  # OBS Virtual Camera
-  "it87"          # Sensores Gigabyte
-  "coretemp"      # Temperatura CPU
+  "it87"          # Gigabyte sensors
+  "coretemp"      # CPU temperature
 ];
 ```
 
-## Módulo NVIDIA
+## NVIDIA Module
 
-### Localização
+### Location
 
 ```
 modules/drivers/nvidia.nix
 ```
 
-### Configurações
+### Configurations
 
-- Driver proprietário
+- Proprietary driver
 - Modesetting
 - Power management
 - CUDA support
 
-### Usado Por
+### Used By
 
 - `hosts/desktop/default.nix`
 
-## Módulo Intel
+## Intel Module
 
-### Localização
+### Location
 
 ```
 modules/drivers/intel.nix
 ```
 
-### Usado Por
+### Used By
 
 - `hosts/laptop/default.nix`
 
-## Módulos Desktop
+## Desktop Modules
 
 ### GNOME
 
@@ -100,7 +100,7 @@ modules/desktop/gnome.nix
 
 - GDM display manager
 - GNOME shell
-- Extensões básicas
+- Basic extensions
 
 ### Hyprland
 
@@ -112,10 +112,10 @@ modules/desktop/hyprland.nix
 - XDG portals
 - Wayland session
 
-### Seleção Condicional
+### Conditional Selection
 
 ```nix
-# Em hosts/<host>/default.nix
+# In hosts/<host>/default.nix
 imports = [
 ] ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
@@ -123,67 +123,67 @@ imports = [
 
 ## Secure Boot
 
-### Localização
+### Location
 
 ```
 modules/secureboot/default.nix
 ```
 
-### Usa
+### Uses
 
-- Lanzaboote para boot seguro
+- Lanzaboote for secure boot
 - TPM2 support
 
-## Como Adicionar Novo Módulo
+## How to Add a New Module
 
-### 1. Criar Arquivo
+### 1. Create File
 
 ```bash
-touch modules/<categoria>/<nome>.nix
+touch modules/<category>/<name>.nix
 ```
 
-### 2. Estrutura Básica
+### 2. Basic Structure
 
 ```nix
 { pkgs, vars, lib, config, ... }:
 {
-  # Configurações do módulo
+  # Module configurations
 }
 ```
 
-### 3. Importar no Host
+### 3. Import in the Host
 
 ```nix
 # hosts/<host>/default.nix
 imports = [
-  ../../modules/<categoria>/<nome>.nix
+  ../../modules/<category>/<name>.nix
 ];
 ```
 
-## Padrões Comuns
+## Common Patterns
 
-### Módulo Condicional
+### Conditional Module
 
 ```nix
 { lib, config, ... }:
 {
-  config = lib.mkIf config.programs.nome.enable {
-    # Configurações quando habilitado
+  config = lib.mkIf config.programs.name.enable {
+    # Configurations when enabled
   };
 }
 ```
 
-### Módulo com Options
+### Module with Options
 
 ```nix
 { lib, ... }:
 {
-  options.meu-modulo = {
-    enable = lib.mkEnableOption "Meu módulo";
+  options.my-module = {
+    enable = lib.mkEnableOption "My module";
   };
 
-  config = lib.mkIf config.meu-modulo.enable {
-    # Configurações
+  config = lib.mkIf config.my-module.enable {
+    # Configurations
   };
 }
 ```

@@ -1,6 +1,6 @@
 ---
 name: explore-hosts
-description: "Explorar configurações de hosts. Use para debug de hosts específicos, entender diferenças entre desktop/laptop/wsl, ou modificar configurações de máquina."
+description: "Explore host configurations. Use for debugging specific hosts, understanding differences between desktop/laptop/wsl, or modifying machine configurations."
 user-invocable: true
 ---
 
@@ -8,39 +8,39 @@ user-invocable: true
 
 ## Overview
 
-| Aspecto | Valor |
-|---------|-------|
-| Diretório | `hosts/` |
+| Aspect | Value |
+|--------|-------|
+| Directory | `hosts/` |
 | Entry Point | `hosts/<hostname>/default.nix` |
-| Montagem | `flake.nix` → `fnMountSystem` |
+| Assembly | `flake.nix` → `fnMountSystem` |
 
-## Hosts Disponíveis
+## Available Hosts
 
-| Host | Hardware | Desktop | Especial |
-|------|----------|---------|----------|
+| Host | Hardware | Desktop | Special |
+|------|----------|---------|---------|
 | `desktop` | NVIDIA | Hyprland/GNOME | Steam, Gaming |
 | `laptop` | Intel | Hyprland/GNOME | - |
 | `wsl` | Virtual | - | Docker Desktop, WSL2 |
-| `vm` | Virtual | Hyprland/GNOME | Testes |
+| `vm` | Virtual | Hyprland/GNOME | Testing |
 
-## Estrutura de um Host
+## Host Structure
 
 ```
 hosts/<hostname>/
-├── default.nix              # Configuração principal
-└── hardware-configuration.nix  # Gerado automaticamente (NÃO EDITAR)
+├── default.nix              # Main configuration
+└── hardware-configuration.nix  # Auto-generated (DO NOT EDIT)
 ```
 
-## Arquivos-Chave
+## Key Files
 
 ```
-hosts/desktop/default.nix    # PC principal, NVIDIA, gaming
+hosts/desktop/default.nix    # Main PC, NVIDIA, gaming
 hosts/laptop/default.nix     # Notebook
 hosts/wsl/default.nix        # WSL2 config
-hosts/vm/default.nix         # VM para testes
+hosts/vm/default.nix         # VM for testing
 ```
 
-## Padrão de Host
+## Host Pattern
 
 ```nix
 { vars, lib, ... }:
@@ -56,50 +56,50 @@ hosts/vm/default.nix         # VM para testes
 }
 ```
 
-## Diferenças Entre Hosts
+## Differences Between Hosts
 
 ### Desktop vs Laptop
 
-- **Desktop**: NVIDIA driver, Steam, GRUB com OS-Prober
-- **Laptop**: Intel driver, systemd-boot padrão
+- **Desktop**: NVIDIA driver, Steam, GRUB with OS-Prober
+- **Laptop**: Intel driver, default systemd-boot
 
 ### WSL vs Native
 
-- **WSL**: Sem desktop, sem drivers gráficos, Docker Desktop
-- **Native**: Desktop completo, drivers, home-manager GUI
+- **WSL**: No desktop, no graphical drivers, Docker Desktop
+- **Native**: Full desktop, drivers, home-manager GUI
 
-## Como Adicionar Novo Host
+## How to Add a New Host
 
-1. Criar diretório `hosts/<novo>/`
-2. Gerar hardware-config: `nixos-generate-config --show-hardware-config`
-3. Criar `default.nix` seguindo o padrão
-4. Adicionar em `flake.nix`:
+1. Create directory `hosts/<new>/`
+2. Generate hardware-config: `nixos-generate-config --show-hardware-config`
+3. Create `default.nix` following the pattern
+4. Add in `flake.nix`:
 
 ```nix
 nixosConfigurations = {
-  novo = fnMountSystem { hostname = "novo"; };
+  new = fnMountSystem { hostname = "new"; };
 };
 ```
 
-## Comandos Úteis
+## Useful Commands
 
 ```bash
-# Rebuild host específico
+# Rebuild a specific host
 sudo nixos-rebuild switch --flake .#desktop
 
-# Dry-run (verificar sem aplicar)
+# Dry-run (verify without applying)
 sudo nixos-rebuild dry-run --flake .#laptop
 
-# Build sem switch
+# Build without switching
 sudo nixos-rebuild build --flake .#vm
 ```
 
-## Variável isWsl
+## isWsl Variable
 
 ```nix
-# Definida automaticamente no flake.nix
-isWsl = true;  # Apenas para host wsl
+# Automatically defined in flake.nix
+isWsl = true;  # Only for the wsl host
 
-# Usada em home/default.nix para imports condicionais
+# Used in home/default.nix for conditional imports
 ++ lib.optionals (!isWsl) [ ./features/programs ];
 ```
