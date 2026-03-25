@@ -25,7 +25,7 @@ EXTRA_ARGS=()
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/vars-override.nix" ]; then
   echo "  private: $PRIVATE_DIR"
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
-elif ssh -o BatchMode=yes -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+elif SSH_OUTPUT=$(ssh -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com 2>&1 || true) && echo "$SSH_OUTPUT" | grep -qi "successfully authenticated"; then
   echo "  private: cloning $PRIVATE_REPO..."
   mkdir -p "$(dirname "$PRIVATE_DIR")"
   git clone "$PRIVATE_REPO" "$PRIVATE_DIR"
