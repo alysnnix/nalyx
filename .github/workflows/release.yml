@@ -16,10 +16,10 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install Nix
-      uses: DeterminateSystems/nix-installer-action@v9
+      uses: DeterminateSystems/nix-installer-action@v21
 
     - name: Setup Nix cache
-      uses: DeterminateSystems/magic-nix-cache-action@v2
+      uses: DeterminateSystems/magic-nix-cache-action@v13
 
     - name: Build Desktop ISO
       run: |
@@ -33,6 +33,12 @@ jobs:
         cp result/iso/*.iso laptop-nixos.iso
         rm result
 
+    - name: Build Homelab ISO
+      run: |
+        nix build .#homelab-iso
+        cp result/iso/*.iso homelab-nixos.iso
+        rm result
+
     - name: Upload ISO Artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -40,4 +46,5 @@ jobs:
         path: |
           desktop-nixos.iso
           laptop-nixos.iso
+          homelab-nixos.iso
         retention-days: 7
