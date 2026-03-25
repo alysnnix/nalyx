@@ -79,6 +79,7 @@
     git
     curl
     sbctl
+    sops
     v4l-utils
   ];
 
