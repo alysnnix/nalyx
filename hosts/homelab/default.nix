@@ -1,5 +1,6 @@
 {
   vars,
+  pkgs,
   ...
 }:
 {
@@ -42,8 +43,11 @@
     openFirewall = true;
   };
 
-  users.users.${vars.user.name}.openssh.authorizedKeys.keys = [
-    vars.user.publicKey
+  users.users.${vars.user.name}.openssh.authorizedKeys.keyFiles = [
+    (builtins.fetchurl {
+      url = "https://github.com/${vars.user.social.github}.keys";
+      sha256 = "134sxqhxsiphqz82l33vmalfabhi121404jg6ljs0n55c4svlq9l";
+    })
   ];
 
   home-manager.users.${vars.user.name} = import ../../home;

@@ -5,7 +5,7 @@
     publicKey = "";
 
     social = {
-      github = "";
+      github = "alysnnix";
     };
   };
 
