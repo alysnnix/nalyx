@@ -77,6 +77,11 @@ in
         services.openssh.settings.PasswordAuthentication = pkgs.lib.mkForce true;
         # Set a known password for the live environment
         users.users.${vars.user.name}.initialPassword = pkgs.lib.mkForce "install";
+
+        # Homelab installer script available as `homelab-install`
+        environment.systemPackages = [
+          (pkgs.writeShellScriptBin "homelab-install" (builtins.readFile ../scripts/homelab-install.sh))
+        ];
       }
     ];
   };
