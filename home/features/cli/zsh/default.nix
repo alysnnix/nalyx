@@ -36,7 +36,7 @@ in
 
     shellAliases = {
       l = "ls -la";
-      up = "update-sys";
+      switch = "update-sys";
       pull = "git stash && git pull && git stash pop";
     };
 

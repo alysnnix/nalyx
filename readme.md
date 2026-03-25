@@ -7,11 +7,9 @@ Built with **Flakes**, **Home-Manager**, **SOPS-nix** for secrets management, an
 ## Quick Start
 
 ```bash
-# Build and switch (auto-detects private repo if present)
-up
-
-# Or manually
-sudo nixos-rebuild switch --flake .#desktop
+switch          # auto-detects hostname and private repo
+switch wsl      # switch to a specific host
+switch desktop  # switch to desktop config
 ```
 
 ## Architecture: Public / Private Split
@@ -76,8 +74,8 @@ cd ~/nalyx
 # Without private repo (safe defaults)
 sudo nixos-rebuild switch --flake .#desktop
 
-# With private repo (auto-detected by the `up` command)
-up
+# With private repo (auto-detected)
+switch
 ```
 
 ### Alternative: Lock Private Permanently

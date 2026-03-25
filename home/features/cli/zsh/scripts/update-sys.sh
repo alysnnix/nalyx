@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+HOST="${1:-$(hostname)}"
+
 find_flake_dir() {
   local dir="$PWD"
   while [ "$dir" != "/" ]; do
@@ -11,7 +13,6 @@ find_flake_dir() {
 }
 
 FLAKE_DIR=$(find_flake_dir)
-HOST=$(hostname)
 PRIVATE_DIR="$FLAKE_DIR/../nalyx-private"
 
 echo "Rodando update do sistema..."
