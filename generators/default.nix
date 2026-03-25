@@ -11,19 +11,24 @@
 
 let
   fnMountISO =
-    hostname:
+    {
+      hostname,
+      isServer ? false,
+      hostVars ? vars,
+      extraModules ? [ ],
+    }:
     inputs.nixos-generators.nixosGenerate {
       inherit system;
       format = "install-iso";
       specialArgs = {
         inherit
           inputs
-          vars
           lanzaboote
           sops-nix
           hasPrivate
           private
           ;
+        vars = hostVars;
       };
 
       modules = [
@@ -38,12 +43,12 @@ let
             extraSpecialArgs = {
               inherit
                 inputs
-                vars
+                isServer
                 hasPrivate
                 private
                 ;
+              vars = hostVars;
               isWsl = false;
-              isServer = false;
               enableClaude = true;
               enableGemini = true;
             };
@@ -51,12 +56,28 @@ let
         }
 
         {
-          services.getty.autologinUser = pkgs.lib.mkForce vars.user.name;
+          services.getty.autologinUser = pkgs.lib.mkForce hostVars.user.name;
         }
-      ];
+      ]
+      ++ extraModules;
     };
 in
 {
-  desktop = fnMountISO "desktop";
-  laptop = fnMountISO "laptop";
+  desktop = fnMountISO { hostname = "desktop"; };
+  laptop = fnMountISO { hostname = "laptop"; };
+  homelab = fnMountISO {
+    hostname = "homelab";
+    isServer = true;
+    hostVars = vars // {
+      desktop = null;
+    };
+    extraModules = [
+      {
+        # Allow temporary password auth in the live ISO for remote installation
+        services.openssh.settings.PasswordAuthentication = pkgs.lib.mkForce true;
+        # Set a known password for the live environment
+        users.users.${vars.user.name}.initialPassword = pkgs.lib.mkForce "install";
+      }
+    ];
+  };
 }

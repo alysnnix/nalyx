@@ -6,6 +6,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/core/default.nix
+    ../../modules/services/openclaw.nix
   ];
 
   networking = {
@@ -27,6 +28,18 @@
       PermitRootLogin = "no";
       PasswordAuthentication = false;
     };
+  };
+
+  # Avahi mDNS — publishes homelab.local on the network
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+    publish = {
+      enable = true;
+      addresses = true;
+      workstation = true;
+    };
+    openFirewall = true;
   };
 
   users.users.${vars.user.name}.openssh.authorizedKeys.keys = [

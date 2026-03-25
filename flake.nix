@@ -184,6 +184,7 @@
       packages.${system} = {
         desktop-iso = isos.desktop;
         laptop-iso = isos.laptop;
+        homelab-iso = isos.homelab;
       };
 
       # Eval-only checks: validates all configurations without building
