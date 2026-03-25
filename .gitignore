@@ -14,9 +14,8 @@ AI_WORKFLOW.md
 *.age
 keys.txt
 
-# Sub-repositories (independent git repos)
-nalyx-public/
-nalyx-private/
+# Private repositories (cloned inside .private/)
+.private/
 
 # Private configurations - ignore everything except the placeholder
 private/*

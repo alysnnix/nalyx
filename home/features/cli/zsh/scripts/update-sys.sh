@@ -13,7 +13,7 @@ find_flake_dir() {
 }
 
 FLAKE_DIR=$(find_flake_dir)
-PRIVATE_DIR="$FLAKE_DIR/../nalyx-private"
+PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
 
 echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
@@ -24,7 +24,7 @@ if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/vars-override.nix" ]; then
   echo "  private: $PRIVATE_DIR"
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
 else
-  echo "  private: (nao encontrado, usando defaults)"
+  echo "  private: (not found, using defaults)"
 fi
 
 sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}"

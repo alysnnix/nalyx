@@ -5,11 +5,12 @@ Personal NixOS configuration with public/private split for multi-host support: d
 ## Quick Start
 
 ```bash
-# Build system (desktop, laptop, wsl, vm, homelab)
-up  # auto-detects private repo
+# Build system (auto-detects hostname and private repo)
+switch
 
-# Or manually
-sudo nixos-rebuild switch --flake .#desktop
+# Specify a host
+switch wsl
+switch desktop
 
 # Validate without building
 nix flake check --no-build
@@ -48,18 +49,17 @@ NEVER put personal data in the public repo
 ## Public / Private Architecture
 
 ```
-~/nalyx/           (PUBLIC - this repo)
-├── vars.nix       # Safe defaults (user@example.com, empty keys)
-├── flake.nix      # Detects private repo, merges vars
-├── private/       # Empty placeholder directory
+~/nalyx/                          (PUBLIC - this repo)
+├── .private/                      # gitignored — private repos live here
+│   └── nalyx-private/             # cloned via git (optional)
+│       ├── vars-override.nix      # Real values merged over defaults
+│       ├── secrets/secrets.yaml   # SOPS-encrypted passwords and tokens
+│       ├── scripts/               # Private shell scripts
+│       └── .sops.yaml
+├── flake.nix                      # Detects private repo, merges vars
+├── vars.nix                       # Safe defaults (user@example.com, empty keys)
+├── private/default.nix            # Empty placeholder (fallback)
 └── ...
-
-~/nalyx-private/   (PRIVATE - separate repo, optional)
-├── vars-override.nix   # Real values merged over defaults
-├── secrets/
-│   └── secrets.yaml    # SOPS-encrypted passwords and tokens
-├── scripts/            # Private shell scripts
-└── .sops.yaml
 ```
 
 ### How hasPrivate Works

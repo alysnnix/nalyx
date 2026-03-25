@@ -15,41 +15,30 @@ switch desktop  # switch to desktop config
 ## Architecture: Public / Private Split
 
 ```
-~/
-├── nalyx/                  # PUBLIC repo (this one)
-│   ├── flake.nix           # Entry point - detects private repo automatically
-│   ├── vars.nix            # Safe defaults (user@example.com, empty keys)
-│   ├── private/            # Empty placeholder (keeps flake happy)
-│   ├── hosts/              # Per-machine configurations
-│   │   ├── desktop/        # Main PC (NVIDIA, gaming)
-│   │   ├── laptop/         # Notebook (Intel)
-│   │   ├── wsl/            # Windows Subsystem for Linux
-│   │   ├── vm/             # Virtual machine
-│   │   └── homelab/        # Headless server (Tailscale only)
-│   ├── home/               # Home-Manager configs
-│   │   └── features/       # Modules by category
-│   │       ├── cli/        # CLI tools (zsh, git, ssh)
-│   │       ├── desktop/    # Desktop environments (hyprland, gnome)
-│   │       ├── languages/  # Dev languages (node, python, go, nix)
-│   │       └── programs/   # Apps (firefox, vscode, docker)
-│   ├── modules/            # Reusable NixOS modules
-│   │   ├── core/           # Base system config
-│   │   ├── desktop/        # Desktop modules (hyprland, gnome)
-│   │   ├── drivers/        # Hardware drivers (nvidia, intel)
-│   │   └── secureboot/     # Secure Boot (lanzaboote)
-│   └── generators/         # ISO generation
-│
-└── nalyx-private/          # PRIVATE repo (optional)
-    ├── vars-override.nix   # Real email, SSH keys, GitHub username
-    ├── secrets/             # SOPS-encrypted secrets (passwords, tokens)
-    │   └── secrets.yaml
-    ├── scripts/             # Private shell scripts
-    └── .sops.yaml           # SOPS encryption rules
+~/nalyx/                        # PUBLIC repo (this one)
+├── .private/                    # gitignored — private repos live here
+│   └── nalyx-private/           # PRIVATE repo (optional)
+│       ├── vars-override.nix    # Real email, SSH keys, GitHub username
+│       ├── secrets/             # SOPS-encrypted secrets (passwords, tokens)
+│       ├── scripts/             # Private shell scripts
+│       └── .sops.yaml           # SOPS encryption rules
+├── flake.nix                    # Entry point — detects private repo automatically
+├── vars.nix                     # Safe defaults (user@example.com, empty keys)
+├── private/                     # Empty placeholder (keeps flake happy)
+├── hosts/                       # Per-machine configurations
+│   ├── desktop/                 # Main PC (NVIDIA, gaming)
+│   ├── laptop/                  # Notebook (Intel)
+│   ├── wsl/                     # Windows Subsystem for Linux
+│   ├── vm/                      # Virtual machine
+│   └── homelab/                 # Headless server (Tailscale only)
+├── home/features/               # Home-Manager modules (cli, desktop, languages, programs)
+├── modules/                     # Reusable NixOS modules (core, desktop, drivers, secureboot)
+└── generators/                  # ISO generation
 ```
 
 ### How It Works
 
-The `flake.nix` checks if `nalyx-private/vars-override.nix` exists:
+The `switch` command checks if `.private/nalyx-private/vars-override.nix` exists:
 
 - **With private repo**: Merges `vars-override.nix` over defaults, enables SOPS secrets, loads private scripts
 - **Without private repo**: Uses safe defaults from `vars.nix`, sets `initialPassword = "changeme"`, skips SOPS entirely
@@ -58,24 +47,25 @@ Modules receive `hasPrivate` and `private` as arguments, and use them to conditi
 
 ## Setup
 
-### 1. Clone the repositories side by side
+### 1. Clone
 
 ```bash
-cd ~
-git clone https://github.com/<your-username>/nalyx.git
-git clone git@github.com:<your-username>/nalyx-private.git  # optional
+git clone https://github.com/<your-username>/nalyx.git ~/nalyx
+cd ~/nalyx
+
+# Optional: clone private repo inside .private/
+git clone git@github.com:<your-username>/nalyx-private.git .private/nalyx-private
 ```
 
 ### 2. Build
 
 ```bash
-cd ~/nalyx
-
 # Without private repo (safe defaults)
 sudo nixos-rebuild switch --flake .#desktop
 
-# With private repo (auto-detected)
+# With private repo (auto-detected by switch)
 switch
+switch wsl      # specify a host
 ```
 
 ### Alternative: Lock Private Permanently
