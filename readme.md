@@ -60,10 +60,10 @@ git clone git@github.com:<your-username>/nalyx-private.git .private/nalyx-privat
 ### 2. Build
 
 ```bash
-# Without private repo (safe defaults)
-sudo nixos-rebuild switch --flake .#desktop
+# First time (switch alias doesn't exist yet)
+bash home/features/cli/zsh/scripts/update-sys.sh wsl
 
-# With private repo (auto-detected by switch)
+# After the first rebuild, the alias is available
 switch
 switch wsl      # specify a host
 ```
