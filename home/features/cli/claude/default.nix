@@ -185,6 +185,11 @@ in
       # Remove old symlinks from previous home.file approach
       ${pkgs.findutils}/bin/find "$SKILLS_DST" -type l -lname '*/nix/store/*' -delete 2>/dev/null || true
 
+      # Remove old flat global-* directories (replaced by global/ and impeccable/ namespaces)
+      for old_dir in "$SKILLS_DST"/global-*; do
+        [ -d "$old_dir" ] && rm -rf "$old_dir"
+      done
+
       # Copy managed skills as real writeable files
       cp -rL --no-preserve=mode "${claudeSkillsSrc}/." "$SKILLS_DST/"
     '';
