@@ -109,75 +109,24 @@ let
 
   # Skills managed by nix: destination (relative to ~/.claude/skills/) -> source
   skillFiles = {
-    "global-devcontainer/SKILL.md" = ./skills/global-devcontainer/SKILL.md;
-    "global-generate-claude-doc/SKILL.md" = ./skills/global-generate-claude-doc/SKILL.md;
-    "global-git-workflow/SKILL.md" = ./skills/global-git-workflow/SKILL.md;
+    "global/devcontainer/SKILL.md" = ./skills/global/devcontainer/SKILL.md;
+    "global/generate-claude-doc/SKILL.md" = ./skills/global/generate-claude-doc/SKILL.md;
+    "global/git-workflow/SKILL.md" = ./skills/global/git-workflow/SKILL.md;
 
     # Templates - Stack specific rules
-    "global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =
-      ./skills/global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md;
-    "global-generate-claude-doc/templates/stack/typescript/rules/typescript.md" =
-      ./skills/global-generate-claude-doc/templates/stack/typescript/rules/typescript.md;
+    "global/generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =
+      ./skills/global/generate-claude-doc/templates/stack/testing-vitest/rules/testing.md;
+    "global/generate-claude-doc/templates/stack/typescript/rules/typescript.md" =
+      ./skills/global/generate-claude-doc/templates/stack/typescript/rules/typescript.md;
 
     # Templates - Universal
-    "global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
-      ./skills/global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md;
-    "global-generate-claude-doc/templates/universal/rules/quality.md" =
-      ./skills/global-generate-claude-doc/templates/universal/rules/quality.md;
+    "global/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
+      ./skills/global/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md;
+    "global/generate-claude-doc/templates/universal/rules/quality.md" =
+      ./skills/global/generate-claude-doc/templates/universal/rules/quality.md;
 
-    # Impeccable Skills
-    "global-impeccable-adapt/SKILL.md" = ./skills/impeccable/skills/global-impeccable-adapt/SKILL.md;
-    "global-impeccable-animate/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-animate/SKILL.md;
-    "global-impeccable-arrange/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-arrange/SKILL.md;
-    "global-impeccable-audit/SKILL.md" = ./skills/impeccable/skills/global-impeccable-audit/SKILL.md;
-    "global-impeccable-bolder/SKILL.md" = ./skills/impeccable/skills/global-impeccable-bolder/SKILL.md;
-    "global-impeccable-clarify/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-clarify/SKILL.md;
-    "global-impeccable-colorize/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-colorize/SKILL.md;
-    "global-impeccable-critique/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-critique/SKILL.md;
-    "global-impeccable-delight/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-delight/SKILL.md;
-    "global-impeccable-distill/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-distill/SKILL.md;
-    "global-impeccable-extract/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-extract/SKILL.md;
-    "global-impeccable-harden/SKILL.md" = ./skills/impeccable/skills/global-impeccable-harden/SKILL.md;
-    "global-impeccable-normalize/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-normalize/SKILL.md;
-    "global-impeccable-onboard/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-onboard/SKILL.md;
-    "global-impeccable-optimize/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-optimize/SKILL.md;
-    "global-impeccable-overdrive/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-overdrive/SKILL.md;
-    "global-impeccable-polish/SKILL.md" = ./skills/impeccable/skills/global-impeccable-polish/SKILL.md;
-    "global-impeccable-quieter/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-quieter/SKILL.md;
-    "global-impeccable-teach/SKILL.md" = ./skills/impeccable/skills/global-impeccable-teach/SKILL.md;
-    "global-impeccable-typeset/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-typeset/SKILL.md;
-
-    # Frontend Design Skill (with reference files)
-    "global-impeccable-frontend-design/SKILL.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/SKILL.md;
-    "global-impeccable-frontend-design/reference/color-and-contrast.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/color-and-contrast.md;
-    "global-impeccable-frontend-design/reference/interaction-design.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/interaction-design.md;
-    "global-impeccable-frontend-design/reference/motion-design.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/motion-design.md;
-    "global-impeccable-frontend-design/reference/responsive-design.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/responsive-design.md;
-    "global-impeccable-frontend-design/reference/spatial-design.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/spatial-design.md;
-    "global-impeccable-frontend-design/reference/typography.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/typography.md;
-    "global-impeccable-frontend-design/reference/ux-writing.md" =
-      ./skills/impeccable/skills/global-impeccable-frontend-design/reference/ux-writing.md;
+    # Impeccable skills: install via /plugin marketplace add pbakaus/impeccable
+    # Skills will be namespaced as impeccable:audit, impeccable:polish, etc.
   };
 
   # Build a derivation with all skill files collected in one directory tree
