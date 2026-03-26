@@ -64,6 +64,7 @@ let
   claudeSettingsBase = builtins.toJSON {
     enabledPlugins = {
       "figma@claude-plugins-official" = true;
+      "impeccable@pbakaus" = true;
     };
     statusLine = {
       type = "command";
@@ -108,32 +109,23 @@ let
   };
 
   # Skills managed by nix: destination (relative to ~/.claude/skills/) -> source
+  # Impeccable skills are managed as a plugin (impeccable@pbakaus) via enabledPlugins
   skillFiles = {
-    "global/devcontainer/SKILL.md" = ./skills/global/devcontainer/SKILL.md;
-    "global/generate-claude-doc/SKILL.md" = ./skills/global/generate-claude-doc/SKILL.md;
-    "global/git-workflow/SKILL.md" = ./skills/global/git-workflow/SKILL.md;
+    "global-devcontainer/SKILL.md" = ./skills/global/devcontainer/SKILL.md;
+    "global-generate-claude-doc/SKILL.md" = ./skills/global/generate-claude-doc/SKILL.md;
+    "global-git-workflow/SKILL.md" = ./skills/global/git-workflow/SKILL.md;
 
     # Templates - Stack specific rules
-    "global/generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =
+    "global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =
       ./skills/global/generate-claude-doc/templates/stack/testing-vitest/rules/testing.md;
-    "global/generate-claude-doc/templates/stack/typescript/rules/typescript.md" =
+    "global-generate-claude-doc/templates/stack/typescript/rules/typescript.md" =
       ./skills/global/generate-claude-doc/templates/stack/typescript/rules/typescript.md;
 
     # Templates - Universal
-    "global/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
+    "global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
       ./skills/global/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md;
-    "global/generate-claude-doc/templates/universal/rules/quality.md" =
+    "global-generate-claude-doc/templates/universal/rules/quality.md" =
       ./skills/global/generate-claude-doc/templates/universal/rules/quality.md;
-
-  };
-
-  # Impeccable design skills (pbakaus/impeccable)
-  # Installed under impeccable/ namespace -> skills appear as impeccable:audit, impeccable:polish, etc.
-  impeccableSrc = pkgs.fetchFromGitHub {
-    owner = "pbakaus";
-    repo = "impeccable";
-    rev = "9d368b777d222e213c9a8f4fa78f6f1d29cb492d";
-    hash = "sha256-kIRzjcgAUYKwkzOaDKkI8mVqOOBVd8fLShiEX2HtUWo=";
   };
 
   # Build a derivation with all skill files collected in one directory tree
@@ -145,16 +137,6 @@ let
         cp '${src}' "$out/${dest}"
       '') skillFiles
     )
-    + "\n# Impeccable: copy pre-built Claude Code skills under impeccable/ namespace\n"
-    + ''
-      if [ -d "${impeccableSrc}/.claude/skills" ]; then
-        for skill_dir in "${impeccableSrc}/.claude/skills"/*/; do
-          skill_name=$(basename "$skill_dir")
-          mkdir -p "$out/impeccable/$skill_name"
-          cp -r "$skill_dir"* "$out/impeccable/$skill_name/"
-        done
-      fi
-    ''
   );
 in
 {
@@ -185,8 +167,8 @@ in
       # Remove old symlinks from previous home.file approach
       ${pkgs.findutils}/bin/find "$SKILLS_DST" -type l -lname '*/nix/store/*' -delete 2>/dev/null || true
 
-      # Remove old flat global-* directories (replaced by global/ and impeccable/ namespaces)
-      for old_dir in "$SKILLS_DST"/global-*; do
+      # Remove stale directories from previous naming schemes
+      for old_dir in "$SKILLS_DST"/global "$SKILLS_DST"/impeccable "$SKILLS_DST"/generate-claude-doc; do
         [ -d "$old_dir" ] && rm -rf "$old_dir"
       done
 

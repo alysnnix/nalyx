@@ -1,5 +1,5 @@
 ---
-name: global:devcontainer
+name: global-devcontainer
 description: "Generate a .devcontainer/devcontainer.json with Claude Code pre-installed. Use to quickly set up a dev container in any repository."
 user-invocable: true
 ---

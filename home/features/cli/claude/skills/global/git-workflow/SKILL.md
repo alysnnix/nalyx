@@ -1,5 +1,5 @@
 ---
-name: global:git-workflow
+name: global-git-workflow
 description: "Git workflow instructions. Use when creating branches, making commits, or preparing pull requests."
 disable-model-invocation: true
 user-invocable: true
