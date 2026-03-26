@@ -125,8 +125,15 @@ let
     "global/generate-claude-doc/templates/universal/rules/quality.md" =
       ./skills/global/generate-claude-doc/templates/universal/rules/quality.md;
 
-    # Impeccable skills: install via /plugin marketplace add pbakaus/impeccable
-    # Skills will be namespaced as impeccable:audit, impeccable:polish, etc.
+  };
+
+  # Impeccable design skills (pbakaus/impeccable)
+  # Installed under impeccable/ namespace -> skills appear as impeccable:audit, impeccable:polish, etc.
+  impeccableSrc = pkgs.fetchFromGitHub {
+    owner = "pbakaus";
+    repo = "impeccable";
+    rev = "9d368b777d222e213c9a8f4fa78f6f1d29cb492d";
+    hash = "sha256-kIRzjcgAUYKwkzOaDKkI8mVqOOBVd8fLShiEX2HtUWo=";
   };
 
   # Build a derivation with all skill files collected in one directory tree
@@ -138,6 +145,16 @@ let
         cp '${src}' "$out/${dest}"
       '') skillFiles
     )
+    + "\n# Impeccable: copy pre-built Claude Code skills under impeccable/ namespace\n"
+    + ''
+      if [ -d "${impeccableSrc}/.claude/skills" ]; then
+        for skill_dir in "${impeccableSrc}/.claude/skills"/*/; do
+          skill_name=$(basename "$skill_dir")
+          mkdir -p "$out/impeccable/$skill_name"
+          cp -r "$skill_dir"* "$out/impeccable/$skill_name/"
+        done
+      fi
+    ''
   );
 in
 {
