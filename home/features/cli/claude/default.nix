@@ -18,6 +18,10 @@ let
     JQ="${pkgs.jq}/bin/jq"
     input=$(cat)
 
+    # DEBUG: dump raw JSON so we can find the correct cost field name
+    # Remove this line after confirming the field name
+    echo "$input" > /tmp/claude-statusline-debug.json
+
     model=$(echo "$input" | $JQ -r '.model.display_name // "Unknown"' | sed 's/^Claude //')
     used_pct=$(echo "$input" | $JQ -r '.context_window.used_percentage // empty')
 
@@ -51,14 +55,15 @@ let
       ctx="''${DIM}ᗧ●●●●●●●●●●●●●●● --%''${RST}"
     fi
 
-    # Alternate dance frames on each update
-    if (( $(date +%s) % 2 == 0 )); then
-      dance="''${DIM}┗(^o^)┛''${RST}"
+    cost=$(echo "$input" | $JQ -r '.session_cost_usd // empty')
+    if [ -n "$cost" ]; then
+      cost_fmt=$(printf '$%.4f' "$cost")
+      price="''${DIM}''${cost_fmt}''${RST}"
     else
-      dance="''${DIM}┏(^o^)┓''${RST}"
+      price="''${DIM}\$-.----''${RST}"
     fi
 
-    printf "%b" "''${ctx}  ''${DIM}''${RST}$model  $dance"
+    printf "%b" "''${ctx}  ''${DIM}''${RST}$model  $price"
   '';
 
   claudeSettingsBase = builtins.toJSON {
@@ -160,7 +165,7 @@ in
       docker run --rm -it \
         -v "$(pwd):/workspace" \
         -v "$HOME/.claude:/home/claude/.claude" \
-        -v "$HOME/.gitconfig:/home/claude/.gitconfig:ro" \
+        -v "$HOME/.config/git:/home/claude/.config/git:ro" \
         -v "$HOME/.ssh:/home/claude/.ssh:ro" \
         -e ANTHROPIC_API_KEY \
         -w /workspace \
