@@ -18,10 +18,6 @@ let
     JQ="${pkgs.jq}/bin/jq"
     input=$(cat)
 
-    # DEBUG: dump raw JSON so we can find the correct cost field name
-    # Remove this line after confirming the field name
-    echo "$input" > /tmp/claude-statusline-debug.json
-
     model=$(echo "$input" | $JQ -r '.model.display_name // "Unknown"' | sed 's/^Claude //')
     used_pct=$(echo "$input" | $JQ -r '.context_window.used_percentage // empty')
 
@@ -55,7 +51,7 @@ let
       ctx="''${DIM}ᗧ●●●●●●●●●●●●●●● --%''${RST}"
     fi
 
-    cost=$(echo "$input" | $JQ -r '.session_cost_usd // empty')
+    cost=$(echo "$input" | $JQ -r '.cost.total_cost_usd // empty')
     if [ -n "$cost" ]; then
       cost_fmt=$(printf '$%.4f' "$cost")
       price="''${DIM}''${cost_fmt}''${RST}"
