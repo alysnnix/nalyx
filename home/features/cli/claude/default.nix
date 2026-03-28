@@ -141,14 +141,40 @@ let
 in
 {
   programs.zsh.initContent = ''
+    # Root of the nalyx flake — override if you keep the repo elsewhere
+    : ''${NALYX_DIR:=$HOME/nalyx}
+
+    # Run Claude Code inside a Nix-built container with full permissions.
+    # Mounts the current directory as /workspace plus your ~/.claude settings.
+    # On first run (or after cc-rebuild) it builds the image from the flake.
     cc() {
-      local dir="$HOME/wrk/claude-dangerously"
-      (
-        cd "$dir"
-        local service=$(docker compose config --services | head -1)
-        docker compose up -d 2>/dev/null || (docker compose down && docker compose up -d)
-        docker compose exec "$service" claude --dangerously-skip-permissions "$@"
-      )
+      local image="claude-code-container:latest"
+
+      if ! docker image inspect "$image" >/dev/null 2>&1; then
+        echo "🐳 Building claude container from nix (first run)…"
+        nix build "$NALYX_DIR#claude-container" --print-out-paths \
+          | xargs docker load \
+          && echo "✅ Image loaded."
+      fi
+
+      docker run --rm -it \
+        -v "$(pwd):/workspace" \
+        -v "$HOME/.claude:/home/claude/.claude" \
+        -v "$HOME/.gitconfig:/home/claude/.gitconfig:ro" \
+        -v "$HOME/.ssh:/home/claude/.ssh:ro" \
+        -e ANTHROPIC_API_KEY \
+        -w /workspace \
+        "$image" \
+        "$@"
+    }
+
+    # Rebuild the container image (run after updating the nix config).
+    cc-rebuild() {
+      echo "🔨 Rebuilding claude container…"
+      docker rmi claude-code-container:latest 2>/dev/null || true
+      nix build "$NALYX_DIR#claude-container" --print-out-paths \
+        | xargs docker load \
+        && echo "✅ Container rebuilt!"
     }
   '';
 

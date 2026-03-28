@@ -59,7 +59,11 @@
     }@inputs:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+        overlays = [ claude-code.overlays.default ];
+      };
 
       # Check if private repository is available
       hasPrivate = private != null && builtins.pathExists "${private}/vars-override.nix";
@@ -185,6 +189,9 @@
         desktop-iso = isos.desktop;
         laptop-iso = isos.laptop;
         homelab-iso = isos.homelab;
+
+        # Minimal Docker image with Claude Code — build with: nix build .#claude-container
+        claude-container = import ./packages/claude-container.nix { inherit pkgs; };
       };
 
       # Eval-only checks: validates all configurations without building
