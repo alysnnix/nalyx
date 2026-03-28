@@ -19,6 +19,7 @@
     tree
     awscli2
     zip
+    unzip
     gnupg
     pinentry-curses
     supabase-cli
