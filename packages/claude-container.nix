@@ -41,11 +41,10 @@ let
     nodejs_22
     python3
 
-    # SSL
+    # SSL certs
     cacert
   ];
 
-  # Merge all binaries under a single /bin so PATH stays simple
   env = pkgs.buildEnv {
     name = "claude-container-env";
     paths = [ pkgs.claude-code ] ++ devTools;
@@ -53,7 +52,6 @@ let
       "/bin"
       "/lib"
       "/lib64"
-      "/etc"
       "/share"
     ];
     ignoreCollisions = true;
@@ -63,34 +61,47 @@ pkgs.dockerTools.buildLayeredImage {
   name = "claude-code-container";
   tag = "latest";
 
-  contents = [
-    env
-    pkgs.dockerTools.caCertificates # /etc/ssl/certs
-    pkgs.dockerTools.fakeNss # minimal /etc/passwd, /etc/group, nsswitch.conf
-  ];
+  contents = [ env ];
 
-  # Runs as fakeroot — sets up the filesystem layout inside the image
+  # fakeRootCommands runs with CWD=$out (the customization layer directory).
+  # Without enableFakechroot there is no chroot, so all paths must be RELATIVE
+  # (no leading /) — they are resolved relative to $out and become absolute
+  # paths inside the final image.
   fakeRootCommands = ''
-    mkdir -p /tmp /workspace /home/claude /usr/bin /bin /run
-    chmod 1777 /tmp
-    chmod 755  /home/claude
+    mkdir -p tmp workspace home/claude usr/bin bin etc run
 
-    # fakeNss only ships root + nobody; add the claude user
-    echo "claude:x:1000:1000:Claude Code:/home/claude:/bin/bash" >> /etc/passwd
-    echo "claude:x:1000:"                                          >> /etc/group
-    echo "claude:!:19700:0:99999:7:::"                            >> /etc/shadow
-    chown 1000:1000 /home/claude
+    # NSS files required by git, node, ssh, and most Unix programs
+    printf '%s\n' \
+      'root:x:0:0:root:/root:/bin/sh' \
+      'nobody:x:65534:65534:nobody:/nonexistent:/bin/false' \
+      'claude:x:1000:1000:Claude Code:/home/claude:/bin/bash' \
+      > etc/passwd
 
-    # Standard symlinks expected by many scripts
-    ln -sf ${env}/bin/bash /bin/bash
-    ln -sf ${env}/bin/bash /bin/sh
-    ln -sf ${env}/bin/env  /usr/bin/env
+    printf '%s\n' \
+      'root:x:0:' \
+      'nobody:x:65534:' \
+      'claude:x:1000:' \
+      > etc/group
+
+    printf '%s\n' \
+      'passwd:    files' \
+      'group:     files' \
+      'shadow:    files' \
+      'hosts:     files dns' \
+      > etc/nsswitch.conf
+
+    echo '127.0.0.1 localhost' > etc/hosts
+
+    chmod 1777 tmp
+    chmod 755  home/claude
+    chown 1000:1000 home/claude
+
+    # /bin/sh and /usr/bin/env are not provided by buildEnv; create them here
+    ln -sf ${env}/bin/bash bin/sh
+    ln -sf ${env}/bin/env  usr/bin/env
   '';
 
-  enableFakechroot = true;
-
   config = {
-    # CMD is appended to ENTRYPOINT; leave empty so cc() can pass extra args cleanly
     Entrypoint = [
       "claude"
       "--dangerously-skip-permissions"
@@ -104,7 +115,6 @@ pkgs.dockerTools.buildLayeredImage {
       "HOME=/home/claude"
       "USER=claude"
       "TERM=xterm-256color"
-      # SSL for curl, git, node, python
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
