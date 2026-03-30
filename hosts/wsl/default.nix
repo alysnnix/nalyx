@@ -36,6 +36,7 @@
     wget
     curl
     gnome-calculator
+    pritunl-client
   ];
 
   sops = lib.mkIf hasPrivate {
