@@ -3,18 +3,21 @@
 # Network policy: internet YES, LAN/host/Tailscale NO
 #
 # Prerequisites:
-#   1. Build the image (from cloned openclaw repo):
-#       docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 .
-#   2. (Optional) Configure /var/lib/openclaw/.env with OpenClaw settings
-#   3. Switch: the container starts automatically via systemd
+#   1. (Optional) Configure /var/lib/openclaw/.env with OpenClaw settings
+#   2. Switch: the container starts automatically via systemd
 #
 # Management:
+#   update-openclaw                    — clone/pull repo, build image and restart service
 #   systemctl status openclaw          — check status
 #   journalctl -u openclaw -f          — follow logs
 #   systemctl restart openclaw         — restart
 #
 # WhatsApp pairing:
 #   docker exec -it openclaw openclaw channels login --channel whatsapp
+#
+# Dashboard Access (from personal computer via Tailscale):
+#   ssh -N -L 18789:127.0.0.1:18789 USER@homelab
+#   Then open http://127.0.0.1:18789
 {
   pkgs,
   vars,
@@ -28,6 +31,36 @@ let
   dataDir = "/var/lib/openclaw";
 in
 {
+  # ── Utility Script: Automate OpenClaw updates ──
+  environment.systemPackages = [
+    pkgs.git
+    (pkgs.writeShellScriptBin "update-openclaw" ''
+      # Define a persistent path for the repository, keeping it near the data directory
+      REPO_DIR="${dataDir}/source"
+      
+      echo "Syncing OpenClaw repository..."
+      
+      # Clone from the official repository if it doesn't exist, pull if it does
+      if [ ! -d "$REPO_DIR" ]; then
+        ${pkgs.git}/bin/git clone https://github.com/openclaw/openclaw.git "$REPO_DIR"
+      else
+        ${pkgs.git}/bin/git -C "$REPO_DIR" pull
+      fi
+      
+      echo "Building Docker image..."
+      
+      # Build the image using the local Docker daemon
+      ${config.virtualisation.docker.package}/bin/docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 "$REPO_DIR"
+      
+      echo "Restarting OpenClaw service to apply changes..."
+      
+      # Restart the Kata container to use the fresh image
+      systemctl restart openclaw.service
+      
+      echo "Update complete!"
+    '')
+  ];
+
   # ── Kata Containers: Hardware-level isolation ──
   # Each container runs in its own micro-VM with a dedicated kernel.
   # Even a kernel exploit inside the container cannot reach the host.
@@ -83,20 +116,6 @@ in
   };
 
   # ── Firewall: Isolate container from LAN, host, and Tailscale ──
-  #
-  # IPv4 FORWARD chain (container -> external):
-  #   DROP -> all RFC 1918 ranges (LAN)
-  #   DROP -> 100.64.0.0/10 (Tailscale CGNAT)
-  #   DROP -> 169.254.0.0/16 (link-local)
-  #   ALLOW -> everything else (internet via Docker NAT)
-  #
-  # IPv4 INPUT chain (container -> host):
-  #   DROP -> everything (no host access at all)
-  #
-  # IPv6: DROP everything (defense in depth, IPv6 also disabled on bridge)
-  #
-  # DNS: container uses external resolvers (1.1.1.1, 9.9.9.9) via --dns flag,
-  #      so no host DNS access is needed
   networking.firewall.extraCommands = ''
     # === IPv4 ===
     # Use DOCKER-USER chain to ensure rules are not bypassed by Docker networking
@@ -110,7 +129,6 @@ in
     iptables -I INPUT -i ${bridgeName} -j DROP
 
     # === IPv6: block everything (defense in depth) ===
-    # Docker uses DOCKER-USER for IPv6 if enabled
     ip6tables -I DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -I INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
   '';
@@ -172,6 +190,7 @@ in
       exec docker run --rm --name openclaw \
         --runtime=kata \
         --network ${networkName} \
+        -p 127.0.0.1:18789:18789 \
         --log-driver journald \
         --cap-drop ALL \
         --security-opt no-new-privileges \
