@@ -19,7 +19,6 @@
     defaultUser = vars.user.name;
     startMenuLaunchers = true;
     docker-desktop.enable = true;
-    useDefaultShell = true;
   };
 
   nix.settings.experimental-features = [
