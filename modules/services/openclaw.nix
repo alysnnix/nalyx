@@ -36,13 +36,18 @@ in
     "kvm-amd"
   ];
 
+  # Kata 3.x uses containerd shims, not the OCI runtime binary.
+  # Docker spawns containerd which discovers shims by name in PATH.
   virtualisation.docker.daemon.settings = {
     runtimes = {
       kata = {
-        path = "${pkgs.kata-runtime}/bin/kata-runtime";
+        runtimeType = "io.containerd.kata.v2";
       };
     };
   };
+
+  # Put containerd-shim-kata-v2 in Docker/containerd's PATH
+  systemd.services.docker.path = [ pkgs.kata-runtime ];
 
   # Persistent data directory (credentials, config, WhatsApp session)
   systemd.tmpfiles.rules = [
