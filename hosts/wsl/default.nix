@@ -37,6 +37,7 @@
     curl
     gnome-calculator
     pritunl-client
+    firefox
   ];
 
   systemd.services.pritunl-client = {
