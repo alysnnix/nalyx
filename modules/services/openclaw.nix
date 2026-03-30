@@ -2,30 +2,19 @@
 # Isolation: each container gets its own kernel (hardware virtualization via KVM)
 # Network policy: internet YES, LAN/host/Tailscale NO
 #
-# Build the image (from cloned openclaw repo):
-#   docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 .
+# Prerequisites:
+#   1. Build the image (from cloned openclaw repo):
+#      docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 .
+#   2. (Optional) Configure /var/lib/openclaw/.env with OpenClaw settings
+#   3. Switch: the container starts automatically via systemd
 #
-# Deploy into the isolated network:
-#   docker run -d --name openclaw \
-#     --runtime=kata \
-#     --network openclaw-isolated \
-#     --restart unless-stopped \
-#     --cap-drop ALL \
-#     --security-opt no-new-privileges \
-#     --read-only \
-#     --tmpfs /tmp \
-#     --tmpfs /home/node/.openclaw/logs \
-#     --memory 4g \
-#     --cpus 2 \
-#     --pids-limit 512 \
-#     --dns 1.1.1.1 --dns 9.9.9.9 \
-#     -v /var/lib/openclaw:/home/node/.openclaw \
-#     --env-file /var/lib/openclaw/.env \
-#     openclaw:latest
+# Management:
+#   systemctl status openclaw          — check status
+#   journalctl -u openclaw -f          — follow logs
+#   systemctl restart openclaw         — restart
 #
-# Gateway port: 18789 (loopback only inside container)
-# Health check: GET /healthz and /readyz
-# WhatsApp pairing: docker exec -it openclaw openclaw channels login --channel whatsapp
+# WhatsApp pairing:
+#   docker exec -it openclaw openclaw channels login --channel whatsapp
 {
   pkgs,
   vars,
@@ -127,4 +116,99 @@ in
     ip6tables -D FORWARD -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
   '';
+
+  # ── Container service: auto-start OpenClaw with kata isolation ──
+  systemd.services.openclaw = {
+    description = "OpenClaw AI Assistant (Kata Container)";
+    after = [
+      "docker.service"
+      "docker-network-openclaw.service"
+    ];
+    requires = [
+      "docker.service"
+      "docker-network-openclaw.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+
+    unitConfig = {
+      StartLimitIntervalSec = "5min";
+      StartLimitBurst = 5;
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      Restart = "on-failure";
+      RestartSec = "30s";
+      TimeoutStopSec = "30s";
+    };
+
+    path = [
+      config.virtualisation.docker.package
+      pkgs.jq
+    ];
+
+    preStart = ''
+      # Abort if kata runtime is missing — never run without hardware isolation
+      if ! docker info --format '{{json .Runtimes}}' | jq -e '.kata' >/dev/null 2>&1; then
+        echo "FATAL: kata runtime not registered — refusing to start without hardware isolation"
+        exit 1
+      fi
+
+      # Ensure .env file exists (empty is fine, OpenClaw handles defaults)
+      if [ ! -f ${dataDir}/.env ]; then
+        install -m 0640 -o ${vars.user.name} -g docker /dev/null ${dataDir}/.env
+        echo "NOTICE: Created empty ${dataDir}/.env"
+      fi
+
+      # Clean up stale container from previous crash
+      docker rm -f openclaw 2>/dev/null || true
+    '';
+
+    script = ''
+      exec docker run --rm --name openclaw \
+        --runtime=kata \
+        --network ${networkName} \
+        --log-driver journald \
+        --cap-drop ALL \
+        --security-opt no-new-privileges \
+        --read-only \
+        --tmpfs /tmp \
+        --tmpfs /home/node/.openclaw/logs \
+        --memory 4g \
+        --cpus 2 \
+        --pids-limit 512 \
+        --dns 1.1.1.1 --dns 9.9.9.9 \
+        -v ${dataDir}:/home/node/.openclaw \
+        --env-file ${dataDir}/.env \
+        openclaw:latest
+    '';
+  };
+
+  # ── Health check: safety net if container dies without systemd noticing ──
+  systemd.services.openclaw-healthcheck = {
+    description = "OpenClaw Health Check";
+    serviceConfig.Type = "oneshot";
+    path = [ config.virtualisation.docker.package ];
+    script = ''
+      # Only act if the service is supposed to be running
+      if ! systemctl is-active --quiet openclaw.service; then
+        exit 0
+      fi
+
+      STATE=$(docker inspect openclaw --format '{{.State.Status}}' 2>/dev/null || echo "missing")
+      if [ "$STATE" != "running" ]; then
+        echo "OpenClaw container state: $STATE — restarting service"
+        systemctl restart openclaw.service
+      fi
+    '';
+  };
+
+  systemd.timers.openclaw-healthcheck = {
+    description = "OpenClaw Health Check Timer";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnActiveSec = "2min";
+      OnUnitActiveSec = "5min";
+    };
+  };
 }
