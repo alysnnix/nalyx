@@ -18,5 +18,6 @@
     parsec-bin
     postman
     postgresql
+    pritunl-client
   ];
 }
