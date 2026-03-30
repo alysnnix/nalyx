@@ -19,6 +19,7 @@
     defaultUser = vars.user.name;
     startMenuLaunchers = true;
     docker-desktop.enable = true;
+    useDefaultShell = true;
   };
 
   nix.settings.experimental-features = [
@@ -38,6 +39,16 @@
     gnome-calculator
     pritunl-client
   ];
+
+  systemd.services.pritunl-client = {
+    description = "Pritunl Client Daemon";
+    after = [ "network.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      ExecStart = "${pkgs.pritunl-client}/bin/pritunl-client-service";
+      Restart = "always";
+    };
+  };
 
   sops = lib.mkIf hasPrivate {
     defaultSopsFile = "${private}/secrets/secrets.yaml";
