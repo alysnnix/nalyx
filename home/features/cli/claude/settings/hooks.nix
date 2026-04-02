@@ -7,7 +7,7 @@
         hooks = [
           {
             type = "command";
-            command = "claude-notify";
+            command = "${claude-notify}/bin/claude-notify";
           }
         ];
       }

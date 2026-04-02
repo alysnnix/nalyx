@@ -2,6 +2,6 @@
 {
   statusLineConfig = {
     type = "command";
-    command = "${claude-statusline}";
+    command = "${claude-statusline}/bin/claude-statusline";
   };
 }

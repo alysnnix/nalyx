@@ -29,7 +29,7 @@ builtins.toJSON {
   };
   statusLine = {
     type = "command";
-    command = "${claudeStatusline}";
+    command = "${claudeStatusline}/bin/claude-statusline";
   };
   hooks = {
     Stop = [
@@ -38,7 +38,7 @@ builtins.toJSON {
         hooks = [
           {
             type = "command";
-            command = "${claudeNotify}";
+            command = "${claudeNotify}/bin/claude-notify";
           }
         ];
       }
