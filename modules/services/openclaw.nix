@@ -37,26 +37,26 @@ in
     (pkgs.writeShellScriptBin "update-openclaw" ''
       # Define a persistent path for the repository, keeping it near the data directory
       REPO_DIR="${dataDir}/source"
-      
+
       echo "Syncing OpenClaw repository..."
-      
+
       # Clone from the official repository if it doesn't exist, pull if it does
       if [ ! -d "$REPO_DIR" ]; then
         ${pkgs.git}/bin/git clone https://github.com/openclaw/openclaw.git "$REPO_DIR"
       else
         ${pkgs.git}/bin/git -C "$REPO_DIR" pull
       fi
-      
+
       echo "Building Docker image..."
-      
+
       # Build the image using the local Docker daemon
       ${config.virtualisation.docker.package}/bin/docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 "$REPO_DIR"
-      
+
       echo "Restarting OpenClaw service to apply changes..."
-      
+
       # Restart the Kata container to use the fresh image
       systemctl restart openclaw.service
-      
+
       echo "Update complete!"
     '')
   ];
@@ -83,7 +83,7 @@ in
   systemd.services.docker.path = [ pkgs.kata-runtime ];
 
   # Persistent data directory (credentials, config, WhatsApp session)
-  # Assuming the container runs as user 'node' (UID 1000). 
+  # Assuming the container runs as user 'node' (UID 1000).
   # This prevents permission denied errors inside the container.
   systemd.tmpfiles.rules = [
     "d ${dataDir} 0750 1000 1000 -"

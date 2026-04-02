@@ -35,9 +35,16 @@
     vim
     wget
     curl
+    sops
     gnome-calculator
     pritunl-client
-    firefox
+    (google-chrome.override {
+      commandLineArgs = [
+        "--profile-directory=Default"
+        "--user-data-dir=/home/${vars.user.name}/.chrome-profile"
+      ];
+    })
+    playwright
   ];
 
   systemd.services.pritunl-client = {
@@ -58,8 +65,19 @@
       password.neededForUsers = true;
       anytype_api_token.owner = vars.user.name;
       slack_bot_token.owner = vars.user.name;
+      sapron_cf_client_id.owner = vars.user.name;
+      sapron_cf_client_secret.owner = vars.user.name;
+      seazone_mcp_api_key.owner = vars.user.name;
+      minimax_api_key.owner = vars.user.name;
     };
   };
+
+  # Create Playwright's expected Chrome path structure
+  # Playwright expects /opt/google/chrome/chrome (directory with chrome symlink inside)
+  systemd.tmpfiles.rules = [
+    "d /opt/google/chrome 0755 root root -"
+    "L+ /opt/google/chrome/chrome - - - - ${pkgs.google-chrome}/bin/google-chrome"
+  ];
 
   users.users.${vars.user.name} = {
     isNormalUser = true;
@@ -80,6 +98,14 @@
         initialPassword = "changeme";
       }
   );
+
+  security.sudo = {
+    enable = true;
+    wheelNeedsPassword = true;
+    extraConfig = ''
+      Defaults timestamp_timeout=0
+    '';
+  };
 
   programs = {
     zsh.enable = true;
