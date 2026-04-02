@@ -18,6 +18,7 @@ let
         [
           "szn-merge"
           "szn-merge-pr"
+          "szn-ssm"
         ]
     else
       [ ];
@@ -34,10 +35,18 @@ in
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
 
+    initContent = ''
+      # Accept zsh-autosuggestions with Tab instead of right-arrow
+      bindkey '^I' autosuggest-accept
+    '';
+
     shellAliases = {
       l = "ls -la";
       switch = "update-sys";
       pull = "git stash && git pull && git stash pop";
+      secrets = ''EDITOR="code --wait" nix-shell -p sops --run "sops ~/nalyx/.private/nalyx-private/secrets/secrets.yaml"'';
+      nalyx = "cd ~/nalyx";
+      szn = "cd ~/wrk/seazone-tech";
     };
 
     oh-my-zsh = {

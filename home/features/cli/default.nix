@@ -3,6 +3,8 @@
   lib,
   enableClaude ? true,
   enableGemini ? true,
+  hasPrivate ? false,
+  private ? null,
   ...
 }:
 {
@@ -12,7 +14,8 @@
     ./ssh
   ]
   ++ (lib.optional enableGemini ./gemini)
-  ++ (lib.optional enableClaude ./claude);
+  ++ (lib.optional enableClaude ./claude)
+  ++ (lib.optional hasPrivate "${private}/home/features/cli/wrk.nix");
 
   home.packages = with pkgs; [
     imagemagick

@@ -4,6 +4,8 @@ result-*
 .envrc
 AI_WORKFLOW.md
 
+.playwright-mcp
+
 # Security - prevent accidental secret commits
 *.pem
 *.key
