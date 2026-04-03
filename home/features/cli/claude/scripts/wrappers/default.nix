@@ -26,13 +26,13 @@
 
     if (( minimax )); then
       ${import ./minimax.nix}
-      _claude_minimax "''${remaining_args[@]}"
+      _claude_minimax "$@"
     elif (( openrouter )); then
       ${import ./openrouter.nix}
-      _claude_openrouter "''${remaining_args[@]}"
+      _claude_openrouter "$@"
     elif (( english )); then
       ${import ./english.nix}
-      _claude_english "''${remaining_args[@]}"
+      _claude_english "$@"
     else
       ${import ./passthrough.nix}
       _claude_passthrough "$@"

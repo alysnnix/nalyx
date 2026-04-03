@@ -14,7 +14,7 @@
     (
       export ANTHROPIC_BASE_URL="https://openrouter.ai/api/v1"
       export ANTHROPIC_AUTH_TOKEN="$openrouter_token"
-      command claude "''${remaining_args[@]}"
+      command claude "$@"
     )
   }
 ''

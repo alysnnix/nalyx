@@ -16,7 +16,7 @@
       export ANTHROPIC_AUTH_TOKEN="$minimax_token"
       export ANTHROPIC_MODEL="MiniMax-M2.7"
       export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2.7"
-      command claude "''${remaining_args[@]}"
+      command claude "$@"
     )
   }
 ''
