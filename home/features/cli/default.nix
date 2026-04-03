@@ -21,6 +21,7 @@
     imagemagick
     tree
     awscli2
+    ssm-session-manager-plugin
     zip
     unzip
     gnupg
