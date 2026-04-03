@@ -69,6 +69,7 @@
       sapron_cf_client_secret.owner = vars.user.name;
       seazone_mcp_api_key.owner = vars.user.name;
       minimax_api_key.owner = vars.user.name;
+      openrouter_api_key.owner = vars.user.name;
     };
   };
 
