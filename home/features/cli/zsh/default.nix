@@ -36,8 +36,9 @@ in
     syntaxHighlighting.enable = true;
 
     initContent = ''
-      # Accept zsh-autosuggestions with Tab instead of right-arrow
-      bindkey '^I' autosuggest-accept
+      # Tab completes normally AND accepts autosuggestions when present
+      ZSH_AUTOSUGGEST_ACCEPT_WIDGETS+=(menu-complete)
+      bindkey '^I' menu-complete
     '';
 
     shellAliases = {
