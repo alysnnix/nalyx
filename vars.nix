@@ -14,4 +14,8 @@
 
   # Options: "hyprland", "gnome", null
   desktop = "gnome";
+
+  homelab = {
+    address = "homelab.local";
+  };
 }
