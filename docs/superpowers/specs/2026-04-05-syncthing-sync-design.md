@@ -14,7 +14,7 @@ wsl      ~/wrk  ──tailscale──→  homelab /data/sync/wsl/wrk      (send-
 homelab: receive-only, btrfs with zstd compression + duperemove dedup
 ```
 
-All communication happens over Tailscale (no public ports). Homelab DNS: `homelab.alysson.dev` (Cloudflare → Tailscale IP).
+All communication happens over Tailscale (no public ports). Homelab address is configured via `vars.homelab.address` (overridden in private repo).
 
 ## Components
 
@@ -40,13 +40,13 @@ Each host imports `../../modules/services/syncthing.nix`. No extra config needed
 ### 4. Home-Manager: SSHFS + Aliases (`home/features/cli/zsh/default.nix`)
 
 - `sshfs` package added
-- `mount-homelab` alias: mounts `homelab.alysson.dev:/data/sync` to `~/mnt/homelab`
+- `mount-homelab` alias: mounts `<homelab-address>:/data/sync` to `~/mnt/homelab`
 - `umount-homelab` alias: unmounts cleanly
 - `.stignore` managed via `home.file` for `~/wrk/.stignore`
 
 ### 5. vars.nix Update
 
-Add `homelab.address` with safe default (`homelab.local`). Private repo overrides to `homelab.alysson.dev`.
+Add `homelab.address` with safe default (`homelab.local`). Private repo overrides with real address.
 
 ## .stignore Contents
 
