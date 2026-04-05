@@ -12,7 +12,7 @@
     local openrouter_token
     openrouter_token="$(cat "$key_file")"
     (
-      export ANTHROPIC_BASE_URL="https://openrouter.ai/api/v1"
+      export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
       export ANTHROPIC_AUTH_TOKEN="$openrouter_token"
       command claude "$@"
     )
