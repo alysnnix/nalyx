@@ -10,8 +10,7 @@
 
 {
   imports = [
-    # Import home-manager configuration to keep dotfiles synced
-    # Note: Assuming 'nixos-wsl' module is injected via flake.nix
+    ../../modules/services/syncthing.nix
   ];
 
   wsl = {

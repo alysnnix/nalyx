@@ -1,5 +1,6 @@
 {
   pkgs,
+  vars,
   lib,
   hasPrivate ? false,
   private ? null,
@@ -26,7 +27,7 @@ let
   myScripts = publicScripts ++ privateScripts;
 in
 {
-  home.packages = myScripts;
+  home.packages = myScripts ++ [ pkgs.sshfs ];
   home.sessionPath = [ "$HOME/.local/bin" ];
 
   programs.zsh = {
@@ -47,6 +48,8 @@ in
       secrets = ''EDITOR="code --wait" nix-shell -p sops --run "sops ~/nalyx/.private/nalyx-private/secrets/secrets.yaml"'';
       nalyx = "cd ~/nalyx";
       szn = "cd ~/wrk/seazone-tech";
+      mount-homelab = "mkdir -p ~/mnt/homelab && sshfs ${vars.user.name}@${vars.homelab.address}:/data/sync ~/mnt/homelab -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3";
+      umount-homelab = "fusermount -u ~/mnt/homelab";
     };
 
     oh-my-zsh = {
@@ -59,4 +62,19 @@ in
       ];
     };
   };
+
+  home.file."wrk/.stignore".text = ''
+    node_modules
+    .cache
+    .next
+    target
+    dist
+    __pycache__
+    .venv
+    *.tmp
+    .direnv
+    .devenv
+    .terraform
+    vendor
+  '';
 }

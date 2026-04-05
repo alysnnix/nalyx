@@ -8,6 +8,7 @@
     ./hardware-configuration.nix
     ../../modules/core/default.nix
     ../../modules/drivers/intel.nix
+    ../../modules/services/syncthing.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
