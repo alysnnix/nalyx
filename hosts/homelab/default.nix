@@ -11,6 +11,7 @@
     ./hardware-configuration.nix
     ../../modules/core/default.nix
     ../../modules/services/openclaw.nix
+    ../../modules/services/syncthing.nix
   ];
 
   networking = {
@@ -82,6 +83,35 @@
       sha256 = "134sxqhxsiphqz82l33vmalfabhi121404jg6ljs0n55c4svlq9l";
     })
   ];
+
+  environment.systemPackages = [ pkgs.duperemove ];
+
+  # Create Syncthing receive directories on btrfs
+  systemd.tmpfiles.rules = [
+    "d /data/sync/desktop 0755 ${vars.user.name} users -"
+    "d /data/sync/laptop 0755 ${vars.user.name} users -"
+    "d /data/sync/wsl 0755 ${vars.user.name} users -"
+  ];
+
+  # Weekly btrfs deduplication
+  systemd.services.duperemove = {
+    description = "Deduplicate /data/sync with duperemove";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.duperemove}/bin/duperemove -rd /data/sync";
+      Nice = 19;
+      IOSchedulingClass = "idle";
+    };
+  };
+
+  systemd.timers.duperemove = {
+    description = "Run duperemove weekly";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "weekly";
+      Persistent = true;
+    };
+  };
 
   home-manager.users.${vars.user.name} = import ../../home;
   home-manager.backupFileExtension = "backup-homelab";

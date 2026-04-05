@@ -11,6 +11,7 @@
     ../../modules/core/default.nix
     ../../modules/drivers/nvidia.nix
     ../../modules/services/nordvpn.nix
+    ../../modules/services/syncthing.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
