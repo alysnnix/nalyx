@@ -36,9 +36,8 @@ in
     syntaxHighlighting.enable = true;
 
     initContent = ''
-      # Tab completes normally AND accepts autosuggestions when present
-      ZSH_AUTOSUGGEST_ACCEPT_WIDGETS+=(menu-complete)
-      bindkey '^I' menu-complete
+      # Accept autosuggestions with Ctrl+Space
+      bindkey '^ ' autosuggest-accept
     '';
 
     shellAliases = {
