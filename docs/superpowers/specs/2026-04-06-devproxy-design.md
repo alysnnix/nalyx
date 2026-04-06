@@ -34,15 +34,15 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 
 ```
 1. Client resolves "sapron.localhost"
-   → Windows hosts file: sapron.localhost → 10.42.7.1
+   → Windows hosts file: sapron.localhost → 10.42.42.7
 
-2. Client connects to 10.42.7.1:5432
-   → Windows loopback adapter (10.42.7.1)
-   → netsh portproxy → WSL2 127.42.7.1:5432
-   → devproxy TCP forwarder → container
+2. Client connects to 10.42.42.7:5432
+   → Windows loopback adapter (10.42.42.7)
+   → netsh portproxy → WSL2-eth0-IP:32789 (Docker host port)
+   → Docker container directly
 ```
 
-Same hostnames, same ports, both platforms. Setup once via `devproxy windows-setup`.
+Same hostnames, same standard ports on Windows. The portproxy bypasses devproxy entirely — it forwards directly to the Docker host port via the WSL2 eth0 IP. No extra listeners needed inside WSL2. Setup via `devproxy windows-setup`; must re-run after container restart (port changes) or WSL2 reboot (eth0 IP changes).
 
 ```
 Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y.1)
@@ -57,6 +57,7 @@ Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y
 - Connects to Docker socket (`/var/run/docker.sock`). On WSL2, also tries Docker Desktop integration socket if the default is not available
 - Listens for container `start` and `die` events
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
+- Ignores containers without the `com.docker.compose.project` label (e.g., standalone `docker run` containers). devproxy only manages Docker Compose projects
 - Ignores containers without exposed ports
 - On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s — capped at 4s) up to 5 attempts (7.5s total). If port mappings are not available after all attempts, logs an error and skips the container. The watcher will re-process the container if it receives subsequent events for it
 - Events are serialized per project via a per-project mutex. This prevents race conditions during rapid restarts where `die` and `start` events arrive nearly simultaneously — the `start` handler waits for the `die` teardown to complete, avoiding `EADDRINUSE` on listeners
@@ -68,6 +69,7 @@ Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y
 - Range: `127.10.1.1` – `127.254.254.1` (subset of `127.0.0.0/8`, ~62k unique projects)
 - Adds/removes IPs on the `lo` interface via netlink (no shelling out to `ip`)
 - Deterministic: same project name always maps to same IP
+- IP allocation uses a global mutex (not per-project) to prevent race conditions when two new projects that collide start simultaneously
 
 ### 3. DNS Resolver (`internal/dns/`)
 
@@ -79,6 +81,7 @@ Embedded DNS server instead of editing `/etc/hosts`. This avoids the fragility o
 - Returns the project's assigned loopback IP (e.g., `sapron.localhost` → `127.42.7.1`)
 - **Bare `localhost` queries**: returns `127.0.0.1` (A) and `::1` (AAAA) — prevents breakage if nsswitch routes bare localhost through DNS instead of /etc/hosts
 - **AAAA queries for projects**: returns NOERROR with empty answer section (not NXDOMAIN). This prevents timeout delays from clients that query AAAA before A — they get an immediate "no IPv6 record" response and fall through to the A query
+- **Reserved name `devproxy-health.localhost`**: always returns `127.0.0.1` regardless of state. Used by the health check to verify the DNS server is responsive
 - Returns NXDOMAIN for unknown project names under `.localhost`
 - **Non-`.localhost` queries**: returns REFUSED and logs a warning. If systemd-resolved delegation is configured correctly, these queries should never arrive. Receiving them indicates a misconfiguration — returning REFUSED makes this visible instead of masking it with forwarding
 - **TTL: 0 seconds** on all devproxy responses. Prevents client-side DNS caching that could cause stale resolution after container restart or IP change
@@ -97,7 +100,10 @@ This is surgical: only `*.localhost` queries go to devproxy. All other DNS traff
 
 **Important**: Adding devproxy as a general nameserver (`networking.nameservers`) is NOT supported — it would route all DNS through devproxy, making it a single point of failure for the entire system. The NixOS module enforces the `Domains=~localhost` delegation approach only.
 
-**WSL2 DNS strategy**: WSL2 does not use systemd-resolved by default (it auto-generates `/etc/resolv.conf` pointing to the Windows DNS). The NixOS module, when `isWsl = true`, explicitly enables `services.resolved.enable = true` and configures `networking.nameservers` to preserve the Windows upstream DNS alongside the devproxy delegation. It also sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting the resolved configuration.
+**WSL2 DNS strategy**: WSL2 does not use systemd-resolved by default (it auto-generates `/etc/resolv.conf` pointing to the Windows DNS). The NixOS module, when `isWsl = true`:
+1. Enables `services.resolved.enable = true`
+2. Sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting resolved config
+3. Configures resolved to use the WSL2 eth0 gateway as upstream DNS (typically `172.x.x.1`, the Windows host). The gateway IP is discovered via DHCP on the eth0 interface — systemd-resolved reads it automatically from `systemd-networkd` or `NetworkManager` DHCP leases. No hardcoded IP needed
 
 Note: `.localhost` is used instead of `.local` because `.local` is reserved for mDNS (RFC 6762). `.localhost` is guaranteed to resolve to loopback by RFC 6761.
 
@@ -149,14 +155,16 @@ Windows-native apps (DBeaver, Chrome, etc.) cannot access WSL2 loopback IPs (`12
 
 ### How it works
 
-Each project gets a mirrored IP in the `10.42.0.0/16` range on Windows:
+Each project gets a mirrored IP in the `10.42.0.0/16` range on Windows, using the same hash octets:
 
-| WSL2 | Windows | Hostname |
+| WSL2 IP | Windows IP | Hostname |
 |---|---|---|
-| 127.42.7.1 | 10.42.7.1 | sapron.localhost |
-| 127.42.8.1 | 10.42.8.1 | reservas.localhost |
+| 127.42.7.1 | 10.42.42.7 | sapron.localhost |
+| 127.83.12.1 | 10.42.83.12 | reservas.localhost |
 
-The mapping is deterministic — same hash octets, different prefix. `netsh portproxy` forwards `10.42.7.1:5432` → `127.42.7.1:5432` inside WSL2 (via the WSL2 eth0 IP). No `0.0.0.0` binding needed — Windows routes directly to the WSL2 loopback IP.
+(Example: hash("sapron") → octet2=42, octet3=7. WSL2: `127.42.7.1`. Windows: `10.42.42.7`.)
+
+The `netsh portproxy` rules forward from the Windows loopback adapter IP directly to Docker's host port on the WSL2 eth0 IP. devproxy is not in the Windows data path — portproxy connects to Docker containers directly. This avoids any need for extra listeners or `0.0.0.0` binding inside WSL2.
 
 ### Setup (one-time)
 
@@ -164,27 +172,26 @@ The mapping is deterministic — same hash octets, different prefix. `netsh port
 
 1. **Installs the Microsoft KM-TEST Loopback Adapter** — built-in Windows driver, creates a virtual network interface. No third-party software
 2. **Adds IP addresses** on the loopback adapter (`10.42.7.1`, `10.42.8.1`, etc.) for each active project
-3. **Creates netsh portproxy rules** that forward `10.42.7.1:<port>` → `<WSL2-eth0-IP>:<port>`. The WSL2 IP is auto-detected via `wsl hostname -I`
-4. **Updates Windows hosts file** (`C:\Windows\System32\drivers\etc\hosts`): `10.42.7.1 sapron.localhost`
+3. **Creates netsh portproxy rules** that forward `10.42.42.7:<port>` → `<WSL2-eth0-IP>:<docker-host-port>`. The WSL2 IP is auto-detected via `wsl hostname -I`. The Docker host port is read from the daemon's current state
+4. **Updates Windows hosts file** (`C:\Windows\System32\drivers\etc\hosts`): `10.42.42.7 sapron.localhost`
 
 After setup, `sapron.localhost:5432` works identically in DBeaver on Windows and psql in WSL2.
 
 ### Maintenance
 
-When containers change (new project, removed project), devproxy detects the change and:
-- Outputs a notification: "Windows config outdated — run `devproxy windows-setup` to sync"
-- The user re-runs `devproxy windows-setup` from WSL to update the PowerShell script
+Re-run `devproxy windows-setup` when:
+- A new project is added or removed
+- Containers restart (Docker may assign new host ports)
+- WSL2 reboots (eth0 IP changes)
 
-### WSL2 IP changes on reboot
-
-The WSL2 eth0 IP changes on each Windows reboot. `devproxy windows-setup` must be re-run after reboot to update portproxy rules. The script is idempotent — it cleans up old rules before creating new ones.
+The script is idempotent — it cleans up old rules before creating new ones. devproxy logs a notification when it detects the Windows config may be outdated.
 
 Future improvement: a scheduled task on Windows that auto-updates portproxy rules on login.
 
 ### Security
 
 - All IPs are on the Windows loopback adapter — not accessible from the network
-- `netsh portproxy` rules bind to specific loopback adapter IPs (`10.42.x.y`), not `0.0.0.0`
+- `netsh portproxy` rules bind to specific loopback adapter IPs (`10.42.x.y`), not `0.0.0.0`. Forwarding targets the WSL2 eth0 IP + Docker host ports — traffic never touches external interfaces
 - The PowerShell script requires admin (UAC prompt) — user sees exactly what will be changed
 - `devproxy windows-cleanup` removes everything: adapter IPs, portproxy rules, hosts entries
 
@@ -263,10 +270,12 @@ octet2 = 10 + (hash >> 8) % 245    // range: 10-254
 octet3 = 1 + hash % 254            // range: 1-254
 
 WSL2/Linux IP: 127.{octet2}.{octet3}.1/32
-Windows IP:    10.42.{octet2}.{octet3}/32   (mirrored octets, different prefix)
+Windows IP:    10.42.{octet2}.{octet3}/32   (same variable octets, different prefix)
 ```
 
-The fourth octet is always `.1`. This stays within `127.10.1.1` – `127.254.254.1` for Linux/WSL2 and `10.42.10.1` – `10.42.254.254` for Windows, avoiding `127.0.0.1` (localhost) and conflicts with common private networks.
+The fourth octet is always `.1` on Linux/WSL2. On Windows, the format is `10.42.{octet2}.{octet3}` (no `.1` — Windows uses the two variable octets as the last two octets after the `10.42` prefix).
+
+Linux/WSL2 range: `127.10.1.1` – `127.254.254.1`. Windows range: `10.42.10.1` – `10.42.254.254`. Both avoid `127.0.0.1` (localhost) and conflicts with common private networks (`10.0.0.0/8` is large, but `10.42.0.0/16` is unlikely to conflict).
 
 ### Hash Collision Handling
 
@@ -335,18 +344,18 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 WSL2 is the primary development environment. Tested on kernel `6.6.87.2-microsoft-standard-WSL2`:
 
 - **Loopback IPs**: `ip addr add/del` on `lo` works correctly (verified manually). The core mechanism is confirmed functional
-- **Windows access**: Custom loopback IPs (`127.42.x.y`) are NOT visible from Windows (verified). Windows integration uses the loopback adapter approach with `10.42.x.y` IPs + `netsh portproxy` → WSL2 loopback IPs
+- **Windows access**: Custom loopback IPs (`127.42.x.y`) are NOT visible from Windows (verified). Windows integration uses the loopback adapter approach with `10.42.x.y` IPs + `netsh portproxy` forwarding to Docker host ports via the WSL2 eth0 IP (portproxy bypasses devproxy entirely on the Windows path)
 - **Docker socket**: May be at `/var/run/docker.sock` (Docker native in WSL) or via Docker Desktop integration. The watcher tries both paths
-- **DNS**: The NixOS module enables `services.resolved.enable = true` on WSL, sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting resolved config, and preserves the Windows upstream DNS for non-`.localhost` queries
+- **DNS**: The NixOS module enables `services.resolved.enable = true` on WSL, sets `wsl.wslConf.network.generateResolvConf = false`, and relies on systemd-resolved discovering the upstream DNS via DHCP on eth0 (typically the Windows host at `172.x.x.1`)
 
 Integration tests must include WSL2 as a first-class target.
 
 ## Health Check
 
 - `devproxy status` returns exit code 0 when the daemon is running and healthy, exit code 1 otherwise
-- Health check includes DNS verification: queries `devproxy-health.localhost` on the embedded DNS. If the DNS server is unresponsive or in an inconsistent state, the health check fails
+- Health check includes DNS verification: queries `devproxy-health.localhost` on the embedded DNS (a reserved name that always returns `127.0.0.1`). If the DNS server is unresponsive or in an inconsistent state, the health check fails
 - Communicates with the daemon via Unix socket at `/run/devproxy/devproxy.sock`
-- The systemd unit includes `ExecStartPost` that verifies the daemon is responding
+- The systemd unit includes `ExecStartPost` with retry logic (3 attempts, 1s interval) to handle startup timing — the daemon needs to complete cleanup, bind DNS, and create the Unix socket before the health check succeeds
 
 ## Testing Strategy
 
