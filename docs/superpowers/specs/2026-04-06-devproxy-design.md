@@ -122,7 +122,7 @@ Note: `.localhost` is used instead of `.local` because `.local` is reserved for 
 
 **Half-close TCP:** The bidirectional pipe uses `TCPConn.CloseWrite()` when one side's `io.Copy` returns, signaling EOF to the other side without closing the read direction. This prevents data truncation for protocols that use half-close (e.g., HTTP/1.1 chunked). Both goroutines must complete before the connection is fully closed.
 
-**Connection draining:** When a container stops (`die` event) or during SIGHUP re-scan, active TCP connections are severed immediately (context cancellation closes listeners and pipes). This is acceptable for a development tool — long-running queries in DBeaver will fail and need to be retried.
+**Connection draining:** When a container stops (`die` event) or during SIGHUP re-scan, active TCP connections are severed immediately (context cancellation closes listeners and pipes). A WARN log is emitted for each severed connection with the project name and remote address. This is acceptable for a development tool — long-running queries in DBeaver will fail and need to be retried.
 
 Tradeoff: socat was considered as an alternative (one process per port). Go-native forwarding was chosen because it eliminates the external runtime dependency, avoids PID lifecycle management, provides better error reporting, and scales to many ports without process overhead.
 
@@ -139,6 +139,7 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 - `devproxy cleanup` — manually purges stale state (loopback IPs, DNS listener) without starting the daemon. Useful when the daemon crashed and the user wants to clean up before restarting
 - `devproxy windows-setup` — generates and optionally executes a PowerShell script for Windows integration (see Windows Integration section)
 - `devproxy windows-cleanup` — generates a PowerShell script to remove all Windows-side configuration
+- `devproxy doctor` — validates the entire chain: Docker socket accessible, DNS delegation working, systemd-resolved responding, loopback IPs correct. First command to run when troubleshooting
 
 CLI commands communicate with the running daemon via HTTP over Unix socket at `/run/devproxy/devproxy.sock`. HTTP is chosen for simplicity — Go has native support, and `curl --unix-socket` works for debugging.
 
@@ -362,7 +363,7 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
   - `CAP_NET_BIND_SERVICE` — required for binding DNS to port 53
   - `SupplementaryGroups=docker` — required for reading `/var/run/docker.sock` without running as root
 - Windows setup requires admin PowerShell (UAC prompt) — changes are visible to the user
-- **Prerequisite**: Docker must publish ports on `0.0.0.0` (the default). If Docker daemon is configured with `"ip": "127.0.0.1"` in `daemon.json`, Windows portproxy cannot reach container ports via eth0. devproxy detects this on startup and logs a warning
+- **Prerequisite**: Docker must publish ports on `0.0.0.0` (the default). If Docker daemon is configured with `"ip": "127.0.0.1"` in `daemon.json`, Windows portproxy cannot reach container ports via eth0. devproxy detects this on startup via the Docker API (`GET /info` → `DefaultAddressPool`) and logs a warning
 
 ## Platform Notes
 
@@ -442,6 +443,12 @@ The module automatically:
 - `github.com/miekg/dns` — Embedded DNS server
 - No runtime dependencies
 
+## Design Decisions
+
+- **DNS TTL 0**: Forces resolution on every connection. Since the DNS server is local (`127.0.53.53`), resolution is sub-millisecond. The tradeoff (no caching) is intentional — it guarantees correct resolution after container restarts without stale cache entries
+- **Alphabetical service ordering for port conflicts**: Deterministic but can change if a service is renamed. The WARN log is emitted on every daemon start (not just first time) to keep this visible
+- **FNV-1a hash distribution**: The modulo operation introduces slight bias toward lower values, but with ~62k slots and typically <20 projects, collision probability is negligible
+
 ## Out of Scope (v1)
 
 - Web UI / dashboard
@@ -450,6 +457,12 @@ The module automatically:
 - Per-project custom configuration
 - Podman support
 - UDP port forwarding
-- Automatic Windows portproxy updates (requires Windows scheduled task — future improvement)
-- Incremental SIGHUP re-scan (currently tears down all state — future improvement)
-- Collision map garbage collection (stale entries are harmless — future improvement)
+
+## Roadmap (post-v1)
+
+Priority order:
+1. **Automatic Windows portproxy updates** — Windows scheduled task that runs on WSL startup, auto-updates portproxy rules. Highest friction point in current design
+2. **`devproxy gc`** — garbage collect stale collision entries from `collisions.json`
+3. **Incremental SIGHUP re-scan** — diff-based re-scan that preserves active connections
+4. **Connection metrics** — active connection count and bytes transferred in `/status`
+5. **VPN-aware DNS** — detect upstream DNS failures (corporate VPN scenarios) and log actionable warnings
