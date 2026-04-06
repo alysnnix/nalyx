@@ -20,12 +20,18 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 ## Architecture
 
 ```
+1. DBeaver resolves "sapron.localhost"
+   → systemd-resolved delegates *.localhost to devproxy DNS (127.0.53.53)
+   → devproxy returns 127.42.7
+
+2. DBeaver connects to 127.42.7:5432
+   → devproxy TCP forwarder → 127.0.0.1:32789 (Docker container)
+```
+
+```
 Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y)
                                       2. Register in embedded DNS
                                       3. Start TCP forwarder (Go goroutines)
-
-DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container (127.0.0.1:32789)
-       └──→ DNS query ──→ devproxy DNS (127.0.53.53:53) ──→ 127.42.7
 ```
 
 ## Components
@@ -36,9 +42,9 @@ DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container 
 - Listens for container `start` and `die` events
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
 - Ignores containers without exposed ports
-- On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s) up to 5 attempts. This handles both slow single containers and burst scenarios (e.g., `docker-compose up` with 15+ services). Falls back to listening for `health_status` events when containers define healthchecks
+- On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s — capped at 4s) up to 5 attempts (7.5s total). If port mappings are not available after all attempts, logs an error and skips the container. The watcher will re-process the container if it receives subsequent events for it
 - Events are serialized per project via a per-project mutex. This prevents race conditions during rapid restarts where `die` and `start` events arrive nearly simultaneously — the `start` handler waits for the `die` teardown to complete, avoiding `EADDRINUSE` on listeners
-- On SIGHUP, the daemon performs a full re-scan: tears down all state and rebuilds from currently running containers. Useful for debugging without a full daemon restart
+- On SIGHUP, the daemon performs a full re-scan: tears down all state and rebuilds from currently running containers. Active TCP connections are interrupted during re-scan. Useful for debugging without a full daemon restart
 
 ### 2. IP Manager (`internal/ipman/`)
 
@@ -49,26 +55,30 @@ DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container 
 
 ### 3. DNS Resolver (`internal/dns/`)
 
-Embedded DNS server instead of editing `/etc/hosts`. This avoids the fragility of dynamic file edits — other tools (NetworkManager, systemd-resolved, VPN scripts) can overwrite `/etc/hosts` at any time, silently removing devproxy entries.
+Embedded DNS server instead of editing `/etc/hosts`. This avoids the fragility of dynamic file edits — other tools (NetworkManager, systemd-resolved, VPN scripts, NixOS rebuilds) can overwrite `/etc/hosts` at any time.
 
 - Lightweight DNS server using `github.com/miekg/dns`
 - Listens on `127.0.53.53:53` (dedicated loopback IP, avoids conflict with systemd-resolved on `127.0.0.53`)
 - Resolves `*.localhost` queries by looking up the project name in the in-memory state
 - Returns the project's assigned loopback IP (e.g., `sapron.localhost` → `127.42.7`)
-- Returns NXDOMAIN for unknown project names
+- **Bare `localhost` queries**: returns `127.0.0.1` (A) and `::1` (AAAA) — prevents breakage if nsswitch routes bare localhost through DNS instead of /etc/hosts
+- Returns NXDOMAIN for unknown project names under `.localhost`
 - All other queries (non-`.localhost`) are forwarded to the system's upstream DNS
+- **TTL: 0 seconds** on all devproxy responses. Prevents client-side DNS caching that could cause stale resolution after container restart or IP change
 
-The NixOS module configures the system to delegate `.localhost` to devproxy's DNS:
+The NixOS module configures systemd-resolved to delegate **only** `.localhost` queries to devproxy:
 
 ```nix
-# In the NixOS module:
-networking.nameservers = lib.mkBefore [ "127.0.53.53" ];
-# Or via systemd-resolved:
+# In the NixOS module — ONLY this approach is used:
 services.resolved.extraConfig = ''
   DNS=127.0.53.53
   Domains=~localhost
 '';
 ```
+
+This is surgical: only `*.localhost` queries go to devproxy. All other DNS traffic is unaffected. If devproxy crashes, only `.localhost` resolution breaks — the rest of the system's DNS continues working normally.
+
+**Important**: Adding devproxy as a general nameserver (`networking.nameservers`) is NOT supported — it would route all DNS through devproxy, making it a single point of failure for the entire system. The NixOS module enforces the `Domains=~localhost` delegation approach only.
 
 Note: `.localhost` is used instead of `.local` because `.local` is reserved for mDNS (RFC 6762). `.localhost` is guaranteed to resolve to loopback by RFC 6761.
 
@@ -90,7 +100,7 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 ### 5. State (`internal/state/`)
 
 - In-memory state of active projects, their IPs, ports, and listener references
-- Collision map persisted to `~/.config/devproxy/collisions.json` (see Hash Collision Handling)
+- Collision map persisted to `/var/lib/devproxy/collisions.json` (see Hash Collision Handling)
 - All other state is rebuilt from running containers on daemon startup
 
 ### 6. CLI (`cmd/devproxy/`)
@@ -98,6 +108,8 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 - `devproxy daemon` — runs the daemon (normally started via systemd)
 - `devproxy status` — lists active projects, IPs, and port mappings. Supports `--json` flag for machine-readable output (scripting, integration with other tools)
 - `devproxy cleanup` — manually purges stale state (loopback IPs, DNS listener) without starting the daemon. Useful when the daemon crashed and the user wants to clean up before restarting
+
+CLI commands communicate with the running daemon via Unix socket at `/run/devproxy/devproxy.sock`.
 
 ### 7. Logging
 
@@ -114,7 +126,7 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 docker-compose up (project: "sapron")
   → watcher detects "start" event
   → reads label com.docker.compose.project = "sapron"
-  → polls container inspect for network settings (exponential backoff, up to 5 attempts)
+  → polls container inspect for network settings (exponential backoff, capped at 4s, up to 5 attempts)
   → reads exposed ports: 5432→32789, 6379→32790
   → ipman: hash("sapron") → 127.42.7 (check collisions.json for overrides)
   → ipman: ip addr add 127.42.7/32 dev lo
@@ -138,8 +150,9 @@ docker-compose down (project: "sapron")
 ```
 devproxy daemon starts
   → cleanup: purge stale state (see Resilience section)
-  → load collisions.json (if exists)
+  → load collisions.json from /var/lib/devproxy/ (if exists)
   → start embedded DNS on 127.0.53.53:53
+  → start Unix socket on /run/devproxy/devproxy.sock
   → lists all running containers via Docker API
   → for each container with exposed ports:
     → runs the same setup as "container starts"
@@ -185,7 +198,7 @@ This stays within `127.10.0.0` – `127.254.254.0`, avoiding `127.0.0.1` (localh
 
 If two project names hash to the same IP, the IP Manager detects the collision (the IP is already in the active state) and applies linear probing: increment octet3, wrapping around and incrementing octet2 if needed, until a free IP is found.
 
-The resolved collision is persisted to `~/.config/devproxy/collisions.json`:
+The resolved collision is persisted to `/var/lib/devproxy/collisions.json`:
 
 ```json
 {
@@ -204,7 +217,6 @@ On daemon start, before scanning running containers, devproxy purges any stale s
 1. Remove all IPs in the `127.10.0.0` – `127.254.254.0` range from the `lo` interface via netlink scan
 2. Remove the `127.0.53.53` DNS listener IP if present
 3. No orphaned processes to kill — TCP forwarding and DNS are in-process (goroutines die with the daemon)
-4. No `/etc/hosts` cleanup needed — DNS is in-memory only
 
 This guarantees a clean slate regardless of how the previous daemon instance exited.
 
@@ -231,8 +243,8 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 - All IPs are in `127.0.0.0/8` (loopback) — never accessible from outside the machine
 - No ports are opened on external interfaces
 - DNS server binds to `127.0.53.53` (loopback only) — not reachable from the network
+- DNS delegation is scoped to `.localhost` only — devproxy never handles general DNS, so a crash does not affect system DNS resolution
 - Daemon runs as systemd service with `CAP_NET_ADMIN` (required for adding/removing loopback IPs via netlink) and `CAP_NET_BIND_SERVICE` (required for binding DNS to port 53)
-- No `/etc/hosts` writes — eliminates the permission and fragility concerns of dynamic host file edits
 
 ## Platform Notes
 
@@ -242,22 +254,22 @@ WSL2 is the primary development environment. Tested on kernel `6.6.87.2-microsof
 
 - **Loopback IPs**: `ip addr add/del` on `lo` works correctly (verified manually). The core mechanism is confirmed functional
 - **Docker socket**: May be at `/var/run/docker.sock` (Docker native in WSL) or via Docker Desktop integration. The watcher should try both paths
-- **DNS**: WSL2 auto-generates `/etc/resolv.conf` pointing to the Windows DNS. The embedded DNS approach (127.0.53.53) avoids touching this file. The NixOS module may need WSL-specific DNS delegation since WSL2 doesn't use systemd-resolved by default
+- **DNS**: WSL2 auto-generates `/etc/resolv.conf` pointing to the Windows DNS and does not use systemd-resolved by default. The NixOS module must handle this: either enable systemd-resolved on WSL or fall back to writing a dnsmasq-style config. This is a WSL-specific code path that must be tested
 
 Integration tests must include WSL2 as a first-class target.
 
 ## Health Check
 
-- `devproxy status` returns exit code 0 when the daemon is running and healthy, exit code 1 otherwise. Communicates with the daemon via a Unix socket at `/run/devproxy.sock`
+- `devproxy status` returns exit code 0 when the daemon is running and healthy, exit code 1 otherwise
+- Communicates with the daemon via Unix socket at `/run/devproxy/devproxy.sock`
 - The systemd unit includes `ExecStartPost` that verifies the daemon is responding
-- The Unix socket also serves the `status` and `cleanup` commands, avoiding the need to scan the system for state
 
 ## Testing Strategy
 
 ### Unit Tests
 
-- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json), range boundaries (IPs always within 127.10-254.1-254)
-- **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown, forwards non-.localhost queries
+- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json at /var/lib/devproxy/), range boundaries (IPs always within 127.10-254.1-254)
+- **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown, forwards non-.localhost queries, bare `localhost` returns 127.0.0.1/::1, TTL is 0 on all responses
 - **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel, half-close handling (CloseWrite on EOF), same-project port conflict fallback to host port
 - **state**: Concurrent access safety, project lifecycle (add/remove/query)
 
@@ -290,8 +302,12 @@ NixOS module usage:
 ```
 
 The module automatically:
-- Creates the systemd service with `CAP_NET_ADMIN` and `CAP_NET_BIND_SERVICE`
-- Configures DNS delegation for `.localhost` to `127.0.53.53`
+- Asserts or enables `services.resolved.enable = true` (required for DNS delegation)
+- Creates the systemd service with:
+  - `CAP_NET_ADMIN` and `CAP_NET_BIND_SERVICE` capabilities
+  - `StateDirectory=devproxy` → `/var/lib/devproxy/` for collision persistence
+  - `RuntimeDirectory=devproxy` → `/run/devproxy/` for Unix socket
+- Configures `services.resolved.extraConfig` with `DNS=127.0.53.53` and `Domains=~localhost`
 - Adds `127.0.53.53` loopback IP on startup
 
 ## Dependencies
