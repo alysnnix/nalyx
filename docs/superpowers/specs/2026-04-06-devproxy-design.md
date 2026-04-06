@@ -24,9 +24,9 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 ```
 1. Client resolves "sapron.localhost"
    → systemd-resolved delegates *.localhost to devproxy DNS (127.0.53.53)
-   → devproxy returns 127.42.7
+   → devproxy returns 127.42.7.1
 
-2. Client connects to 127.42.7:5432
+2. Client connects to 127.42.7.1:5432
    → devproxy TCP forwarder → 127.0.0.1:32789 (Docker container)
 ```
 
@@ -38,17 +38,16 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 
 2. Client connects to 10.42.7.1:5432
    → Windows loopback adapter (10.42.7.1)
-   → netsh portproxy → WSL2 eth0 IP:5432
-   → devproxy TCP forwarder (listening on 0.0.0.0:5432) → container
+   → netsh portproxy → WSL2 127.42.7.1:5432
+   → devproxy TCP forwarder → container
 ```
 
 Same hostnames, same ports, both platforms. Setup once via `devproxy windows-setup`.
 
 ```
-Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y)
+Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y.1)
                                       2. Register in embedded DNS
                                       3. Start TCP forwarder (Go goroutines)
-                                      4. If WSL2: also bind on 0.0.0.0 for Windows access
 ```
 
 ## Components
@@ -61,12 +60,12 @@ Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y
 - Ignores containers without exposed ports
 - On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s — capped at 4s) up to 5 attempts (7.5s total). If port mappings are not available after all attempts, logs an error and skips the container. The watcher will re-process the container if it receives subsequent events for it
 - Events are serialized per project via a per-project mutex. This prevents race conditions during rapid restarts where `die` and `start` events arrive nearly simultaneously — the `start` handler waits for the `die` teardown to complete, avoiding `EADDRINUSE` on listeners
-- On SIGHUP, the daemon performs a full re-scan: tears down all state and rebuilds from currently running containers. Active TCP connections are interrupted during re-scan. Useful for debugging without a full daemon restart
+- On SIGHUP, the daemon performs a full re-scan: tears down all state and rebuilds from currently running containers. Active TCP connections are interrupted during re-scan. Future improvement: incremental diff-based re-scan that preserves active connections
 
 ### 2. IP Manager (`internal/ipman/`)
 
 - Generates deterministic IP from project name via hash
-- Range: `127.10.0.0` – `127.254.254.0` (subset of `127.0.0.0/8`, ~62k unique projects)
+- Range: `127.10.1.1` – `127.254.254.1` (subset of `127.0.0.0/8`, ~62k unique projects)
 - Adds/removes IPs on the `lo` interface via netlink (no shelling out to `ip`)
 - Deterministic: same project name always maps to same IP
 
@@ -77,11 +76,11 @@ Embedded DNS server instead of editing `/etc/hosts`. This avoids the fragility o
 - Lightweight DNS server using `github.com/miekg/dns`
 - Listens on `127.0.53.53:53` (dedicated loopback IP, avoids conflict with systemd-resolved on `127.0.0.53`)
 - Resolves `*.localhost` queries by looking up the project name in the in-memory state
-- Returns the project's assigned loopback IP (e.g., `sapron.localhost` → `127.42.7`)
+- Returns the project's assigned loopback IP (e.g., `sapron.localhost` → `127.42.7.1`)
 - **Bare `localhost` queries**: returns `127.0.0.1` (A) and `::1` (AAAA) — prevents breakage if nsswitch routes bare localhost through DNS instead of /etc/hosts
 - **AAAA queries for projects**: returns NOERROR with empty answer section (not NXDOMAIN). This prevents timeout delays from clients that query AAAA before A — they get an immediate "no IPv6 record" response and fall through to the A query
 - Returns NXDOMAIN for unknown project names under `.localhost`
-- All other queries (non-`.localhost`) are forwarded to the system's upstream DNS
+- **Non-`.localhost` queries**: returns REFUSED and logs a warning. If systemd-resolved delegation is configured correctly, these queries should never arrive. Receiving them indicates a misconfiguration — returning REFUSED makes this visible instead of masking it with forwarding
 - **TTL: 0 seconds** on all devproxy responses. Prevents client-side DNS caching that could cause stale resolution after container restart or IP change
 
 The NixOS module configures systemd-resolved to delegate **only** `.localhost` queries to devproxy:
@@ -98,6 +97,8 @@ This is surgical: only `*.localhost` queries go to devproxy. All other DNS traff
 
 **Important**: Adding devproxy as a general nameserver (`networking.nameservers`) is NOT supported — it would route all DNS through devproxy, making it a single point of failure for the entire system. The NixOS module enforces the `Domains=~localhost` delegation approach only.
 
+**WSL2 DNS strategy**: WSL2 does not use systemd-resolved by default (it auto-generates `/etc/resolv.conf` pointing to the Windows DNS). The NixOS module, when `isWsl = true`, explicitly enables `services.resolved.enable = true` and configures `networking.nameservers` to preserve the Windows upstream DNS alongside the devproxy delegation. It also sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting the resolved configuration.
+
 Note: `.localhost` is used instead of `.local` because `.local` is reserved for mDNS (RFC 6762). `.localhost` is guaranteed to resolve to loopback by RFC 6761.
 
 ### 4. Port Forwarder (`internal/forwarder/`)
@@ -105,12 +106,13 @@ Note: `.localhost` is used instead of `.local` because `.local` is reserved for 
 - Pure Go TCP forwarding using `net.Listen` + `io.Copy` — no external dependencies
 - One goroutine pair (read/write) per active connection, one listener per exposed port
 - Listeners bind to the project's loopback IP using the **container port** (the right side of `host:container` in docker-compose). This is the "standard" port the user expects (e.g., 5432 for PostgreSQL)
-- On WSL2, an additional listener binds to `0.0.0.0:<same-container-port>` per project, gated by the project's loopback IP being set up. This makes the service reachable from Windows via the loopback adapter IP (see Windows Integration)
 - On accept, dials `127.0.0.1:<docker-host-port>` and pipes bidirectionally
 - Listeners are shut down via `context.Context` cancellation when container stops
 - No PID tracking needed — everything is in-process
 
-**Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container (alphabetically by service name) gets `127.42.7:5432`. The second falls back to the **host port**: `127.42.7:5433`. A log warning is emitted so the user knows which port was remapped. Alphabetical ordering ensures determinism across restarts.
+**No `0.0.0.0` binding**: Listeners bind exclusively to the project's loopback IP (e.g., `127.42.7.1:5432`), never to `0.0.0.0`. Windows access is handled entirely by `netsh portproxy` forwarding to the WSL2 loopback IP — no additional listeners needed. This avoids port conflicts between projects on `0.0.0.0` and keeps the security posture clean (no external interface exposure).
+
+**Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container (alphabetically by service name) gets `127.42.7.1:5432`. The second falls back to the **host port**: `127.42.7.1:5433`. A log warning is emitted so the user knows which port was remapped. Alphabetical ordering ensures determinism across restarts.
 
 **Half-close TCP:** The bidirectional pipe uses `TCPConn.CloseWrite()` when one side's `io.Copy` returns, signaling EOF to the other side without closing the read direction. This prevents data truncation for protocols that use half-close (e.g., HTTP/1.1 chunked). Both goroutines must complete before the connection is fully closed.
 
@@ -138,23 +140,23 @@ CLI commands communicate with the running daemon via Unix socket at `/run/devpro
 
 - Uses Go's `log/slog` (structured logging) throughout all components
 - Default output: stderr (captured by systemd journal)
-- Log levels: `INFO` for lifecycle events (project up/down), `DEBUG` for port mappings and forwarding details, `ERROR` for failures
+- Log levels: `INFO` for lifecycle events (project up/down), `DEBUG` for port mappings and forwarding details, `WARN` for non-`.localhost` queries hitting the DNS (misconfiguration signal), `ERROR` for failures
 - Each log entry includes `project`, `ip`, and `port` as structured fields. When running under systemd, these become journal fields queryable via `journalctl -u devproxy DEVPROXY_PROJECT=sapron`
 
 ## Windows Integration
 
-Windows-native apps (DBeaver, Chrome, etc.) cannot access WSL2 loopback IPs (`127.42.7`). Windows blocks custom IPs in the `127.0.0.0/8` range on all interfaces. To provide the same `sapron.localhost:5432` experience on Windows, devproxy uses a Microsoft KM-TEST Loopback Adapter with private IPs.
+Windows-native apps (DBeaver, Chrome, etc.) cannot access WSL2 loopback IPs (`127.42.7.1`). Windows blocks custom IPs in the `127.0.0.0/8` range on all interfaces. To provide the same `sapron.localhost:5432` experience on Windows, devproxy uses a Microsoft KM-TEST Loopback Adapter with private IPs.
 
 ### How it works
 
 Each project gets a mirrored IP in the `10.42.0.0/16` range on Windows:
 
-| WSL2 (127.x.y) | Windows (10.42.x.y) | Hostname |
+| WSL2 | Windows | Hostname |
 |---|---|---|
-| 127.42.7 | 10.42.7.1 | sapron.localhost |
-| 127.42.8 | 10.42.8.1 | reservas.localhost |
+| 127.42.7.1 | 10.42.7.1 | sapron.localhost |
+| 127.42.8.1 | 10.42.8.1 | reservas.localhost |
 
-The mapping is deterministic — same hash, different prefix.
+The mapping is deterministic — same hash octets, different prefix. `netsh portproxy` forwards `10.42.7.1:5432` → `127.42.7.1:5432` inside WSL2 (via the WSL2 eth0 IP). No `0.0.0.0` binding needed — Windows routes directly to the WSL2 loopback IP.
 
 ### Setup (one-time)
 
@@ -162,7 +164,7 @@ The mapping is deterministic — same hash, different prefix.
 
 1. **Installs the Microsoft KM-TEST Loopback Adapter** — built-in Windows driver, creates a virtual network interface. No third-party software
 2. **Adds IP addresses** on the loopback adapter (`10.42.7.1`, `10.42.8.1`, etc.) for each active project
-3. **Creates netsh portproxy rules** that forward `10.42.7.1:5432` → `<WSL2-eth0-IP>:5432`. The WSL2 IP is auto-detected via `wsl hostname -I`
+3. **Creates netsh portproxy rules** that forward `10.42.7.1:<port>` → `<WSL2-eth0-IP>:<port>`. The WSL2 IP is auto-detected via `wsl hostname -I`
 4. **Updates Windows hosts file** (`C:\Windows\System32\drivers\etc\hosts`): `10.42.7.1 sapron.localhost`
 
 After setup, `sapron.localhost:5432` works identically in DBeaver on Windows and psql in WSL2.
@@ -182,7 +184,7 @@ Future improvement: a scheduled task on Windows that auto-updates portproxy rule
 ### Security
 
 - All IPs are on the Windows loopback adapter — not accessible from the network
-- `netsh portproxy` rules bind to specific loopback adapter IPs, not `0.0.0.0`
+- `netsh portproxy` rules bind to specific loopback adapter IPs (`10.42.x.y`), not `0.0.0.0`
 - The PowerShell script requires admin (UAC prompt) — user sees exactly what will be changed
 - `devproxy windows-cleanup` removes everything: adapter IPs, portproxy rules, hosts entries
 
@@ -196,13 +198,12 @@ docker-compose up (project: "sapron")
   → reads label com.docker.compose.project = "sapron"
   → polls container inspect for network settings (exponential backoff, capped at 4s, up to 5 attempts)
   → reads exposed ports: 5432→32789, 6379→32790
-  → ipman: hash("sapron") → 127.42.7 (check collisions.json for overrides)
-  → ipman: ip addr add 127.42.7/32 dev lo
-  → dns: register "sapron" → 127.42.7 in memory (instant, no disk)
-  → forwarder: net.Listen("tcp", "127.42.7:5432") → dial 127.0.0.1:32789
-  → forwarder: net.Listen("tcp", "127.42.7:6379") → dial 127.0.0.1:32790
-  → if WSL2: also net.Listen("tcp", "0.0.0.0:5432") and "0.0.0.0:6379"
-  → log: "sapron up — WSL2: sapron.localhost:5432, Windows: run devproxy windows-setup"
+  → ipman: hash("sapron") → 127.42.7.1 (check collisions.json for overrides)
+  → ipman: ip addr add 127.42.7.1/32 dev lo
+  → dns: register "sapron" → 127.42.7.1 in memory (instant, no disk)
+  → forwarder: net.Listen("tcp", "127.42.7.1:5432") → dial 127.0.0.1:32789
+  → forwarder: net.Listen("tcp", "127.42.7.1:6379") → dial 127.0.0.1:32790
+  → log: "sapron up — sapron.localhost:5432, sapron.localhost:6379"
 ```
 
 ### Container stops
@@ -212,7 +213,7 @@ docker-compose down (project: "sapron")
   → watcher detects "die" events
   → forwarder: cancel context → listeners close, active connections severed, goroutines exit
   → dns: unregister "sapron" from memory
-  → ipman: ip addr del 127.42.7/32 dev lo
+  → ipman: ip addr del 127.42.7.1/32 dev lo
 ```
 
 ### Daemon starts (recovery)
@@ -261,11 +262,11 @@ hash = FNV-1a(project_name)
 octet2 = 10 + (hash >> 8) % 245    // range: 10-254
 octet3 = 1 + hash % 254            // range: 1-254
 
-WSL2 IP:    127.{octet2}.{octet3}/32
-Windows IP: 10.42.{octet2}.{octet3}/32   (mirrored, same octets)
+WSL2/Linux IP: 127.{octet2}.{octet3}.1/32
+Windows IP:    10.42.{octet2}.{octet3}/32   (mirrored octets, different prefix)
 ```
 
-This stays within `127.10.0.0` – `127.254.254.0` for WSL2 and `10.42.10.0` – `10.42.254.254` for Windows, avoiding conflicts with common private networks.
+The fourth octet is always `.1`. This stays within `127.10.1.1` – `127.254.254.1` for Linux/WSL2 and `10.42.10.1` – `10.42.254.254` for Windows, avoiding `127.0.0.1` (localhost) and conflicts with common private networks.
 
 ### Hash Collision Handling
 
@@ -275,11 +276,13 @@ The resolved collision is persisted to `/var/lib/devproxy/collisions.json`:
 
 ```json
 {
-  "beta": "127.42.8"
+  "beta": "127.42.8.1"
 }
 ```
 
 This file is only written when a collision occurs (rare). On daemon restart, the collision map is loaded first, ensuring the probed IP is stable across reboots regardless of container startup order. Projects without collisions are not stored — their IP is always derived from the hash.
+
+Stale entries (projects that no longer exist) accumulate but are harmless — the file will only contain entries for projects that experienced collisions, which is rare. Cleanup is not implemented in v1 since the file stays small.
 
 ## Resilience
 
@@ -287,7 +290,7 @@ This file is only written when a collision occurs (rare). On daemon restart, the
 
 On daemon start, before scanning running containers, devproxy purges any stale state from a previous crash:
 
-1. Remove all IPs in the `127.10.0.0` – `127.254.254.0` range from the `lo` interface via netlink scan
+1. Remove all IPs in the `127.10.1.1` – `127.254.254.1` range from the `lo` interface via netlink scan
 2. Remove the `127.0.53.53` DNS listener IP if present
 3. No orphaned processes to kill — TCP forwarding and DNS are in-process (goroutines die with the daemon)
 
@@ -314,11 +317,11 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 ## Security
 
 - All IPs are on loopback interfaces — never accessible from the network
-  - WSL2: `127.0.0.0/8` on `lo`
-  - Windows: `10.42.0.0/16` on Microsoft KM-TEST Loopback Adapter (local only, no routing)
-- No ports are opened on external interfaces
+  - Linux/WSL2: `127.x.y.1` on `lo`
+  - Windows: `10.42.x.y` on Microsoft KM-TEST Loopback Adapter (local only, no routing)
+- No ports are opened on external interfaces. Listeners bind exclusively to project loopback IPs, never to `0.0.0.0`
 - DNS server binds to `127.0.53.53` (loopback only) — not reachable from the network
-- DNS delegation is scoped to `.localhost` only — devproxy never handles general DNS, so a crash does not affect system DNS resolution
+- DNS delegation is scoped to `.localhost` only — devproxy never handles general DNS, so a crash does not affect system DNS resolution. Non-`.localhost` queries are REFUSED, not forwarded
 - Daemon runs as systemd service with:
   - `CAP_NET_ADMIN` — required for adding/removing loopback IPs via netlink
   - `CAP_NET_BIND_SERVICE` — required for binding DNS to port 53
@@ -332,15 +335,16 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 WSL2 is the primary development environment. Tested on kernel `6.6.87.2-microsoft-standard-WSL2`:
 
 - **Loopback IPs**: `ip addr add/del` on `lo` works correctly (verified manually). The core mechanism is confirmed functional
-- **Windows access**: Custom loopback IPs (`127.42.x`) are NOT visible from Windows (verified). Windows integration uses the loopback adapter approach with `10.42.x.y` IPs + `netsh portproxy`
+- **Windows access**: Custom loopback IPs (`127.42.x.y`) are NOT visible from Windows (verified). Windows integration uses the loopback adapter approach with `10.42.x.y` IPs + `netsh portproxy` → WSL2 loopback IPs
 - **Docker socket**: May be at `/var/run/docker.sock` (Docker native in WSL) or via Docker Desktop integration. The watcher tries both paths
-- **DNS**: WSL2 does not use systemd-resolved by default. The NixOS module must handle this: either enable systemd-resolved on WSL or configure an alternative delegation mechanism
+- **DNS**: The NixOS module enables `services.resolved.enable = true` on WSL, sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting resolved config, and preserves the Windows upstream DNS for non-`.localhost` queries
 
 Integration tests must include WSL2 as a first-class target.
 
 ## Health Check
 
 - `devproxy status` returns exit code 0 when the daemon is running and healthy, exit code 1 otherwise
+- Health check includes DNS verification: queries `devproxy-health.localhost` on the embedded DNS. If the DNS server is unresponsive or in an inconsistent state, the health check fails
 - Communicates with the daemon via Unix socket at `/run/devproxy/devproxy.sock`
 - The systemd unit includes `ExecStartPost` that verifies the daemon is responding
 
@@ -348,8 +352,8 @@ Integration tests must include WSL2 as a first-class target.
 
 ### Unit Tests
 
-- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json at /var/lib/devproxy/), range boundaries (IPs always within 127.10-254.1-254), Windows IP mirroring (127.x.y → 10.42.x.y)
-- **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown, forwards non-.localhost queries, bare `localhost` returns 127.0.0.1/::1, AAAA for projects returns NOERROR with empty answer, TTL is 0 on all responses
+- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json at /var/lib/devproxy/), range boundaries (IPs always 127.{10-254}.{1-254}.1), Windows IP mirroring (127.x.y.1 → 10.42.x.y)
+- **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown `.localhost`, REFUSED for non-`.localhost` queries (with warning log), bare `localhost` returns 127.0.0.1/::1, AAAA for projects returns NOERROR with empty answer, TTL is 0 on all responses, health check query responds correctly
 - **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel, half-close handling (CloseWrite on EOF), same-project port conflict fallback to host port (alphabetical determinism)
 - **state**: Concurrent access safety, project lifecycle (add/remove/query)
 - **windows**: PowerShell script generation correctness, idempotent cleanup
@@ -384,6 +388,7 @@ NixOS module usage:
 
 The module automatically:
 - Asserts or enables `services.resolved.enable = true` (required for DNS delegation)
+- On WSL: sets `wsl.wslConf.network.generateResolvConf = false` to prevent WSL from overwriting DNS config
 - Creates the systemd service with:
   - `CAP_NET_ADMIN` and `CAP_NET_BIND_SERVICE` capabilities
   - `SupplementaryGroups=docker` for Docker socket access
@@ -409,3 +414,5 @@ The module automatically:
 - Podman support
 - UDP port forwarding
 - Automatic Windows portproxy updates (requires Windows scheduled task — future improvement)
+- Incremental SIGHUP re-scan (currently tears down all state — future improvement)
+- Collision map garbage collection (stale entries are harmless — future improvement)
