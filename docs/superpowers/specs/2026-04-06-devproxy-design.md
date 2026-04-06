@@ -37,6 +37,8 @@ DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container 
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
 - Ignores containers without exposed ports
 - On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s) up to 5 attempts. This handles both slow single containers and burst scenarios (e.g., `docker-compose up` with 15+ services). Falls back to listening for `health_status` events when containers define healthchecks
+- Events are serialized per project via a per-project mutex. This prevents race conditions during rapid restarts where `die` and `start` events arrive nearly simultaneously — the `start` handler waits for the `die` teardown to complete, avoiding `EADDRINUSE` on listeners
+- On SIGHUP, the daemon performs a full re-scan: tears down all state and rebuilds from currently running containers. Useful for debugging without a full daemon restart
 
 ### 2. IP Manager (`internal/ipman/`)
 
@@ -74,10 +76,14 @@ Note: `.localhost` is used instead of `.local` because `.local` is reserved for 
 
 - Pure Go TCP forwarding using `net.Listen` + `io.Copy` — no external dependencies
 - One goroutine pair (read/write) per active connection, one listener per exposed port
-- Listeners bind to the project's loopback IP: `net.Listen("tcp", "127.42.7:5432")`
+- Listeners bind to the project's loopback IP using the **container port** (the right side of `host:container` in docker-compose). This is the "standard" port the user expects (e.g., 5432 for PostgreSQL)
 - On accept, dials `127.0.0.1:<docker-host-port>` and pipes bidirectionally
 - Listeners are shut down via `context.Context` cancellation when container stops
 - No PID tracking needed — everything is in-process
+
+**Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container gets `127.42.7:5432`. The second detects the conflict and falls back to the **host port**: `127.42.7:5433`. A log warning is emitted so the user knows which port was remapped.
+
+**Half-close TCP:** The bidirectional pipe uses `TCPConn.CloseWrite()` when one side's `io.Copy` returns, signaling EOF to the other side without closing the read direction. This prevents data truncation for protocols that use half-close (e.g., HTTP/1.1 chunked). Both goroutines must complete before the connection is fully closed.
 
 Tradeoff: socat was considered as an alternative (one process per port). Go-native forwarding was chosen because it eliminates the external runtime dependency, avoids PID lifecycle management, provides better error reporting, and scales to many ports without process overhead.
 
@@ -98,7 +104,7 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 - Uses Go's `log/slog` (structured logging) throughout all components
 - Default output: stderr (captured by systemd journal)
 - Log levels: `INFO` for lifecycle events (project up/down), `DEBUG` for port mappings and forwarding details, `ERROR` for failures
-- Each log entry includes `project`, `ip`, and `port` fields for easy filtering: `journalctl -u devproxy | grep sapron`
+- Each log entry includes `project`, `ip`, and `port` as structured fields. When running under systemd, these become journal fields queryable via `journalctl -u devproxy DEVPROXY_PROJECT=sapron`
 
 ## Lifecycle
 
@@ -228,13 +234,31 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 - Daemon runs as systemd service with `CAP_NET_ADMIN` (required for adding/removing loopback IPs via netlink) and `CAP_NET_BIND_SERVICE` (required for binding DNS to port 53)
 - No `/etc/hosts` writes — eliminates the permission and fragility concerns of dynamic host file edits
 
+## Platform Notes
+
+### WSL2
+
+Docker Desktop on WSL2 has its own networking layer. Known considerations:
+
+- **Docker socket**: May be at `/var/run/docker.sock` (Docker native in WSL) or via Docker Desktop integration. The watcher should try both paths
+- **Loopback IPs**: WSL2 uses a Hyper-V virtual network. Adding IPs to `lo` via `ip addr add` works, but behavior may differ from native Linux. This must be tested explicitly during development
+- **DNS**: WSL2 auto-generates `/etc/resolv.conf` pointing to the Windows DNS. The embedded DNS approach (127.0.53.53) should work since it's loopback-only, but DNS delegation config may need WSL-specific handling in the NixOS module
+
+WSL2 is a first-class target (the user runs it daily). Integration tests must cover WSL2.
+
+## Health Check
+
+- `devproxy status` returns exit code 0 when the daemon is running and healthy, exit code 1 otherwise. Communicates with the daemon via a Unix socket at `/run/devproxy.sock`
+- The systemd unit includes `ExecStartPost` that verifies the daemon is responding
+- The Unix socket also serves the `status` and `cleanup` commands, avoiding the need to scan the system for state
+
 ## Testing Strategy
 
 ### Unit Tests
 
 - **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json), range boundaries (IPs always within 127.10-254.1-254)
 - **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown, forwards non-.localhost queries
-- **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel
+- **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel, half-close handling (CloseWrite on EOF), same-project port conflict fallback to host port
 - **state**: Concurrent access safety, project lifecycle (add/remove/query)
 
 ### Integration Tests
@@ -242,6 +266,8 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 - Full lifecycle with Docker: start container → verify IP/DNS/forwarding → stop → verify cleanup
 - Daemon restart recovery: create state, kill daemon, restart, verify cleanup + re-setup
 - Burst scenario: start 10+ containers simultaneously, verify all get correct IPs and forwarding
+- Rapid restart: stop and start container in quick succession, verify no EADDRINUSE
+- WSL2: verify loopback IP management and DNS work under WSL2 networking
 - Requires Docker daemon — run via `go test -tags=integration` (skipped by default)
 
 ## Nix Packaging
