@@ -54,7 +54,7 @@ Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y
 
 ### 1. Docker Watcher (`internal/watcher/`)
 
-- Connects to Docker socket (`/var/run/docker.sock`). On WSL2, also tries Docker Desktop integration socket if the default is not available. If the Docker daemon restarts (socket disconnects), the watcher reconnects with exponential backoff and performs a full re-scan on reconnection
+- Connects to Docker socket (`/var/run/docker.sock`). On WSL2, also tries Docker Desktop integration socket if the default is not available. If the Docker daemon restarts (socket disconnects), the watcher reconnects with exponential backoff and performs a full re-scan on reconnection (same behavior as SIGHUP — tears down all state, active connections interrupted, rebuilds from running containers)
 - Listens for container `start` and `die` events
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
 - Ignores containers without the `com.docker.compose.project` label (e.g., standalone `docker run` containers). devproxy only manages Docker Compose projects
@@ -116,7 +116,7 @@ Note: `.localhost` is used instead of `.local` because `.local` is reserved for 
 - Listeners are shut down via `context.Context` cancellation when container stops
 - No PID tracking needed — everything is in-process
 
-**No `0.0.0.0` binding**: Listeners bind exclusively to the project's loopback IP (e.g., `127.42.7.1:5432`), never to `0.0.0.0`. Windows access is handled entirely by `netsh portproxy` forwarding to the WSL2 loopback IP — no additional listeners needed. This avoids port conflicts between projects on `0.0.0.0` and keeps the security posture clean (no external interface exposure).
+**No `0.0.0.0` binding**: Listeners bind exclusively to the project's loopback IP (e.g., `127.42.7.1:5432`), never to `0.0.0.0`. Windows access is handled entirely by `netsh portproxy` forwarding to Docker's host port via the WSL2 eth0 IP — no additional listeners needed. This avoids port conflicts between projects on `0.0.0.0` and keeps the security posture clean (no external interface exposure).
 
 **Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container (alphabetically by service name, read from `com.docker.compose.service` label) gets `127.42.7.1:5432`. The second falls back to the **host port**: `127.42.7.1:5433`. A log warning is emitted so the user knows which port was remapped. Alphabetical ordering ensures determinism across restarts. The same logic applies to `deploy.replicas` — the first replica gets the standard port, additional replicas fall back to their respective host ports.
 
@@ -141,6 +141,10 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 - `devproxy windows-cleanup` — generates a PowerShell script to remove all Windows-side configuration
 
 CLI commands communicate with the running daemon via HTTP over Unix socket at `/run/devproxy/devproxy.sock`. HTTP is chosen for simplicity — Go has native support, and `curl --unix-socket` works for debugging.
+
+API endpoints:
+- `GET /status` — returns the JSON schema defined above (project list with IPs and ports)
+- `GET /health` — returns 200 if daemon is running and DNS is responsive (used by `ExecStartPost`)
 
 `devproxy status --json` output schema:
 
@@ -313,7 +317,7 @@ The resolved collision is persisted to `/var/lib/devproxy/collisions.json`:
 
 This file is only written when a collision occurs (rare). On daemon restart, the collision map is loaded first, ensuring the probed IP is stable across reboots regardless of container startup order. Projects without collisions are not stored — their IP is always derived from the hash.
 
-Stale entries (projects that no longer exist) accumulate but are harmless — the file will only contain entries for projects that experienced collisions, which is rare. Cleanup is not implemented in v1 since the file stays small.
+Stale entries (projects that no longer exist) accumulate but are harmless — the file will only contain entries for projects that experienced collisions, which is rare. Cleanup is not implemented in v1 since the file stays small. If the entire IP space is exhausted (~62k slots — impossible in practice), the allocation returns an error and the project is skipped with an ERROR log.
 
 ## Resilience
 
@@ -384,6 +388,7 @@ Integration tests must include WSL2 as a first-class target.
 
 ### Unit Tests
 
+- **watcher**: Event dispatch (start/die with mock Docker client), per-project serialization (concurrent events for same project), containers without compose label ignored, reconnection behavior on socket disconnect, exponential backoff polling for port mappings
 - **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json at /var/lib/devproxy/), range boundaries (IPs always 127.{10-254}.{1-254}.1), Windows IP mirroring (127.x.y.1 → 10.42.x.y)
 - **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown `.localhost`, REFUSED for non-`.localhost` queries (with warning log), bare `localhost` returns 127.0.0.1/::1, AAAA for projects returns NOERROR with empty answer, TTL is 0 on all responses, health check query responds correctly
 - **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel, half-close handling (CloseWrite on EOF), same-project port conflict fallback to host port (alphabetical determinism)
