@@ -15,7 +15,7 @@ reservas.localhost:5432 → reservas's PostgreSQL container
 reservas.localhost:6379 → reservas's Redis container
 ```
 
-Zero changes to existing docker-compose files. Works with any TCP protocol and any client (DBeaver, psql, redis-cli, Chrome, etc.) — including Windows-native apps when running on WSL2.
+No changes to existing docker-compose files. Each project must already use distinct Docker host ports (or random ports) to avoid Docker-level conflicts — devproxy does not resolve port binding conflicts within Docker itself. What devproxy provides is a consistent, memorable endpoint (`project.localhost:standard-port`) regardless of what host port Docker assigns.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y
 
 ### 1. Docker Watcher (`internal/watcher/`)
 
-- Connects to Docker socket (`/var/run/docker.sock`). On WSL2, also tries Docker Desktop integration socket if the default is not available
+- Connects to Docker socket (`/var/run/docker.sock`). On WSL2, also tries Docker Desktop integration socket if the default is not available. If the Docker daemon restarts (socket disconnects), the watcher reconnects with exponential backoff and performs a full re-scan on reconnection
 - Listens for container `start` and `die` events
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
 - Ignores containers without the `com.docker.compose.project` label (e.g., standalone `docker run` containers). devproxy only manages Docker Compose projects
@@ -118,7 +118,7 @@ Note: `.localhost` is used instead of `.local` because `.local` is reserved for 
 
 **No `0.0.0.0` binding**: Listeners bind exclusively to the project's loopback IP (e.g., `127.42.7.1:5432`), never to `0.0.0.0`. Windows access is handled entirely by `netsh portproxy` forwarding to the WSL2 loopback IP — no additional listeners needed. This avoids port conflicts between projects on `0.0.0.0` and keeps the security posture clean (no external interface exposure).
 
-**Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container (alphabetically by service name) gets `127.42.7.1:5432`. The second falls back to the **host port**: `127.42.7.1:5433`. A log warning is emitted so the user knows which port was remapped. Alphabetical ordering ensures determinism across restarts.
+**Multiple containers exposing the same container port:** If project "sapron" has both `postgres` (5432:5432) and `test-postgres` (5433:5432), both expose container port 5432. The first container (alphabetically by service name, read from `com.docker.compose.service` label) gets `127.42.7.1:5432`. The second falls back to the **host port**: `127.42.7.1:5433`. A log warning is emitted so the user knows which port was remapped. Alphabetical ordering ensures determinism across restarts. The same logic applies to `deploy.replicas` — the first replica gets the standard port, additional replicas fall back to their respective host ports.
 
 **Half-close TCP:** The bidirectional pipe uses `TCPConn.CloseWrite()` when one side's `io.Copy` returns, signaling EOF to the other side without closing the read direction. This prevents data truncation for protocols that use half-close (e.g., HTTP/1.1 chunked). Both goroutines must complete before the connection is fully closed.
 
@@ -140,7 +140,25 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 - `devproxy windows-setup` — generates and optionally executes a PowerShell script for Windows integration (see Windows Integration section)
 - `devproxy windows-cleanup` — generates a PowerShell script to remove all Windows-side configuration
 
-CLI commands communicate with the running daemon via Unix socket at `/run/devproxy/devproxy.sock`.
+CLI commands communicate with the running daemon via HTTP over Unix socket at `/run/devproxy/devproxy.sock`. HTTP is chosen for simplicity — Go has native support, and `curl --unix-socket` works for debugging.
+
+`devproxy status --json` output schema:
+
+```json
+{
+  "projects": [
+    {
+      "name": "sapron",
+      "ip": "127.42.7.1",
+      "windowsIp": "10.42.42.7",
+      "ports": [
+        {"container": 5432, "host": 32789, "service": "postgres"},
+        {"container": 6379, "host": 32790, "service": "redis"}
+      ]
+    }
+  ]
+}
+```
 
 ### 7. Logging
 
@@ -171,7 +189,7 @@ The `netsh portproxy` rules forward from the Windows loopback adapter IP directl
 `devproxy windows-setup` generates a PowerShell script (requires admin) that:
 
 1. **Installs the Microsoft KM-TEST Loopback Adapter** — built-in Windows driver, creates a virtual network interface. No third-party software
-2. **Adds IP addresses** on the loopback adapter (`10.42.7.1`, `10.42.8.1`, etc.) for each active project
+2. **Adds IP addresses** on the loopback adapter (`10.42.42.7`, `10.42.83.12`, etc.) for each active project
 3. **Creates netsh portproxy rules** that forward `10.42.42.7:<port>` → `<WSL2-eth0-IP>:<docker-host-port>`. The WSL2 IP is auto-detected via `wsl hostname -I`. The Docker host port is read from the daemon's current state
 4. **Updates Windows hosts file** (`C:\Windows\System32\drivers\etc\hosts`): `10.42.42.7 sapron.localhost`
 
@@ -231,11 +249,15 @@ devproxy daemon starts
   → load collisions.json from /var/lib/devproxy/ (if exists)
   → start embedded DNS on 127.0.53.53:53
   → start Unix socket on /run/devproxy/devproxy.sock
+  → begin listening for Docker events (buffered)
   → lists all running containers via Docker API
   → for each container with exposed ports:
     → runs the same setup as "container starts"
-  → begins listening for new events
+  → drain buffered events (process any events received during scan)
+  → continue processing events in real-time
 ```
+
+Note: event listening starts **before** the container scan to avoid a race window where a container starts during the scan and is missed. Events received during the scan are buffered and processed after the scan completes.
 
 ## Project Structure
 
@@ -336,6 +358,7 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
   - `CAP_NET_BIND_SERVICE` — required for binding DNS to port 53
   - `SupplementaryGroups=docker` — required for reading `/var/run/docker.sock` without running as root
 - Windows setup requires admin PowerShell (UAC prompt) — changes are visible to the user
+- **Prerequisite**: Docker must publish ports on `0.0.0.0` (the default). If Docker daemon is configured with `"ip": "127.0.0.1"` in `daemon.json`, Windows portproxy cannot reach container ports via eth0. devproxy detects this on startup and logs a warning
 
 ## Platform Notes
 
