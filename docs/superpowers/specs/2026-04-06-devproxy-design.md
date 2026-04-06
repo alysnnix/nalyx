@@ -20,7 +20,7 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 ## Architecture
 
 ```
-Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.0.10.X)
+Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y)
                                       2. Update /etc/hosts
                                       3. Spawn socat per exposed port
 
@@ -39,14 +39,14 @@ DBeaver ──→ sapron.local:5432 ──→ socat ──→ container (127.0.0
 ### 2. IP Manager (`internal/ipman/`)
 
 - Generates deterministic IP from project name via hash
-- Range: `127.0.10.0/16` (~65k unique projects)
+- Range: `127.10.0.0` – `127.254.254.0` (subset of `127.0.0.0/8`, ~62k unique projects)
 - Adds/removes IPs on the `lo` interface via netlink (no shelling out to `ip`)
 - Deterministic: same project name always maps to same IP
 
 ### 3. DNS Manager (`internal/dns/`)
 
 - Adds/removes entries in `/etc/hosts`
-- Format: `127.0.10.X  project.local`
+- Format: `127.X.Y  project.local`
 - Uses file locking to prevent corruption from concurrent edits
 - Managed entries are marked with a comment: `# devproxy`
 
@@ -77,11 +77,11 @@ docker-compose up (project: "sapron")
   → watcher detects "start" event
   → reads label com.docker.compose.project = "sapron"
   → reads exposed ports: 5432→32789, 6379→32790
-  → ipman: hash("sapron") → 127.0.10.42
-  → ipman: ip addr add 127.0.10.42/32 dev lo
-  → dns: append "127.0.10.42 sapron.local  # devproxy" to /etc/hosts
-  → forwarder: socat TCP-LISTEN:5432,bind=127.0.10.42,fork TCP:127.0.0.1:32789
-  → forwarder: socat TCP-LISTEN:6379,bind=127.0.10.42,fork TCP:127.0.0.1:32790
+  → ipman: hash("sapron") → 127.42.7
+  → ipman: ip addr add 127.42.7/32 dev lo
+  → dns: append "127.42.7 sapron.local  # devproxy" to /etc/hosts
+  → forwarder: socat TCP-LISTEN:5432,bind=127.42.7,fork TCP:127.0.0.1:32789
+  → forwarder: socat TCP-LISTEN:6379,bind=127.42.7,fork TCP:127.0.0.1:32790
 ```
 
 ### Container stops
@@ -90,8 +90,8 @@ docker-compose up (project: "sapron")
 docker-compose down (project: "sapron")
   → watcher detects "die" events
   → forwarder: kill socat processes (PIDs tracked)
-  → dns: remove "127.0.10.42 sapron.local  # devproxy" from /etc/hosts
-  → ipman: ip addr del 127.0.10.42/32 dev lo
+  → dns: remove "127.42.7 sapron.local  # devproxy" from /etc/hosts
+  → ipman: ip addr del 127.42.7/32 dev lo
 ```
 
 ### Daemon starts (recovery)
@@ -128,12 +128,12 @@ Deterministic IP assignment from project name:
 
 ```
 hash = FNV-1a(project_name)
-octet3 = 10 + (hash >> 8) % 246    // range: 10-255
-octet4 = 1 + hash % 254            // range: 1-254
-ip = 127.{octet3}.{octet4}/32
+octet2 = 10 + (hash >> 8) % 245    // range: 10-254
+octet3 = 1 + hash % 254            // range: 1-254
+ip = 127.{octet2}.{octet3}/32
 ```
 
-This avoids `127.0.0.1` (localhost) and provides consistent mapping.
+This stays within `127.10.0.0` – `127.254.254.0`, avoiding `127.0.0.1` (localhost) and `127.255.x.x` (broadcast-adjacent).
 
 ### Hash Collision Handling
 
@@ -146,8 +146,8 @@ If two project names hash to the same IP, the IP Manager detects the collision (
 On daemon start, before scanning running containers, devproxy purges any stale state from a previous crash:
 
 1. Remove all `/etc/hosts` lines marked with `# devproxy`
-2. Remove all IPs in `127.0.10.0/16` from the `lo` interface via netlink scan
-3. Kill any orphaned socat processes (match by command-line pattern: `socat TCP-LISTEN.*bind=127.0.10`)
+2. Remove all IPs in `127.10.0.0/8` from the `lo` interface via netlink scan
+3. Kill any orphaned socat processes (match by command-line pattern containing `devproxy` in process title or `bind=127.` with ports in the managed range)
 
 This guarantees a clean slate regardless of how the previous daemon instance exited.
 
