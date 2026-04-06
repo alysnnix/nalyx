@@ -238,13 +238,13 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 
 ### WSL2
 
-Docker Desktop on WSL2 has its own networking layer. Known considerations:
+WSL2 is the primary development environment. Tested on kernel `6.6.87.2-microsoft-standard-WSL2`:
 
+- **Loopback IPs**: `ip addr add/del` on `lo` works correctly (verified manually). The core mechanism is confirmed functional
 - **Docker socket**: May be at `/var/run/docker.sock` (Docker native in WSL) or via Docker Desktop integration. The watcher should try both paths
-- **Loopback IPs**: WSL2 uses a Hyper-V virtual network. Adding IPs to `lo` via `ip addr add` works, but behavior may differ from native Linux. This must be tested explicitly during development
-- **DNS**: WSL2 auto-generates `/etc/resolv.conf` pointing to the Windows DNS. The embedded DNS approach (127.0.53.53) should work since it's loopback-only, but DNS delegation config may need WSL-specific handling in the NixOS module
+- **DNS**: WSL2 auto-generates `/etc/resolv.conf` pointing to the Windows DNS. The embedded DNS approach (127.0.53.53) avoids touching this file. The NixOS module may need WSL-specific DNS delegation since WSL2 doesn't use systemd-resolved by default
 
-WSL2 is a first-class target (the user runs it daily). Integration tests must cover WSL2.
+Integration tests must include WSL2 as a first-class target.
 
 ## Health Check
 
