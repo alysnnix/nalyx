@@ -72,8 +72,15 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 ### 6. CLI (`cmd/devproxy/`)
 
 - `devproxy daemon` — runs the daemon (normally started via systemd)
-- `devproxy status` — lists active projects, IPs, and port mappings
-- `devproxy logs` — shows daemon logs (or directs to journalctl)
+- `devproxy status` — lists active projects, IPs, and port mappings. Supports `--json` flag for machine-readable output (scripting, integration with other tools)
+- `devproxy cleanup` — manually purges stale state (loopback IPs, /etc/hosts entries) without starting the daemon. Useful when the daemon crashed and the user wants to clean up before restarting
+
+### 7. Logging
+
+- Uses Go's `log/slog` (structured logging) throughout all components
+- Default output: stderr (captured by systemd journal)
+- Log levels: `INFO` for lifecycle events (project up/down), `DEBUG` for port mappings and forwarding details, `ERROR` for failures
+- Each log entry includes `project`, `ip`, and `port` fields for easy filtering: `journalctl -u devproxy | grep sapron`
 
 ## Lifecycle
 
