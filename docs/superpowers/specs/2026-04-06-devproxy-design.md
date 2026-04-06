@@ -135,6 +135,41 @@ ip = 127.{octet3}.{octet4}/32
 
 This avoids `127.0.0.1` (localhost) and provides consistent mapping.
 
+### Hash Collision Handling
+
+If two project names hash to the same IP, the IP Manager detects the collision (the IP is already in the active state) and applies linear probing: increment octet4, wrapping around and incrementing octet3 if needed, until a free IP is found. The resolved IP is stored in state so the collision mapping is stable for the lifetime of the daemon. On restart, projects are re-added in container creation order, so the first project always wins its natural hash.
+
+## Resilience
+
+### Cleanup on Startup
+
+On daemon start, before scanning running containers, devproxy purges any stale state from a previous crash:
+
+1. Remove all `/etc/hosts` lines marked with `# devproxy`
+2. Remove all IPs in `127.0.10.0/16` from the `lo` interface via netlink scan
+3. Kill any orphaned socat processes (match by command-line pattern: `socat TCP-LISTEN.*bind=127.0.10`)
+
+This guarantees a clean slate regardless of how the previous daemon instance exited.
+
+### Graceful Shutdown
+
+On SIGTERM/SIGINT the daemon runs the full teardown sequence before exiting:
+
+1. Kill all tracked socat processes
+2. Remove all managed `/etc/hosts` entries
+3. Remove all assigned loopback IPs
+
+The shutdown handler has a 5-second timeout — if cleanup hasn't finished by then, it force-exits to avoid hanging systemd. The startup cleanup handles anything missed.
+
+### Container Restart Handling
+
+When a container restarts, Docker may assign a new host port. The daemon handles this via the event sequence:
+
+1. `die` event → teardown socat for that container's ports
+2. `start` event → re-read new port mappings from Docker API, spawn new socat processes
+
+The project IP and DNS entry stay intact (same project name = same IP). Only the socat forwarding rules are recycled. This means the DBeaver connection endpoint (`sapron.local:5432`) never changes — only the internal target port updates transparently.
+
 ## Security
 
 - All IPs are in `127.0.0.0/8` (loopback) — never accessible from outside the machine
