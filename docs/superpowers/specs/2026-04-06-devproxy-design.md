@@ -21,10 +21,11 @@ Zero changes to existing docker-compose files. Works with any TCP protocol and a
 
 ```
 Docker Socket ──→ devproxy daemon ──→ 1. Assign loopback IP (127.X.Y)
-                                      2. Update /etc/hosts
+                                      2. Register in embedded DNS
                                       3. Start TCP forwarder (Go goroutines)
 
 DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container (127.0.0.1:32789)
+       └──→ DNS query ──→ devproxy DNS (127.0.53.53:53) ──→ 127.42.7
 ```
 
 ## Components
@@ -35,7 +36,7 @@ DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container 
 - Listens for container `start` and `die` events
 - Extracts: compose project name (`com.docker.compose.project` label), exposed ports (host port → container port mappings)
 - Ignores containers without exposed ports
-- On `start` events, retries port mapping reads up to 3 times with 500ms backoff — Docker may not have the port mapping ready immediately after the event fires
+- On `start` events, polls container inspect API until network settings are populated, with exponential backoff (500ms, 1s, 2s, 4s) up to 5 attempts. This handles both slow single containers and burst scenarios (e.g., `docker-compose up` with 15+ services). Falls back to listening for `health_status` events when containers define healthchecks
 
 ### 2. IP Manager (`internal/ipman/`)
 
@@ -44,14 +45,30 @@ DBeaver ──→ sapron.localhost:5432 ──→ TCP proxy ──→ container 
 - Adds/removes IPs on the `lo` interface via netlink (no shelling out to `ip`)
 - Deterministic: same project name always maps to same IP
 
-### 3. DNS Manager (`internal/dns/`)
+### 3. DNS Resolver (`internal/dns/`)
 
-- Adds/removes entries in `/etc/hosts`
-- Format: `127.X.Y  project.localhost`
-- Uses `flock(2)` (syscall.Flock with LOCK_EX) on `/etc/hosts` to prevent corruption from concurrent edits
-- Managed entries are marked with a comment: `# devproxy`
+Embedded DNS server instead of editing `/etc/hosts`. This avoids the fragility of dynamic file edits — other tools (NetworkManager, systemd-resolved, VPN scripts) can overwrite `/etc/hosts` at any time, silently removing devproxy entries.
 
-Note: `.localhost` is used instead of `.local` because `.local` is reserved for mDNS (RFC 6762). On machines with Avahi enabled, `project.local` would trigger multicast DNS resolution before checking `/etc/hosts`, causing delays or failures. `.localhost` is guaranteed to resolve to loopback by RFC 6761.
+- Lightweight DNS server using `github.com/miekg/dns`
+- Listens on `127.0.53.53:53` (dedicated loopback IP, avoids conflict with systemd-resolved on `127.0.0.53`)
+- Resolves `*.localhost` queries by looking up the project name in the in-memory state
+- Returns the project's assigned loopback IP (e.g., `sapron.localhost` → `127.42.7`)
+- Returns NXDOMAIN for unknown project names
+- All other queries (non-`.localhost`) are forwarded to the system's upstream DNS
+
+The NixOS module configures the system to delegate `.localhost` to devproxy's DNS:
+
+```nix
+# In the NixOS module:
+networking.nameservers = lib.mkBefore [ "127.0.53.53" ];
+# Or via systemd-resolved:
+services.resolved.extraConfig = ''
+  DNS=127.0.53.53
+  Domains=~localhost
+'';
+```
+
+Note: `.localhost` is used instead of `.local` because `.local` is reserved for mDNS (RFC 6762). `.localhost` is guaranteed to resolve to loopback by RFC 6761.
 
 ### 4. Port Forwarder (`internal/forwarder/`)
 
@@ -67,13 +84,14 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 ### 5. State (`internal/state/`)
 
 - In-memory state of active projects, their IPs, ports, and listener references
-- No persistent storage needed — state is rebuilt from running containers on daemon startup
+- Collision map persisted to `~/.config/devproxy/collisions.json` (see Hash Collision Handling)
+- All other state is rebuilt from running containers on daemon startup
 
 ### 6. CLI (`cmd/devproxy/`)
 
 - `devproxy daemon` — runs the daemon (normally started via systemd)
 - `devproxy status` — lists active projects, IPs, and port mappings. Supports `--json` flag for machine-readable output (scripting, integration with other tools)
-- `devproxy cleanup` — manually purges stale state (loopback IPs, /etc/hosts entries) without starting the daemon. Useful when the daemon crashed and the user wants to clean up before restarting
+- `devproxy cleanup` — manually purges stale state (loopback IPs, DNS listener) without starting the daemon. Useful when the daemon crashed and the user wants to clean up before restarting
 
 ### 7. Logging
 
@@ -90,10 +108,11 @@ Tradeoff: socat was considered as an alternative (one process per port). Go-nati
 docker-compose up (project: "sapron")
   → watcher detects "start" event
   → reads label com.docker.compose.project = "sapron"
-  → polls for exposed ports (retry up to 3x): 5432→32789, 6379→32790
-  → ipman: hash("sapron") → 127.42.7
+  → polls container inspect for network settings (exponential backoff, up to 5 attempts)
+  → reads exposed ports: 5432→32789, 6379→32790
+  → ipman: hash("sapron") → 127.42.7 (check collisions.json for overrides)
   → ipman: ip addr add 127.42.7/32 dev lo
-  → dns: flock /etc/hosts, append "127.42.7 sapron.localhost  # devproxy"
+  → dns: register "sapron" → 127.42.7 in memory (instant, no disk)
   → forwarder: net.Listen("tcp", "127.42.7:5432") → dial 127.0.0.1:32789
   → forwarder: net.Listen("tcp", "127.42.7:6379") → dial 127.0.0.1:32790
 ```
@@ -104,7 +123,7 @@ docker-compose up (project: "sapron")
 docker-compose down (project: "sapron")
   → watcher detects "die" events
   → forwarder: cancel context → listeners close, goroutines exit
-  → dns: flock /etc/hosts, remove "127.42.7 sapron.localhost  # devproxy"
+  → dns: unregister "sapron" from memory
   → ipman: ip addr del 127.42.7/32 dev lo
 ```
 
@@ -113,6 +132,8 @@ docker-compose down (project: "sapron")
 ```
 devproxy daemon starts
   → cleanup: purge stale state (see Resilience section)
+  → load collisions.json (if exists)
+  → start embedded DNS on 127.0.53.53:53
   → lists all running containers via Docker API
   → for each container with exposed ports:
     → runs the same setup as "container starts"
@@ -129,11 +150,11 @@ devproxy/
 │   ├── watcher/watcher_test.go
 │   ├── ipman/ipman.go          # IP allocation via netlink
 │   ├── ipman/ipman_test.go
-│   ├── dns/hosts.go            # /etc/hosts management
-│   ├── dns/hosts_test.go
+│   ├── dns/dns.go              # Embedded DNS server
+│   ├── dns/dns_test.go
 │   ├── forwarder/forwarder.go  # Go-native TCP forwarding
 │   ├── forwarder/forwarder_test.go
-│   └── state/state.go          # In-memory state tracking
+│   └── state/state.go          # In-memory state + collision persistence
 ├── flake.nix                   # Nix package + NixOS module
 ├── go.mod
 ├── go.sum
@@ -156,7 +177,17 @@ This stays within `127.10.0.0` – `127.254.254.0`, avoiding `127.0.0.1` (localh
 
 ### Hash Collision Handling
 
-If two project names hash to the same IP, the IP Manager detects the collision (the IP is already in the active state) and applies linear probing: increment octet3, wrapping around and incrementing octet2 if needed, until a free IP is found. The resolved IP is stored in state so the collision mapping is stable for the lifetime of the daemon. On restart, projects are re-added in container creation order, so the first project always wins its natural hash.
+If two project names hash to the same IP, the IP Manager detects the collision (the IP is already in the active state) and applies linear probing: increment octet3, wrapping around and incrementing octet2 if needed, until a free IP is found.
+
+The resolved collision is persisted to `~/.config/devproxy/collisions.json`:
+
+```json
+{
+  "beta": "127.42.8"
+}
+```
+
+This file is only written when a collision occurs (rare). On daemon restart, the collision map is loaded first, ensuring the probed IP is stable across reboots regardless of container startup order. Projects without collisions are not stored — their IP is always derived from the hash.
 
 ## Resilience
 
@@ -164,9 +195,10 @@ If two project names hash to the same IP, the IP Manager detects the collision (
 
 On daemon start, before scanning running containers, devproxy purges any stale state from a previous crash:
 
-1. Remove all `/etc/hosts` lines marked with `# devproxy`
-2. Remove all IPs in the `127.10.0.0` – `127.254.254.0` range from the `lo` interface via netlink scan
-3. No orphaned processes to kill — TCP forwarding is in-process (goroutines die with the daemon)
+1. Remove all IPs in the `127.10.0.0` – `127.254.254.0` range from the `lo` interface via netlink scan
+2. Remove the `127.0.53.53` DNS listener IP if present
+3. No orphaned processes to kill — TCP forwarding and DNS are in-process (goroutines die with the daemon)
+4. No `/etc/hosts` cleanup needed — DNS is in-memory only
 
 This guarantees a clean slate regardless of how the previous daemon instance exited.
 
@@ -174,9 +206,8 @@ This guarantees a clean slate regardless of how the previous daemon instance exi
 
 On SIGTERM/SIGINT the daemon runs the full teardown sequence before exiting:
 
-1. Cancel root context → all TCP listeners and forwarding goroutines shut down
-2. Remove all managed `/etc/hosts` entries
-3. Remove all assigned loopback IPs
+1. Cancel root context → all TCP listeners, forwarding goroutines, and DNS server shut down
+2. Remove all assigned loopback IPs (including 127.0.53.53)
 
 The shutdown handler has a 5-second timeout — if cleanup hasn't finished by then, it force-exits to avoid hanging systemd. The startup cleanup handles anything missed.
 
@@ -185,7 +216,7 @@ The shutdown handler has a 5-second timeout — if cleanup hasn't finished by th
 When a container restarts, Docker may assign a new host port. The daemon handles this via the event sequence:
 
 1. `die` event → cancel forwarder context for that container's ports (listeners close)
-2. `start` event → poll for new port mappings from Docker API, start new listeners
+2. `start` event → poll for new port mappings from Docker API (exponential backoff), start new listeners
 
 The project IP and DNS entry stay intact (same project name = same IP). Only the TCP forwarding is recycled. This means the DBeaver connection endpoint (`sapron.localhost:5432`) never changes — only the internal target port updates transparently.
 
@@ -193,24 +224,24 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 
 - All IPs are in `127.0.0.0/8` (loopback) — never accessible from outside the machine
 - No ports are opened on external interfaces
-- Daemon runs as systemd service with:
-  - `CAP_NET_ADMIN` — required for adding/removing loopback IPs via netlink
-  - Write access to `/etc/hosts` — required for DNS entries. Writes are scoped to lines marked `# devproxy`. This is broader than CAP_NET_ADMIN alone; the NixOS module grants this via `ReadWritePaths=/etc/hosts` in the systemd unit
-- `/etc/hosts` edits use `flock(2)` to avoid corruption, but cannot prevent external tools (NetworkManager, systemd-resolved) from overwriting the file. In practice this is rare on NixOS since `/etc/hosts` is managed declaratively
+- DNS server binds to `127.0.53.53` (loopback only) — not reachable from the network
+- Daemon runs as systemd service with `CAP_NET_ADMIN` (required for adding/removing loopback IPs via netlink) and `CAP_NET_BIND_SERVICE` (required for binding DNS to port 53)
+- No `/etc/hosts` writes — eliminates the permission and fragility concerns of dynamic host file edits
 
 ## Testing Strategy
 
 ### Unit Tests
 
-- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), range boundaries (IPs always within 127.10-254.1-254)
-- **dns**: Hosts file add/remove (writes correct lines, preserves non-devproxy lines), flock behavior, idempotent cleanup
+- **ipman**: Hash determinism (same name → same IP), collision resolution (two names with forced collision → different IPs), collision persistence (write/read collisions.json), range boundaries (IPs always within 127.10-254.1-254)
+- **dns**: DNS server responds correctly for registered names, NXDOMAIN for unknown, forwards non-.localhost queries
 - **forwarder**: Listener binds to correct IP:port, bidirectional data flow (mock TCP server), clean shutdown on context cancel
 - **state**: Concurrent access safety, project lifecycle (add/remove/query)
 
 ### Integration Tests
 
-- Full lifecycle with Docker: start container → verify IP/hosts/forwarding → stop → verify cleanup
+- Full lifecycle with Docker: start container → verify IP/DNS/forwarding → stop → verify cleanup
 - Daemon restart recovery: create state, kill daemon, restart, verify cleanup + re-setup
+- Burst scenario: start 10+ containers simultaneously, verify all get correct IPs and forwarding
 - Requires Docker daemon — run via `go test -tags=integration` (skipped by default)
 
 ## Nix Packaging
@@ -218,7 +249,7 @@ The project IP and DNS entry stay intact (same project name = same IP). Only the
 The `flake.nix` exports:
 
 - `packages.x86_64-linux.default` — Go binary (statically compiled)
-- `nixosModules.default` — NixOS module with systemd service
+- `nixosModules.default` — NixOS module with systemd service + DNS delegation config
 
 NixOS module usage:
 
@@ -232,12 +263,18 @@ NixOS module usage:
 }
 ```
 
+The module automatically:
+- Creates the systemd service with `CAP_NET_ADMIN` and `CAP_NET_BIND_SERVICE`
+- Configures DNS delegation for `.localhost` to `127.0.53.53`
+- Adds `127.0.53.53` loopback IP on startup
+
 ## Dependencies
 
-- Go standard library (`net`, `io`, `os`, `syscall`)
+- Go standard library (`net`, `io`, `os`, `context`)
 - `github.com/docker/docker` — Docker client SDK
 - `github.com/vishvananda/netlink` — Netlink for IP management
-- No runtime dependencies (socat eliminated)
+- `github.com/miekg/dns` — Embedded DNS server
+- No runtime dependencies
 
 ## Out of Scope (v1)
 
