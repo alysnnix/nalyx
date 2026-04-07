@@ -3,12 +3,13 @@
   private ? null,
   claude-statusline,
   claude-notify,
+  claude-validate-pr,
 }:
 let
   plugins = import ./plugins.nix;
   mcp-servers = import ./mcp-servers.nix { inherit hasPrivate private; };
   statusline = import ./statusline.nix { inherit claude-statusline; };
-  hooks = import ./hooks.nix { inherit claude-notify; };
+  hooks = import ./hooks.nix { inherit claude-notify claude-validate-pr; };
 in
 {
   claudeSettingsBase = builtins.toJSON {

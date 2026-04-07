@@ -7,6 +7,7 @@ let
     "global-devcontainer/SKILL.md" = ./global/devcontainer/SKILL.md;
     "global-generate-claude-doc/SKILL.md" = ./global/generate-claude-doc/SKILL.md;
     "global-git-workflow/SKILL.md" = ./global/git-workflow/SKILL.md;
+    "global-open-pr/SKILL.md" = ./global/open-pr/SKILL.md;
 
     # Templates - Stack specific rules
     "global-generate-claude-doc/templates/stack/testing-vitest/rules/testing.md" =

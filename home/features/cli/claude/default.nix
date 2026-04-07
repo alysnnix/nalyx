@@ -18,6 +18,7 @@ let
     inherit hasPrivate private;
     claude-statusline = scripts.claude-statusline;
     claude-notify = scripts.claude-notify;
+    claude-validate-pr = scripts.claude-validate-pr;
   };
 
   # Activation snippets: copy skills and generate settings.json
