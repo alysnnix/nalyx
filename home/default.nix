@@ -45,7 +45,7 @@ in
 
     sessionVariables = {
       EDITOR = "vim";
-      BROWSER = if isWsl then "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" else "firefox";
+      BROWSER = if isWsl then "wslview" else "firefox";
     };
 
     stateVersion = "25.11";

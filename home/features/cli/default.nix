@@ -19,6 +19,7 @@
 
   home.packages = with pkgs; [
     ghostty
+    lazygit
     imagemagick
     tree
     awscli2

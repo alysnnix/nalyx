@@ -44,6 +44,7 @@
       ];
     })
     playwright
+    wslu
   ];
 
   systemd.services.pritunl-client = {
