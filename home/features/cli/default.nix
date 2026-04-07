@@ -18,6 +18,7 @@
   ++ (lib.optional hasPrivate "${private}/home/features/cli/wrk.nix");
 
   home.packages = with pkgs; [
+    ghostty
     imagemagick
     tree
     awscli2
