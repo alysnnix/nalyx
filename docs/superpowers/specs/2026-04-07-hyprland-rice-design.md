@@ -11,31 +11,79 @@ All changes are scoped to `home/features/desktop/hyprland/` and guarded by `vars
 
 ## Security Audit
 
-The caelestia-dots/shell repository was audited (2026-04-07). No critical issues found. Warnings and mitigations:
+Full supply chain audit performed (2026-04-07) covering all three components:
+
+```
+caelestia-dots/shell (QML, 42k lines) ── audited, 0 CRITICAL, 5 WARNING
+├── caelestia-cli (Python, ~30 files) ── audited, 0 CRITICAL, 4 WARNING
+└── quickshell (C++, 57k lines) ──────── audited, 3 CRITICAL (by-design), 5 WARNING
+```
+
+### caelestia-dots/shell (8.6k stars, GPL-3.0)
 
 | ID | Issue | Risk | Mitigation |
 |----|-------|------|------------|
-| W1 | Command injection in LyricsService (MPRIS metadata) | Low (requires local access) | Lyrics disabled entirely |
-| W2 | IP geolocation request to ipinfo.io | Privacy | Set weather coordinates explicitly in nalyx-private |
-| W3 | Lyrics fetched from NetEase (music.163.com) | Privacy | Lyrics disabled entirely |
-| W4 | Quickshell fetched from git.outfoxxed.me (self-hosted Gitea) | Supply chain | Pin to audited revision via flake.lock |
-| W5 | Maintainer pushed prank commit to main (April Fools 2026) | Governance | Pin to audited revision, never follow main head |
+| S-W1 | Command injection in LyricsService (MPRIS metadata) | Low (requires local access) | Lyrics disabled entirely |
+| S-W2 | IP geolocation request to ipinfo.io | Privacy | Set weather coordinates explicitly in nalyx-private |
+| S-W3 | Lyrics fetched from NetEase (music.163.com) | Privacy | Lyrics disabled entirely |
+| S-W4 | Quickshell fetched from git.outfoxxed.me (self-hosted Gitea) | Supply chain | Pin Quickshell to GitHub mirror (see below) |
+| S-W5 | Maintainer pushed prank commit to main (April Fools 2026) | Governance | Pin to audited revision, never follow main head |
 
-Clean areas: Nix integration, CMake build, C++ plugins, shell scripts, QML/JS code, GitHub Actions.
+Clean: Nix integration, CMake build, C++ plugins, shell scripts, QML/JS code, GitHub Actions. Zero telemetry.
+
+### caelestia-cli (135 stars, GPL-3.0, Python)
+
+| ID | Issue | Risk | Mitigation |
+|----|-------|------|------------|
+| C-W1 | `postHook` config uses `shell=True` (arbitrary command execution) | Medium (requires write to config file) | Do not configure postHook |
+| C-W2 | `sudo papirus-folders` for icon color sync (optional) | Low (fails silently without sudoers) | Do not configure sudoers for papirus-folders |
+| C-W3 | Writes ANSI sequences to `/dev/pts/*` for live terminal color updates | Info | Standard behavior (pywal does the same) |
+| C-W4 | Transitive Quickshell dependency from self-hosted Forgejo | Supply chain | Pin to GitHub mirror (see below) |
+
+Clean: No telemetry, no data exfiltration, no eval/exec on dynamic input, no binary blobs. Network calls only for emoji data fetch (explicit command, GitHub raw URLs only).
+
+### quickshell (2.2k stars, LGPL-3.0, C++ / Qt6)
+
+The CRITICAL findings are **architectural, not bugs** -- every desktop shell framework (Waybar, AGS, Eww) requires these capabilities to function. The real question is whether the QML configs loaded into Quickshell are trustworthy (yes -- audited above).
+
+| ID | Issue | Risk | Mitigation |
+|----|-------|------|------------|
+| Q-C1 | QML has unrestricted process execution (`Process`, `execDetached`) | CRITICAL (by design) | Trust gate: only load audited QML (caelestia-dots/shell) |
+| Q-C2 | QML has unrestricted filesystem read/write (`FileView`) | CRITICAL (by design) | Trust gate: only load audited QML |
+| Q-C3 | QML has unrestricted Unix socket access (`Socket`, `SocketServer`) | CRITICAL (by design) | Trust gate: only load audited QML |
+| Q-W1 | Self-hosted Forgejo as primary upstream | Supply chain | **Pin to GitHub mirror** (`quickshell-mirror/quickshell`), verified GPG-signed commits |
+| Q-W2 | Single maintainer (91.9% of commits) | Governance | Pin to audited revision, review diffs before updating |
+| Q-W3 | PAM authentication subprocess (lock screen) | Medium | Runs as user, not root |
+| Q-W4 | Polkit agent can present privilege escalation prompts | Medium | Standard desktop behavior |
+| Q-W5 | Screencopy, clipboard read/write, env var access from QML | Medium | Standard desktop shell capabilities |
+
+Clean: Zero telemetry, zero pre-compiled binaries, zero obfuscated code, Nix packaging is minimal and standard, no outgoing network connections in codebase, all Wayland protocols are standard community protocols.
+
+### Supply chain hardening rules
+
+1. **Pin all inputs to audited revisions** -- never follow main/dev head
+2. **Override Quickshell input to GitHub mirror** (`quickshell-mirror/quickshell`) instead of self-hosted Forgejo
+3. **Do not configure** `postHook` in caelestia CLI config
+4. **Do not configure** sudoers for `papirus-folders`
+5. **Review diffs before any `nix flake update`** on caelestia/quickshell inputs
 
 ## Flake Integration
 
-Add caelestia-dots/shell as a flake input pinned to a specific audited revision:
+Add caelestia-dots/shell as a flake input pinned to a specific audited revision. Override the Quickshell input to use the GitHub mirror instead of the self-hosted Forgejo:
 
 ```nix
 # flake.nix inputs
 caelestia = {
   url = "github:caelestia-dots/shell/<audited-revision>";
   inputs.nixpkgs.follows = "nixpkgs";
+  inputs.quickshell.url = "github:quickshell-mirror/quickshell/<audited-revision>";
 };
 ```
 
-The Quickshell dependency comes transitively via caelestia, also pinned by flake.lock.
+This ensures:
+- caelestia is pinned to an audited commit on GitHub
+- Quickshell is pinned to the GitHub mirror (same code, verified GPG-signed commits, stronger trust anchor than self-hosted Forgejo)
+- nixpkgs is deduplicated via `follows`
 
 Pass the `caelestia` input to Home Manager modules via `extraSpecialArgs`.
 
