@@ -5,29 +5,43 @@
 }:
 {
   home.packages = with pkgs; [
-    # Neovim
     neovim
-
-    # LSP servers
+    ripgrep
+    fd
     nodePackages.typescript-language-server
     pyright
     gopls
     nil
     lua-language-server
-
-    # Formatters
     nixfmt
     nodePackages.prettier
     black
     stylua
-
-    # Telescope dependencies
-    ripgrep
-    fd
   ];
 
-  # Deploy LazyVim config files to ~/.config/nvim/
-  home.file."${config.home.homeDirectory}/.config/nvim/init.lua".source = ./config/init.lua;
-  home.file."${config.home.homeDirectory}/.config/nvim/lazyvim.json".source = ./config/lazyvim.json;
-  home.file."${config.home.homeDirectory}/.config/nvim/lua".source = ./config/lua;
+  # Deploy LazyVim config
+  home.file."${config.home.homeDirectory}/.config/nvim/init.lua".text = ''
+    -- Bootstrap lazy.nvim
+    local lazypath = vim.fn.stdpath "data" .. "/lazy/lazy.nvim"
+    if not (vim.uv or vim.loop).fs_stat(lazypath) then
+      vim.fn.system {
+        "git",
+        "clone",
+        "--filter=blob:none",
+        "https://github.com/folke/lazy.nvim.git",
+        "--depth=1",
+        lazypath,
+      }
+    end
+    vim.opt.rtp:prepend(lazypath)
+
+    -- Load LazyVim
+    require("lazy").setup("lazyvim.plugins")
+  '';
+
+  home.file."${config.home.homeDirectory}/.config/nvim/lazyvim.json".text = ''
+    {
+      "extras": true
+    }
+  '';
 }
