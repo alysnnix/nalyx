@@ -43,17 +43,33 @@ require("lazy").setup({
   },
 })
 
--- Load custom config after plugins
-vim.api.nvim_create_autocmd("User", {
-  pattern = "LazyInit",
-  once = true,
-  callback = function()
-    require("config").setup()
-  end,
-})
-
--- Fallback: if LazyInit doesn't fire, setup after a tick
+-- Wait for plugins to be installed, then load custom config
 vim.defer_fn(function()
-  if package.loaded["config"] then return end
-  pcall(require, "config")
-end, 100)
+  -- Load options first
+  pcall(require, "config.options")
+  pcall(require, "config.keymaps")
+  pcall(require, "config.autocmds")
+
+  -- Load plugins
+  pcall(require, "plugins.lsp")
+  pcall(require, "plugins.ai")
+  pcall(require, "plugins.editor")
+  pcall(require, "plugins.git")
+  pcall(require, "plugins.ui")
+
+  -- Call setup on each if available
+  local function try_setup(mod)
+    if pcall(require, mod) then
+      local ok, m = pcall(require, mod)
+      if ok and m and m.setup then
+        pcall(m.setup)
+      end
+    end
+  end
+
+  try_setup("plugins.editor")
+  try_setup("plugins.git")
+  try_setup("plugins.lsp")
+  try_setup("plugins.ai")
+  try_setup("plugins.ui")
+end, 500)

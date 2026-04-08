@@ -10,7 +10,8 @@ map("n", "<C-s>", "<Cmd>w<CR>", opts) -- Save
 map("n", "<C-S-s>", "<Cmd>wa | wq<CR>", opts) -- Save all and quit
 
 -- File finding
-map("n", "<C-e>", "<Cmd>Neotree toggle<CR>", opts) -- File tree (was Ctrl+E for files)
+map("n", "<C-e>", "<Cmd>Neotree toggle<CR>", opts) -- File tree (Ctrl+E)
+map("n", "<C-b>", "<Cmd>Neotree toggle<CR>", opts) -- File tree (Ctrl+B)
 map("n", "<C-p>", "<Cmd>Telescope find_files<CR>", opts) -- Find files
 map("n", "<C-S-f>", "<Cmd>Telescope live_grep<CR>", opts) -- Search in files
 
