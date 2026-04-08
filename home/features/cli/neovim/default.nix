@@ -12,9 +12,7 @@
     nodePackages.typescript-language-server
     pyright
     gopls
-    jdt-language-server
     nil
-    texlab
     lua-language-server
 
     # Formatters
@@ -22,7 +20,6 @@
     nodePackages.prettier
     black
     stylua
-    latexindent
 
     # Telescope dependencies
     ripgrep
