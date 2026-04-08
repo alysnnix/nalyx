@@ -26,6 +26,7 @@ require("lazy").setup({
   { "nvim-lua/plenary.nvim" },
   { "nvim-tree/nvim-web-devicons" },
   { "folke/lazy.nvim" },
+  { "nvim-lualine/lualine.nvim" },
 })
 
 -- Load config after plugins
