@@ -1,11 +1,16 @@
 -- Main config setup - loads all subconfigs
 
-require("config.options")
+-- Defer loading options to avoid conflicts with lazy installer screen
+vim.defer_fn(function()
+  pcall(require, "config.options")
+end, 100)
+
 require("config.keymaps")
 require("config.autocmds")
 
-pcall(require, "plugins.ui").setup()
-pcall(require, "plugins.editor").setup()
-pcall(require, "plugins.git").setup()
-pcall(require, "plugins.lsp").setup()
-pcall(require, "plugins.ai").setup()
+local ok, mod
+ok, mod = pcall(require, "plugins.ui"); if ok and mod and mod.setup then mod:setup() end
+ok, mod = pcall(require, "plugins.editor"); if ok and mod and mod.setup then mod:setup() end
+ok, mod = pcall(require, "plugins.git"); if ok and mod and mod.setup then mod:setup() end
+ok, mod = pcall(require, "plugins.lsp"); if ok and mod and mod.setup then mod:setup() end
+ok, mod = pcall(require, "plugins.ai"); if ok and mod and mod.setup then mod:setup() end
