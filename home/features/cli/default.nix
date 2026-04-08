@@ -12,6 +12,7 @@
     ./zsh
     ./git
     ./ssh
+    ./neovim
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)

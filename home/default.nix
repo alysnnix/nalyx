@@ -44,7 +44,7 @@ in
       ];
 
     sessionVariables = {
-      EDITOR = "vim";
+      EDITOR = "nvim";
       BROWSER = if isWsl then "wslview" else "firefox";
     };
 
