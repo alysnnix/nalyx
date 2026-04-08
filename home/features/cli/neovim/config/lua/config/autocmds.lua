@@ -82,7 +82,8 @@ autocmd({ "BufEnter", "CursorHold", "CursorHoldI" }, {
   group = general,
   pattern = "*",
   callback = function()
-    if vim.fn.getcmdwtype() == "" then
+    local cmdtype = (vim.fn.has("nvim-0.10") == 1) and vim.fn.getcmdtype() or ""
+    if cmdtype == "" then
       vim.cmd "checktime"
     end
   end,
