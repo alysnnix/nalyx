@@ -1,0 +1,33 @@
+{
+  config,
+  pkgs,
+  ...
+}:
+{
+  home.packages = with pkgs; [
+    # Neovim
+    neovim
+
+    # LSP servers
+    nodePackages.typescript-language-server
+    pyright
+    gopls
+    nil
+    lua-language-server
+
+    # Formatters
+    nixfmt
+    nodePackages.prettier
+    black
+    stylua
+
+    # Telescope dependencies
+    ripgrep
+    fd
+  ];
+
+  # Deploy LazyVim config files to ~/.config/nvim/
+  home.file."${config.home.homeDirectory}/.config/nvim/init.lua".source = ./config/init.lua;
+  home.file."${config.home.homeDirectory}/.config/nvim/lazyvim.json".source = ./config/lazyvim.json;
+  home.file."${config.home.homeDirectory}/.config/nvim/lua".source = ./config/lua;
+}

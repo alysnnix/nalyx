@@ -1,0 +1,13 @@
+{
+  "extras": [
+    "enabled",
+    "catppuccin",
+    "neo-tree",
+    "telescope",
+    "gitsigns",
+    "toggleterm",
+    "copilot",
+    "avante"
+  ],
+  "version": 2
+}
