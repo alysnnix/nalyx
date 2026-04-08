@@ -1,15 +1,11 @@
 -- Main config setup - loads all subconfigs
-local M = {}
 
-function M.setup()
-  require("config.options")
-  require("config.keymaps")
-  require("config.autocmds")
-  require("plugins.lsp")
-  require("plugins.ai")
-  require("plugins.editor")
-  require("plugins.git")
-  require("plugins.ui")
-end
+require("config.options")
+require("config.keymaps")
+require("config.autocmds")
 
-return M
+pcall(require, "plugins.ui").setup()
+pcall(require, "plugins.editor").setup()
+pcall(require, "plugins.git").setup()
+pcall(require, "plugins.lsp").setup()
+pcall(require, "plugins.ai").setup()
