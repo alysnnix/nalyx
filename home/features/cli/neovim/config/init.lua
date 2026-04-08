@@ -15,8 +15,45 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Setup lazy.nvim with LazyVim plugins
-require("lazy").setup("lazyvim.plugins")
+-- Setup lazy.nvim with all plugins
+require("lazy").setup({
+  -- LazyVim extras that we use
+  { "catppuccin/nvim", lazy = false },
+  { "nvim-neo-tree/neo-tree.nvim", lazy = true },
+  { "nvim-telescope/telescope.nvim", lazy = true },
+  { "lewis6991/gitsigns.nvim", lazy = true },
+  { "akinsho/toggleterm.nvim", lazy = true },
+  { "github/copilot.vim", lazy = true },
+  { "yetone/avante.nvim", lazy = true },
 
--- Load custom config after LazyVim
-require("config").setup()
+  -- Dependencies
+  { "nvim-lua/plenary.nvim", lazy = true },
+  { "nvim-tree/nvim-web-devicons", lazy = true },
+}, {
+  install = { colourscheme = { "catppuccin" } },
+  defaults = {
+    lazy = false,
+  },
+  performance = {
+    rtp = {
+      disabled_plugins = {
+        "gzip",
+      },
+    },
+  },
+})
+
+-- Load custom config after plugins
+vim.api.nvim_create_autocmd("User", {
+  pattern = "LazyInit",
+  once = true,
+  callback = function()
+    require("config").setup()
+  end,
+})
+
+-- Fallback: if LazyInit doesn't fire, setup after a tick
+vim.defer_fn(function()
+  if package.loaded["config"] then return end
+  pcall(require, "config")
+end, 100)
