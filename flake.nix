@@ -35,6 +35,13 @@
       url = "github:sadjow/claude-code-nix";
     };
 
+    caelestia = {
+      url = "github:caelestia-dots/shell/v1.5.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+      # Supply chain hardening: use GitHub mirror instead of self-hosted Forgejo
+      inputs.quickshell.url = "github:quickshell-mirror/quickshell";
+    };
+
     # Private repository (optional)
     # Default: empty placeholder (works for everyone)
     # To use your private configs: nix flake lock --override-input private git+ssh://git@github.com/alysnnix/nalyx-private
@@ -54,6 +61,7 @@
       git-hooks,
       sops-nix,
       claude-code,
+      caelestia,
       private ? null,
       ...
     }@inputs:
@@ -106,6 +114,9 @@
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
+                sharedModules = [
+                  caelestia.homeManagerModules.default
+                ];
                 extraSpecialArgs = {
                   inherit
                     inputs
