@@ -18,4 +18,8 @@
   homelab = {
     address = "homelab.local";
   };
+
+  weather = {
+    location = "";
+  };
 }
