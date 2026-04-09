@@ -23,7 +23,6 @@
     stylua
     texlivePackages.latexindent
 
-    # Build dependency for avante.nvim
     gcc
     gnumake
   ];
