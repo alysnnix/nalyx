@@ -34,11 +34,11 @@ return {
     },
   },
 
-  -- Use ASCII icons instead of Nerd Font glyphs
+  -- Use Nerd Font glyph icons
   {
     "echasnovski/mini.icons",
     opts = {
-      style = "ascii",
+      style = "glyph",
     },
   },
 
