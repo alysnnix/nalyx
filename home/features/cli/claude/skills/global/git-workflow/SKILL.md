@@ -53,8 +53,6 @@ type: short description (max 72 chars)
 - another detail
 ```
 
-**Importante:** NÃO adicionar `Co-Authored-By` nos commits. Commits são atribuídos ao desenvolvedor.
-
 ### Rules
 
 - Max 50 characters in title
