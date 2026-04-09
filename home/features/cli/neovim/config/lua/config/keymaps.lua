@@ -45,3 +45,25 @@ end, { desc = "Lazygit" })
 
 -- Git status panel (Alt+2)
 map("n", "<A-2>", "<cmd>Neotree git_status toggle<cr>", { desc = "Git status panel" })
+
+-- IDE-style clipboard (Ctrl+C/V/X)
+map("v", "<C-c>", '"+y', { desc = "Copy" })
+map({ "n", "i" }, "<C-v>", '<C-r>+', { desc = "Paste" })
+map("v", "<C-v>", '"+p', { desc = "Paste" })
+map("v", "<C-x>", '"+d', { desc = "Cut" })
+
+-- Select all (Ctrl+A)
+map("n", "<C-a>", "ggVG", { desc = "Select all" })
+
+-- Visual mode: Shift+arrows to select
+map("n", "<S-Up>", "v<Up>", { desc = "Select up" })
+map("n", "<S-Down>", "v<Down>", { desc = "Select down" })
+map("n", "<S-Left>", "v<Left>", { desc = "Select left" })
+map("n", "<S-Right>", "v<Right>", { desc = "Select right" })
+map("v", "<S-Up>", "<Up>", { desc = "Extend selection up" })
+map("v", "<S-Down>", "<Down>", { desc = "Extend selection down" })
+map("v", "<S-Left>", "<Left>", { desc = "Extend selection left" })
+map("v", "<S-Right>", "<Right>", { desc = "Extend selection right" })
+
+-- Escape to leave visual mode (already default, but explicit)
+map("v", "<Esc>", "<Esc>", { desc = "Exit visual mode" })
