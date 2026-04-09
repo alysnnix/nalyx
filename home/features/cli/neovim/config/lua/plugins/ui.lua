@@ -34,6 +34,14 @@ return {
     },
   },
 
+  -- Use ASCII icons instead of Nerd Font glyphs
+  {
+    "echasnovski/mini.icons",
+    opts = {
+      style = "ascii",
+    },
+  },
+
   -- Bufferline customization (already included by LazyVim)
   {
     "akinsho/bufferline.nvim",

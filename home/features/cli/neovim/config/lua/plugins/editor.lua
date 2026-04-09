@@ -3,6 +3,27 @@ return {
   {
     "nvim-neo-tree/neo-tree.nvim",
     opts = {
+      default_component_configs = {
+        icon = {
+          folder_closed = "▸",
+          folder_open = "▾",
+          folder_empty = "▹",
+          default = "·",
+        },
+        git_status = {
+          symbols = {
+            added = "+",
+            modified = "~",
+            deleted = "x",
+            renamed = "r",
+            untracked = "?",
+            ignored = "-",
+            unstaged = "u",
+            staged = "s",
+            conflict = "!",
+          },
+        },
+      },
       window = {
         position = "left",
         width = 30,
