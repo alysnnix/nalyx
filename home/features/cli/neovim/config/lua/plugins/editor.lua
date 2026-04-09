@@ -33,6 +33,17 @@ return {
     },
   },
 
+  -- Tab to accept autocomplete
+  {
+    "saghen/blink.cmp",
+    opts = {
+      keymap = {
+        ["<Tab>"] = { "accept", "fallback" },
+        ["<S-Tab>"] = { "snippet_backward", "fallback" },
+      },
+    },
+  },
+
   -- Telescope customization (already included by LazyVim)
   {
     "nvim-telescope/telescope.nvim",
