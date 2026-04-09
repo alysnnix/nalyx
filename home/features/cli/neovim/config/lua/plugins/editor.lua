@@ -9,7 +9,6 @@ return {
         mappings = {
           ["<space>"] = "none",
           ["<cr>"] = "open",
-          ["<LeftMouse>"] = "open",
         },
       },
       filesystem = {
