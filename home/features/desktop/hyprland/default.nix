@@ -8,8 +8,8 @@
 
 {
   imports = [
-    ./waybar
-    ./rofi
+    ./caelestia
+    ./matugen
   ];
 
   options.modules.desktop.hyprland = {
@@ -18,9 +18,7 @@
 
   config = lib.mkIf (vars.desktop == "hyprland") {
     home.packages = with pkgs; [
-      rofi
       swww
-      dunst
       wl-clipboard
       grim
       slurp
@@ -29,13 +27,10 @@
       playerctl
       kitty
       nautilus
+      thunderbird
+      qalculate-gtk
+      nwg-look
     ];
-
-    xdg.configFile."hypr/colors".text = ''
-      $background = rgba(1d192bee)
-      $foreground = rgba(c3dde7ee)
-      # ... suas cores ...
-    '';
 
     wayland.windowManager.hyprland = {
       enable = true;
