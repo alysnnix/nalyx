@@ -9,6 +9,7 @@ return {
         mappings = {
           ["<space>"] = "none",
           ["<cr>"] = "open",
+          ["<2-LeftMouse>"] = "open",
         },
       },
       filesystem = {
@@ -18,6 +19,15 @@ return {
           visible = false,
           hide_dotfiles = false,
           hide_gitignored = true,
+        },
+      },
+      event_handlers = {
+        {
+          event = "neo_tree_buffer_enter",
+          handler = function()
+            vim.opt_local.signcolumn = "no"
+            vim.opt_local.cursorline = true
+          end,
         },
       },
     },

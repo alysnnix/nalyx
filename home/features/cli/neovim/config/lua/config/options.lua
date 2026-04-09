@@ -34,3 +34,9 @@ vim.opt.splitright = true
 
 -- Wrapping
 vim.opt.wrap = false
+
+-- Hide command line when not in use (removes the text block at the bottom)
+vim.opt.cmdheight = 0
+
+-- Better mouse: don't select line numbers, keep visual mode on drag
+vim.opt.mousemodel = "extend"
