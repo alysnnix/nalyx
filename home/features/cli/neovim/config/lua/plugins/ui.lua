@@ -78,6 +78,9 @@ return {
     },
     config = function(_, opts)
       local map = require("mini.map")
+      opts.symbols = {
+        encode = map.gen_encode_symbols.block("3x2"),
+      }
       opts.integrations = {
         map.gen_integration.builtin_search(),
         map.gen_integration.gitsigns(),
