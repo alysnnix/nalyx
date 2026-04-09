@@ -36,7 +36,7 @@ return {
 
   -- Use Nerd Font glyph icons
   {
-    "echasnovski/mini.icons",
+    "nvim-mini/mini.icons",
     opts = {
       style = "glyph",
     },

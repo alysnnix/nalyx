@@ -31,7 +31,6 @@
   # Deploy Lua config to ~/.config/nvim/
   xdg.configFile = {
     "nvim/init.lua".source = ./config/init.lua;
-    "nvim/lazyvim.json".source = ./config/lazyvim.json;
     "nvim/lua/config/options.lua".source = ./config/lua/config/options.lua;
     "nvim/lua/config/keymaps.lua".source = ./config/lua/config/keymaps.lua;
     "nvim/lua/config/autocmds.lua".source = ./config/lua/config/autocmds.lua;
