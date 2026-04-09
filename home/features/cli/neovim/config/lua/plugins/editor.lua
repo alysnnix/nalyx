@@ -8,8 +8,10 @@ return {
         width = 30,
         mappings = {
           ["<space>"] = "none",
+          ["<cr>"] = "open",
         },
       },
+      open_on_single_click = true,
       filesystem = {
         follow_current_file = { enabled = true },
         use_libuv_file_watcher = true,

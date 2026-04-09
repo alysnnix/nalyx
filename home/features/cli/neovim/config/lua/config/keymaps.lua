@@ -42,3 +42,6 @@ map("v", "<C-/>", "gc", { remap = true, desc = "Toggle comment" })
 map("n", "<C-g>", function()
   Snacks.terminal("lazygit", { cwd = LazyVim.root(), esc_esc = false, ctrl_hjkl = false })
 end, { desc = "Lazygit" })
+
+-- Git status panel (Alt+2)
+map("n", "<A-2>", "<cmd>Neotree git_status toggle<cr>", { desc = "Git status panel" })
