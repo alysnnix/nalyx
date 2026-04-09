@@ -31,5 +31,6 @@
     pinentry-curses
     supabase-cli
     flyctl
+    (pkgs.callPackage ../../../packages/render-cli.nix { })
   ];
 }
