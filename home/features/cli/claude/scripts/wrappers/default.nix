@@ -12,7 +12,7 @@
   # NOTE: Uses subshell + export instead of inline VAR=value prefix because
   # zsh does not propagate inline assignments through the `command` builtin.
   claude() {
-    local minimax=0 openrouter=0 english=0
+    local minimax=0 openrouter=0 english=0 work=0
     local remaining_args=()
 
     for arg in "$@"; do
@@ -20,6 +20,7 @@
         --minimax) minimax=1 ;;
         --openrouter) openrouter=1 ;;
         --english) english=1 ;;
+        --work) work=1 ;;
         *) remaining_args+=("$arg") ;;
       esac
     done
@@ -30,6 +31,9 @@
     elif (( openrouter )); then
       ${import ./openrouter.nix}
       _claude_openrouter "''${remaining_args[@]}"
+    elif (( work )); then
+      ${import ./work.nix}
+      _claude_work "''${remaining_args[@]}"
     elif (( english )); then
       ${import ./english.nix}
       _claude_english "''${remaining_args[@]}"
