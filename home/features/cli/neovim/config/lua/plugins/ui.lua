@@ -62,32 +62,4 @@ return {
         theme = "catppuccin",
       },
     },
-  },
-
-  -- Minimap
-  {
-    "nvim-mini/mini.map",
-    event = "VeryLazy",
-    opts = {
-      integrations = nil,
-      window = {
-        width = 10,
-        winblend = 50,
-        show_integration_count = false,
-      },
-    },
-    config = function(_, opts)
-      local map = require("mini.map")
-      opts.symbols = {
-        encode = map.gen_encode_symbols.block("3x2"),
-      }
-      opts.integrations = {
-        map.gen_integration.builtin_search(),
-        map.gen_integration.gitsigns(),
-        map.gen_integration.diagnostic(),
-      }
-      map.setup(opts)
-      map.open()
-    end,
-  },
-}
+  },}
