@@ -22,8 +22,6 @@ This skill includes pre-built templates at:
 ├── universal/                    # ALWAYS copy these
 │   ├── rules/
 │   │   └── quality.md            # Test coverage & commit quality rules
-│   └── skills/
-│       └── git-workflow/SKILL.md
 └── stack/                        # Copy if stack detected
     ├── typescript/rules/typescript.md
     └── testing-vitest/rules/testing.md
@@ -79,16 +77,6 @@ This file enforces:
 - **All tests must pass** before any commit
 - **Each commit must be complete** - code 100% functional
 - **No exceptions** - every feature/change needs tests
-
-### Git Workflow
-
-```bash
-# Copy from:
-~/.claude/skills/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md
-
-# To:
-.claude/skills/git-workflow/SKILL.md
-```
 
 Read each template file and write it to the project. Adapt if the project has specific conventions.
 
@@ -269,7 +257,6 @@ Only create if project needs specific permissions:
 |------|--------|----------|
 | `.claude/CLAUDE.md` | Generated | **Yes** |
 | `.claude/rules/quality.md` | Universal template | **Yes (MANDATORY)** |
-| `.claude/skills/git-workflow/SKILL.md` | Universal template | **Yes** |
 | `.claude/rules/typescript.md` | Stack template | If TypeScript |
 | `.claude/rules/testing.md` | Stack template | If Vitest/Jest |
 | `.claude/skills/explore-*/SKILL.md` | Generated | 3-5 domains |

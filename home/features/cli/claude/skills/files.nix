@@ -6,7 +6,6 @@ let
   skillFiles = {
     "global-devcontainer/SKILL.md" = ./global/devcontainer/SKILL.md;
     "global-generate-claude-doc/SKILL.md" = ./global/generate-claude-doc/SKILL.md;
-    "global-git-workflow/SKILL.md" = ./global/git-workflow/SKILL.md;
     "global-open-pr/SKILL.md" = ./global/open-pr/SKILL.md;
     "global-review-prs/SKILL.md" = ./global/review-prs/SKILL.md;
 
@@ -17,8 +16,6 @@ let
       ./global/generate-claude-doc/templates/stack/typescript/rules/typescript.md;
 
     # Templates - Universal
-    "global-generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md" =
-      ./global/generate-claude-doc/templates/universal/skills/git-workflow/SKILL.md;
     "global-generate-claude-doc/templates/universal/rules/quality.md" =
       ./global/generate-claude-doc/templates/universal/rules/quality.md;
   };
