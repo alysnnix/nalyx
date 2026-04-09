@@ -30,5 +30,6 @@
     gnupg
     pinentry-curses
     supabase-cli
+    flyctl
   ];
 }
