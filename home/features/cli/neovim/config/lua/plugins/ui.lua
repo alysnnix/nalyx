@@ -49,6 +49,7 @@ return {
       options = {
         always_show_bufferline = true,
         separator_style = "thin",
+        middle_mouse_command = "bdelete! %d",
       },
     },
   },

@@ -9,9 +9,9 @@ return {
         mappings = {
           ["<space>"] = "none",
           ["<cr>"] = "open",
+          ["<LeftMouse>"] = "open",
         },
       },
-      open_on_single_click = true,
       filesystem = {
         follow_current_file = { enabled = true },
         use_libuv_file_watcher = true,
