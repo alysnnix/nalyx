@@ -78,5 +78,14 @@ in
     };
   };
 
+  xdg.mimeApps = lib.mkIf isWsl {
+    enable = true;
+    defaultApplications = {
+      "x-scheme-handler/http" = "wslview.desktop";
+      "x-scheme-handler/https" = "wslview.desktop";
+      "x-scheme-handler/file" = "wslview.desktop";
+    };
+  };
+
   programs.home-manager.enable = true;
 }
