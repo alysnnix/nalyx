@@ -20,6 +20,7 @@
 
   home.packages = with pkgs; [
     ghostty
+    glow
     lazygit
     imagemagick
     tree
