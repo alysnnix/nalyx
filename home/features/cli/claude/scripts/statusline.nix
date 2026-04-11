@@ -1,6 +1,6 @@
 { pkgs, lib }:
 
-pkgs.writeShellScript "claude-statusline" ''
+pkgs.writeShellScriptBin "claude-statusline" ''
   JQ="${pkgs.jq}/bin/jq"
   input=$(cat)
 
@@ -70,7 +70,7 @@ pkgs.writeShellScript "claude-statusline" ''
     bar="''${DIM}''${eaten}''${RST} ''${PAC}ᗧ ''${RST}''${C}''${dots}''${RST}"
     ctx="''${bar} ''${C}''${pct_int}%''${RST}"
   else
-    ctx="''${DIM}ᗧ●●●●●●●●●●●●●●● --%''${RST}"
+    ctx="''${DIM}''${RST} ''${PAC}ᗧ ''${RST}''${DIM}●●●●●●●●●●●●●●● --%''${RST}"
   fi
 
   cost=$(echo "$input" | $JQ -r '.cost.total_cost_usd // empty')

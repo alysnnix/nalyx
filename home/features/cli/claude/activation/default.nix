@@ -3,6 +3,7 @@
   lib,
   hasPrivate ? false,
   private ? null,
+  profiles,
   claudeStatusline ? null,
   claudeNotify ? null,
   ...
@@ -33,5 +34,9 @@ in
       privateMcpConfig
       claudeSettingsBase
       ;
+  };
+
+  claudeProfiles = import ./profiles.nix {
+    inherit pkgs lib profiles;
   };
 }

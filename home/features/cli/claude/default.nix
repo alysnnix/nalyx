@@ -7,8 +7,10 @@
 }:
 
 let
+  profiles = import ./profiles.nix;
+
   # Scripts: notify sound, statusline formatter, and shell wrappers
-  scripts = import ./scripts { inherit pkgs lib; };
+  scripts = import ./scripts { inherit pkgs lib profiles; };
 
   # Skills: file mapping and derivation builder
   skills = import ./skills/files.nix { inherit pkgs lib; };
@@ -21,13 +23,14 @@ let
     claude-validate-pr = scripts.claude-validate-pr;
   };
 
-  # Activation snippets: copy skills and generate settings.json
+  # Activation snippets: copy skills, generate settings.json, set up profiles
   activation = import ./activation {
     inherit
       pkgs
       lib
       hasPrivate
       private
+      profiles
       ;
     claudeStatusline = scripts.claude-statusline;
     claudeNotify = scripts.claude-notify;
@@ -49,5 +52,6 @@ in
 
     activation.claudeSkills = activation.claudeSkills;
     activation.claudeSettings = activation.claudeSettings;
+    activation.claudeProfiles = activation.claudeProfiles;
   };
 }
