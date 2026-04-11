@@ -30,6 +30,7 @@
     unzip
     gnupg
     pinentry-curses
+    stripe-cli
     supabase-cli
     flyctl
     kubectl

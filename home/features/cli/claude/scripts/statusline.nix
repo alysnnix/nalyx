@@ -81,9 +81,15 @@ pkgs.writeShellScriptBin "claude-statusline" ''
     price="''${DIM}\$-.----''${RST}"
   fi
 
+  # --- account label ---
+  account_label=""
+  if [ -n "$CLAUDE_PROFILE" ]; then
+    account_label="''${DIM}[''${RST}''${YLW}$CLAUDE_PROFILE''${RST}''${DIM}]''${RST}  "
+  fi
+
   if [ -n "$reset_part" ]; then
-    printf "%b" "''${ctx}  ''${DIM}''${RST}$model  $price  ''${reset_part}"
+    printf "%b" "''${account_label}''${ctx}  ''${DIM}''${RST}$model  $price  ''${reset_part}"
   else
-    printf "%b" "''${ctx}  ''${DIM}''${RST}$model  $price"
+    printf "%b" "''${account_label}''${ctx}  ''${DIM}''${RST}$model  $price"
   fi
 ''

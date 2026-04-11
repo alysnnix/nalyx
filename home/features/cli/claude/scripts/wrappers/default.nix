@@ -76,6 +76,7 @@ in
       if [[ -n "$profile" ]]; then
         _claude_sync_profile "$profile"
         extra_env+=("CLAUDE_CONFIG_DIR=$HOME/.claude/accounts/$profile")
+        extra_env+=("CLAUDE_PROFILE=$profile")
 
         local prompt_file="$HOME/.claude/accounts/$profile/.system-prompt"
         if [[ -f "$prompt_file" ]]; then
