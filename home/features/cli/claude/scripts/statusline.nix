@@ -1,6 +1,6 @@
 { pkgs, lib }:
 
-pkgs.writeShellScript "claude-statusline" ''
+pkgs.writeShellScriptBin "claude-statusline" ''
   JQ="${pkgs.jq}/bin/jq"
   input=$(cat)
 
