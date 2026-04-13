@@ -11,7 +11,6 @@
 
   home.packages = with pkgs; [
     discord
-    obsidian
     k6
     vegeta
     moonlight-qt

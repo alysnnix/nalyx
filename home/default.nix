@@ -30,6 +30,7 @@ in
         gh
         gnumake
         nerd-fonts.jetbrains-mono
+        obsidian
       ]
       ++ lib.optionals hasDesktop [
         spotify
