@@ -39,4 +39,15 @@ else
   echo "  private: (not found, no SSH access to GitHub, using defaults)"
 fi
 
+# Clone notes vault (Obsidian) if SSH is available and not already cloned
+NOTES_DIR="$FLAKE_DIR/.private/notes"
+if [ ! -d "$NOTES_DIR" ]; then
+  if [ -d "$PRIVATE_DIR" ] || ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new git@github.com 2>/dev/null; [ $? -eq 1 ]; then
+    echo "  notes: cloning git@github.com:alysnnix/notes.git..."
+    git clone git@github.com:alysnnix/notes.git "$NOTES_DIR" || echo "  notes: clone failed, skipping"
+  fi
+else
+  echo "  notes: $NOTES_DIR"
+fi
+
 sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}"
