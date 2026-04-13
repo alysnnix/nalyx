@@ -1,6 +1,6 @@
 # Main claude wrapper — parses flags and dispatches to appropriate handler.
 # Profiles (--work, etc.) use separate config dirs with shared settings via symlinks.
-# Modifiers (--minimax, --openrouter, --english) compose with each other and profiles.
+# Modifiers (--minimax, --openrouter, --litellm, --english) compose with each other and profiles.
 # Profile flags and modifier cases are auto-generated from profiles.nix.
 {
   pkgs,
@@ -51,7 +51,7 @@ in
 
     claude() {
       local profile=""
-      local minimax=0 openrouter=0 english=0
+      local minimax=0 openrouter=0 litellm=0 english=0
       local remaining_args=()
 
       for arg in "$@"; do
@@ -59,13 +59,14 @@ in
   ${profileCases}
           --minimax) minimax=1 ;;
           --openrouter) openrouter=1 ;;
+          --litellm) litellm=1 ;;
           --english) english=1 ;;
           *) remaining_args+=("$arg") ;;
         esac
       done
 
-      if (( minimax + openrouter > 1 )); then
-        echo "Error: --minimax and --openrouter are mutually exclusive"
+      if (( minimax + openrouter + litellm > 1 )); then
+        echo "Error: --minimax, --openrouter, and --litellm are mutually exclusive"
         return 1
       fi
 
@@ -90,6 +91,9 @@ in
       fi
       if (( openrouter )); then
   ${import ./openrouter.nix}
+      fi
+      if (( litellm )); then
+  ${import ./litellm.nix}
       fi
 
       # Behavior modifiers

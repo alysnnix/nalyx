@@ -70,6 +70,7 @@
       seazone_mcp_api_key.owner = vars.user.name;
       minimax_api_key.owner = vars.user.name;
       openrouter_api_key.owner = vars.user.name;
+      litellm_api_key.owner = vars.user.name;
     };
   };
 
