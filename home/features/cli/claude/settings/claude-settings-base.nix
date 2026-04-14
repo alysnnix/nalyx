@@ -66,6 +66,13 @@ builtins.toJSON {
         SLACK_TEAM_ID = "";
       };
     };
+    "animate-ui" = {
+      command = "npx";
+      args = [
+        "shadcn@latest"
+        "mcp"
+      ];
+    };
   }
   // privateMcpConfig.mcpServers;
 }
