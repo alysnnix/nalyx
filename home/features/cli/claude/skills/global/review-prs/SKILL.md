@@ -1,5 +1,5 @@
 ---
-name: global-review-prs
+name: gb-review-prs
 description: "Review pending PRs assigned to you. Lists all PRs awaiting your review across repos, lets you pick which to review, then launches code-review agents."
 user-invocable: true
 ---

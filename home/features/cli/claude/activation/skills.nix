@@ -15,7 +15,7 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   ${pkgs.findutils}/bin/find "$SKILLS_DST" -type l -lname '*/nix/store/*' -delete 2>/dev/null || true
 
   # Remove stale directories from previous naming schemes
-  for old_dir in "$SKILLS_DST"/global "$SKILLS_DST"/impeccable "$SKILLS_DST"/generate-claude-doc; do
+  for old_dir in "$SKILLS_DST"/global "$SKILLS_DST"/impeccable "$SKILLS_DST"/generate-claude-doc "$SKILLS_DST"/global-*; do
     [ -d "$old_dir" ] && rm -rf "$old_dir"
   done
 

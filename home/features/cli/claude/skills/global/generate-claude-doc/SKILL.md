@@ -1,5 +1,5 @@
 ---
-name: global-generate-claude-doc
+name: gb-generate-claude-doc
 description: Generate a complete .claude folder structure for any project, including CLAUDE.md, rules, and custom skills. Use when setting up a new project or adding Claude Code support to an existing codebase.
 argument-hint: "[project-name or description]"
 user-invocable: true

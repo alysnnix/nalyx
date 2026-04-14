@@ -1,5 +1,5 @@
 ---
-name: global-check-review
+name: gb-check-review
 description: "Process alfred-reviewer bot comments on a PR: judge each suggestion, reply in threads, react with thumbs up/down, apply valid fixes via subagents, and resolve conversations."
 user-invocable: true
 ---

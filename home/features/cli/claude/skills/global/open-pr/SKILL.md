@@ -1,5 +1,5 @@
 ---
-name: global-open-pr
+name: gb-open-pr
 description: "Open a pull request with proper conventions. Use when creating PRs: adds reviewers, labels, assignee, and follows team standards."
 user-invocable: true
 ---
