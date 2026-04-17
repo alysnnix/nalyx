@@ -7,7 +7,6 @@
   fi
   local litellm_token
   litellm_token="$(cat "$key_file")"
-  extra_env+=("ANTHROPIC_BASE_URL=https://hub.seazone.dev")
-  extra_env+=("ANTHROPIC_API_KEY=$litellm_token")
-  extra_env+=("CLAUDE_CODE_SKIP_LOGIN=1")
+  extra_env+=("ANTHROPIC_BASE_URL=https://hub.seazone.dev/v1")
+  extra_env+=("ANTHROPIC_AUTH_TOKEN=$litellm_token")
 ''
