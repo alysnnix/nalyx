@@ -13,7 +13,7 @@
   editor = "nvim";
 
   # Options: "hyprland", "gnome", null
-  desktop = "gnome";
+  desktop = "hyprland";
 
   homelab = {
     address = "homelab.local";

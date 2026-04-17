@@ -23,7 +23,7 @@
       grim
       slurp
       pamixer
-      light
+      brightnessctl
       playerctl
       kitty
       nautilus

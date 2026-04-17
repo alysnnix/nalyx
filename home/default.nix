@@ -14,8 +14,8 @@ in
     ./features/cli
     ./features/languages
   ]
-  ++ (lib.optional (vars.desktop == "gnome") ./features/desktop/gnome)
-  ++ (lib.optional (vars.desktop == "hyprland") ./features/desktop/hyprland)
+  ++ (lib.optional (hasDesktop && vars.desktop == "gnome") ./features/desktop/gnome)
+  ++ (lib.optional (hasDesktop && vars.desktop == "hyprland") ./features/desktop/hyprland)
   ++ lib.optionals hasDesktop [
     ./features/programs
   ];

@@ -7,6 +7,8 @@
   sops-nix,
   hasPrivate,
   private,
+  caelestia,
+  claude-code,
 }:
 
 let
@@ -34,12 +36,16 @@ let
       modules = [
         ../hosts/${hostname}/default.nix
         sops-nix.nixosModules.sops
+        { nixpkgs.overlays = [ claude-code.overlays.default ]; }
 
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            sharedModules = [
+              caelestia.homeManagerModules.default
+            ];
             extraSpecialArgs = {
               inherit
                 inputs
