@@ -71,6 +71,10 @@ in
     };
   };
 
+  # Force overwrite GTK files that Matugen/Caelestia may have modified
+  xdg.configFile."gtk-4.0/gtk.css".force = true;
+  xdg.configFile."gtk-4.0/settings.ini".force = true;
+
   qt = lib.mkIf (vars.desktop != null) {
     enable = true;
     platformTheme.name = "adwaita";
