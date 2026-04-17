@@ -32,6 +32,12 @@
       nwg-look
     ];
 
+    # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
+    home.activation.ensureHyprColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      mkdir -p ~/.config/hypr
+      [ -f ~/.config/hypr/colors.conf ] || touch ~/.config/hypr/colors.conf
+    '';
+
     wayland.windowManager.hyprland = {
       enable = true;
       extraConfig = builtins.readFile ./hyprland.conf;
