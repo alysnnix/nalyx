@@ -23,14 +23,21 @@
       grim
       slurp
       pamixer
-      light
+      brightnessctl
       playerctl
       kitty
       nautilus
       thunderbird
       qalculate-gtk
       nwg-look
+      btop
     ];
+
+    # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
+    home.activation.ensureHyprColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      mkdir -p ~/.config/hypr
+      [ -f ~/.config/hypr/colors.conf ] || touch ~/.config/hypr/colors.conf
+    '';
 
     wayland.windowManager.hyprland = {
       enable = true;

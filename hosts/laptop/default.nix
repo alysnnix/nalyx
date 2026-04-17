@@ -16,4 +16,5 @@
   networking.hostName = "laptop";
   programs.kdeconnect.enable = true;
   home-manager.users.${vars.user.name} = import ../../home;
+  home-manager.backupFileExtension = "backup-laptop";
 }

@@ -1,54 +1,45 @@
-{ vars, ... }:
+{
+  vars,
+  lib,
+  pkgs,
+  ...
+}:
+let
+  shellConfig = builtins.toJSON {
+    background.visualiser.enabled = false;
+    bar = { };
+    dashboard.enabled = false;
+    launcher.enableDangerousActions = false;
+    lock = { };
+    notifs = { };
+    osd = {
+      enabled = true;
+      enableBrightness = true;
+      enableMicrophone = true;
+    };
+    services = {
+      weather.location = vars.weather.location;
+      showLyrics = false;
+    };
+    session.enabled = false;
+    sidebar.enabled = false;
+    utilities.enabled = false;
+  };
+in
 {
   programs.caelestia = {
     enable = true;
-
-    cli = {
-      enable = true;
-    };
-
-    settings = {
-      # --- Enabled modules ---
-      bar = {
-        # Use defaults for workspaces, clock, volume, network, CPU/RAM, tray
-      };
-
-      launcher = {
-        # App search with autocomplete
-        enableDangerousActions = false;
-      };
-
-      notifs = {
-        # Default notification behavior
-      };
-
-      osd = {
-        enabled = true;
-        enableBrightness = true;
-        enableMicrophone = true;
-      };
-
-      lock = {
-        # Lock screen with default config
-      };
-
-      # --- Disabled modules (minimalism) ---
-      dashboard.enabled = false;
-      sidebar.enabled = false;
-      session.enabled = false;
-      utilities.enabled = false;
-
-      # Disable audio visualizer
-      background.visualiser.enabled = false;
-
-      # --- Security hardening ---
-      services = {
-        # S-W2: No IP geolocation -- use explicit coordinates
-        weather.location = vars.weather.location;
-
-        # S-W1/S-W3: No lyrics (external network calls)
-        showLyrics = false;
-      };
-    };
+    cli.enable = true;
   };
+
+  # Write shell.json as a real file (not symlink) so Caelestia can modify it at runtime
+  home.activation.caelestiaSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        mkdir -p ~/.config/caelestia
+        if [ ! -f ~/.config/caelestia/shell.json ] || [ -L ~/.config/caelestia/shell.json ]; then
+          rm -f ~/.config/caelestia/shell.json
+          cat > ~/.config/caelestia/shell.json << 'SHELLJSON'
+    ${shellConfig}
+    SHELLJSON
+        fi
+  '';
 }

@@ -145,6 +145,8 @@
           sops-nix
           hasPrivate
           private
+          caelestia
+          claude-code
           ;
       };
 

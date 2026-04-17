@@ -14,8 +14,8 @@ in
     ./features/cli
     ./features/languages
   ]
-  ++ (lib.optional (vars.desktop == "gnome") ./features/desktop/gnome)
-  ++ (lib.optional (vars.desktop == "hyprland") ./features/desktop/hyprland)
+  ++ (lib.optional (hasDesktop && vars.desktop == "gnome") ./features/desktop/gnome)
+  ++ (lib.optional (hasDesktop && vars.desktop == "hyprland") ./features/desktop/hyprland)
   ++ lib.optionals hasDesktop [
     ./features/programs
   ];
@@ -52,6 +52,11 @@ in
 
     stateVersion = "25.11";
   };
+
+  # Clean old HM backup files to prevent activation failures
+  home.activation.cleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    find ~/.config -name "*.backup-*" -delete 2>/dev/null || true
+  '';
 
   gtk = lib.mkIf (vars.desktop != null) {
     enable = true;
