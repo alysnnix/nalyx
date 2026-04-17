@@ -29,7 +29,7 @@ in
         
         # Verify if authentication exists before attempting installation.
         # This prevents the Home Manager activation from crashing.
-        if [ ! -f "$HOME/.gemini/settings.json" ] && [ -z "$GEMINI_API_KEY" ]; then
+        if [ ! -f "$HOME/.gemini/settings.json" ] && [ -z "''${GEMINI_API_KEY:-}" ]; then
           echo "Warning: Authentication not found for Gemini CLI. Skipping MCP: $repo_name"
           echo "Please configure ~/.gemini/settings.json or export GEMINI_API_KEY."
           continue
