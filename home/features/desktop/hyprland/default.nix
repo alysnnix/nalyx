@@ -30,6 +30,7 @@
       thunderbird
       qalculate-gtk
       nwg-look
+      btop
     ];
 
     # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
