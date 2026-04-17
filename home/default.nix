@@ -53,6 +53,11 @@ in
     stateVersion = "25.11";
   };
 
+  # Clean old HM backup files to prevent activation failures
+  home.activation.cleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    find ~/.config -name "*.backup-*" -delete 2>/dev/null || true
+  '';
+
   gtk = lib.mkIf (vars.desktop != null) {
     enable = true;
     theme = {
@@ -70,10 +75,6 @@ in
       gtk-application-prefer-dark-theme = true;
     };
   };
-
-  # Force overwrite GTK files that Matugen/Caelestia may have modified
-  xdg.configFile."gtk-4.0/gtk.css".force = true;
-  xdg.configFile."gtk-4.0/settings.ini".force = true;
 
   qt = lib.mkIf (vars.desktop != null) {
     enable = true;
