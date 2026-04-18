@@ -69,6 +69,7 @@
       sapron_cf_client_secret.owner = vars.user.name;
       seazone_mcp_api_key.owner = vars.user.name;
       coolify_api_key.owner = vars.user.name;
+      grafana_api_key.owner = vars.user.name;
       minimax_api_key.owner = vars.user.name;
       openrouter_api_key.owner = vars.user.name;
       litellm_api_key.owner = vars.user.name;
@@ -110,10 +111,44 @@
     '';
   };
 
+  # Playwright browser dependencies (X11/GUI libs for WSLg)
+  hardware.graphics.enable = true;
+
+  environment.sessionVariables = {
+    DISPLAY = ":0";
+  };
+
   programs = {
     zsh.enable = true;
     dconf.enable = true;
     nix-ld.enable = true;
+    nix-ld.libraries = with pkgs; [
+      # Playwright/Chromium dependencies
+      xorg.libX11
+      xorg.libXcomposite
+      xorg.libXdamage
+      xorg.libXext
+      xorg.libXfixes
+      xorg.libXrandr
+      xorg.libxcb
+      mesa
+      libdrm
+      libxkbcommon
+      xorg.libxshmfence
+      alsa-lib
+      at-spi2-atk
+      at-spi2-core
+      cairo
+      cups
+      dbus
+      expat
+      glib
+      gtk3
+      nspr
+      nss
+      pango
+      wayland
+    ];
   };
 
   home-manager.users.${vars.user.name} = import ../../home;
