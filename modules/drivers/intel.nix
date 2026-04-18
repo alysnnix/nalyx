@@ -10,5 +10,10 @@
     ];
   };
 
+  environment.sessionVariables = {
+    # Force Intel Iris Xe to use the correct Mesa driver
+    MESA_LOADER_DRIVER_OVERRIDE = "iris";
+  };
+
   services.thermald.enable = true;
 }
