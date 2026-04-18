@@ -32,7 +32,7 @@ in
 
     opencode() {
       local profile=""
-      local minimax=0 openrouter=0 litellm=0 english=0
+      local minimax=0 openrouter=0 litellm=0 cc=0 english=0
       local remaining_args=()
 
       for arg in "$@"; do
@@ -41,13 +41,14 @@ in
           --minimax) minimax=1 ;;
           --openrouter) openrouter=1 ;;
           --litellm) litellm=1 ;;
+          --cc) cc=1 ;;
           --english) english=1 ;;
           *) remaining_args+=("$arg") ;;
         esac
       done
 
-      if (( minimax + openrouter + litellm > 1 )); then
-        echo "Error: --minimax, --openrouter, and --litellm are mutually exclusive"
+      if (( minimax + openrouter + litellm + cc > 1 )); then
+        echo "Error: --minimax, --openrouter, --litellm, and --cc are mutually exclusive"
         return 1
       fi
 
@@ -68,6 +69,9 @@ in
       fi
       if (( litellm )); then
   ${import ./litellm.nix}
+      fi
+      if (( cc )); then
+  ${import ./cc.nix { inherit pkgs; }}
       fi
 
       # Behavior modifiers
