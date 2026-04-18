@@ -8,29 +8,38 @@
 
 {
   imports = [
-    ./caelestia
     ./matugen
-  ];
+  ]
+  ++ (lib.optional (vars.shell == "caelestia") ./caelestia)
+  ++ (lib.optionals (vars.shell == "waybar") [
+    ./waybar
+    ./rofi
+  ]);
 
   options.modules.desktop.hyprland = {
     enable = lib.mkEnableOption "Habilita o ambiente Hyprland";
   };
 
   config = lib.mkIf (vars.desktop == "hyprland") {
-    home.packages = with pkgs; [
-      swww
-      wl-clipboard
-      grim
-      slurp
-      pamixer
-      brightnessctl
-      playerctl
-      nautilus
-      thunderbird
-      qalculate-gtk
-      nwg-look
-      btop
-    ];
+    home.packages =
+      with pkgs;
+      [
+        swww
+        wl-clipboard
+        grim
+        slurp
+        pamixer
+        brightnessctl
+        playerctl
+        nautilus
+        thunderbird
+        qalculate-gtk
+        nwg-look
+        btop
+      ]
+      ++ (lib.optionals (vars.shell == "waybar") [
+        dunst
+      ]);
 
     # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
     home.activation.ensureHyprColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -49,7 +58,14 @@
 
     wayland.windowManager.hyprland = {
       enable = true;
-      extraConfig = builtins.readFile ./hyprland.conf;
+      extraConfig =
+        builtins.readFile ./hyprland.conf
+        + (lib.optionalString (vars.shell == "waybar") ''
+
+          # --- Waybar shell ---
+          exec-once = waybar
+          exec-once = dunst
+        '');
     };
   };
 }
