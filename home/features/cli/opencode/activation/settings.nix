@@ -59,6 +59,21 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   # Inject private MCP tokens from nalyx-private
   ${privateMcpConfig.injectScript}
 
+  # Inject Claude Code OAuth token into claude-code provider or remove it
+  CC_CREDS="$HOME/.claude/.credentials.json"
+  if [ -f "$CC_CREDS" ]; then
+    CC_TOKEN=$($JQ -r '.claudeAiOauth.accessToken // empty' "$CC_CREDS")
+    if [ -n "$CC_TOKEN" ]; then
+      MANAGED=$(echo "$MANAGED" | \
+        $JQ --arg token "Bearer $CC_TOKEN" \
+        '.provider."claude-code".options.headers.Authorization = $token')
+    else
+      MANAGED=$(echo "$MANAGED" | $JQ 'del(.provider."claude-code")')
+    fi
+  else
+    MANAGED=$(echo "$MANAGED" | $JQ 'del(.provider."claude-code")')
+  fi
+
   # Merge: existing settings * managed settings (managed keys win)
   if [ -f "$SETTINGS_FILE" ]; then
     EXISTING=$(cat "$SETTINGS_FILE")
