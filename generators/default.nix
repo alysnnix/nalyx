@@ -57,6 +57,7 @@ let
               isWsl = false;
               enableClaude = true;
               enableGemini = true;
+              enableOpencode = true;
             };
           };
         }
