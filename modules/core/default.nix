@@ -104,6 +104,7 @@
       sapron_cf_client_secret.owner = vars.user.name;
       seazone_mcp_api_key.owner = vars.user.name;
       coolify_api_key.owner = vars.user.name;
+      grafana_api_key.owner = vars.user.name;
       tailscale_auth_key = { };
       wifi_password = { };
     };
