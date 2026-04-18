@@ -1,23 +1,110 @@
 # Provider definitions for opencode.
-# Provider modifiers (litellm, minimax, openrouter, cc) are handled at the
-# wrapper level via environment variables, not in the config file.
 #
-# LiteLLM models (via --litellm flag):
-#   claude-opus, claude-opus-4-6, claude-opus-4-7
-#   claude-sonnet, claude-sonnet-4-6
-#   claude-haiku-4-5
-#   minimax-m2.5, minimax-m2.7
-#   zhipu-glm5, zhipu-glm5-turbo, zhipu-glm5.1
+# LiteLLM is configured as a custom provider with all available models.
+# The API key placeholder is replaced at activation time from sops.
 #
-# Claude Code (via --cc flag):
-#   Uses OAuth token from Claude Code subscription.
-#   Supports all models available on your plan.
+# Claude Code (--cc flag) writes the OAuth token to opencode's auth.json
+# to enable the built-in anthropic provider.
 {
   providers = {
     anthropic = {
       env = [ "ANTHROPIC_API_KEY" ];
     };
+    litellm = {
+      npm = "@ai-sdk/openai-compatible";
+      name = "LiteLLM";
+      options = {
+        baseURL = "https://hub.seazone.dev/v1";
+        apiKey = "__LITELLM_API_KEY_PLACEHOLDER__";
+      };
+      models = {
+        claude-opus = {
+          name = "Claude Opus (latest)";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        claude-opus-4-6 = {
+          name = "Claude Opus 4.6";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        "claude-opus-4-6[1m]" = {
+          name = "Claude Opus 4.6 (1M)";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+        claude-opus-4-7 = {
+          name = "Claude Opus 4.7";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        "claude-opus-4-7[1m]" = {
+          name = "Claude Opus 4.7 (1M)";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+        claude-sonnet = {
+          name = "Claude Sonnet (latest)";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        claude-sonnet-4-6 = {
+          name = "Claude Sonnet 4.6";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        "claude-sonnet-4-6[1m]" = {
+          name = "Claude Sonnet 4.6 (1M)";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+        claude-haiku-4-5 = {
+          name = "Claude Haiku 4.5";
+          limit = {
+            context = 200000;
+            output = 65536;
+          };
+        };
+        "claude-haiku-4-5[1m]" = {
+          name = "Claude Haiku 4.5 (1M)";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+        minimax-m2-7 = {
+          name = "MiniMax M2.7";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+        minimax-m2-5 = {
+          name = "MiniMax M2.5";
+          limit = {
+            context = 1000000;
+            output = 65536;
+          };
+        };
+      };
+    };
   };
 
-  model = "anthropic/claude-sonnet-4-20250514";
+  model = "litellm/claude-sonnet";
 }

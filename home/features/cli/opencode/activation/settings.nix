@@ -8,6 +8,7 @@
 lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   ANYTYPE_SECRET="/run/secrets/anytype_api_token"
   SLACK_SECRET="/run/secrets/slack_bot_token"
+  LITELLM_SECRET="/run/secrets/litellm_api_key"
   JQ="${pkgs.jq}/bin/jq"
 
   CONFIG_DIR="$HOME/.config/opencode"
@@ -21,6 +22,16 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   fi
 
   MANAGED=$(echo ${lib.escapeShellArg opencodeSettingsBase})
+
+  # Inject LiteLLM API key or remove provider
+  if [ -f "$LITELLM_SECRET" ]; then
+    LLM_KEY=$(cat "$LITELLM_SECRET")
+    MANAGED=$(echo "$MANAGED" | \
+      $JQ --arg key "$LLM_KEY" \
+      '.provider.litellm.options.apiKey = $key')
+  else
+    MANAGED=$(echo "$MANAGED" | $JQ 'del(.provider.litellm)')
+  fi
 
   # Inject Anytype token or remove MCP entry
   if [ -f "$ANYTYPE_SECRET" ]; then
