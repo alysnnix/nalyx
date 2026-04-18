@@ -25,7 +25,6 @@
       pamixer
       brightnessctl
       playerctl
-      kitty
       nautilus
       thunderbird
       qalculate-gtk
@@ -38,6 +37,15 @@
       mkdir -p ~/.config/hypr
       [ -f ~/.config/hypr/colors.conf ] || touch ~/.config/hypr/colors.conf
     '';
+
+    programs.kitty = {
+      enable = true;
+      keybindings = {
+        "ctrl+equal" = "change_font_size all +1.0";
+        "ctrl+minus" = "change_font_size all -1.0";
+        "ctrl+0" = "change_font_size all 0";
+      };
+    };
 
     wayland.windowManager.hyprland = {
       enable = true;
