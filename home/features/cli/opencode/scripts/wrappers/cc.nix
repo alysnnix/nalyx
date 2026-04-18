@@ -1,5 +1,5 @@
 # Claude Code modifier — uses OAuth token from Claude Code subscription.
-# Reads the access token from ~/.claude/.credentials.json (managed by claude login).
+# Writes the access token to opencode's auth.json for the built-in anthropic provider.
 # Token expires ~60 days after login; re-login with `claude` to refresh.
 { pkgs }:
 let
@@ -17,5 +17,19 @@ in
     echo "No OAuth token found in Claude Code credentials. Run 'claude' to log in."
     return 1
   fi
-  extra_env+=("ANTHROPIC_AUTH_TOKEN=$cc_token")
+
+  # Write token to opencode's auth.json for the built-in anthropic provider
+  local auth_dir="$HOME/.local/share/opencode"
+  local auth_file="$auth_dir/auth.json"
+  mkdir -p "$auth_dir"
+
+  # Merge with existing auth.json (preserve other providers)
+  if [ -f "$auth_file" ]; then
+    ${jq} --arg key "$cc_token" \
+      '.anthropic = {"type": "api", "key": $key}' \
+      "$auth_file" > "$auth_file.tmp" && mv "$auth_file.tmp" "$auth_file"
+  else
+    echo '{}' | ${jq} --arg key "$cc_token" \
+      '.anthropic = {"type": "api", "key": $key}' > "$auth_file"
+  fi
 ''
