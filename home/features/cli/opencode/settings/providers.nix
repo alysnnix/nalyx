@@ -88,14 +88,14 @@
             output = 65536;
           };
         };
-        minimax-m2-7 = {
+        "minimax-m2.7" = {
           name = "MiniMax M2.7";
           limit = {
             context = 1000000;
             output = 65536;
           };
         };
-        minimax-m2-5 = {
+        "minimax-m2.5" = {
           name = "MiniMax M2.5";
           limit = {
             context = 1000000;
