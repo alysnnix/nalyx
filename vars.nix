@@ -15,6 +15,9 @@
   # Options: "hyprland", "gnome", null
   desktop = "hyprland";
 
+  # Options: "caelestia", "waybar"
+  shell = "caelestia";
+
   homelab = {
     address = "homelab.local";
   };
