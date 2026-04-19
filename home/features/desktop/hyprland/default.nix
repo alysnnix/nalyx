@@ -49,6 +49,9 @@
 
     programs.kitty = {
       enable = true;
+      settings = {
+        window_padding_width = 10;
+      };
       keybindings = {
         "ctrl+equal" = "change_font_size all +1.0";
         "ctrl+minus" = "change_font_size all -1.0";
