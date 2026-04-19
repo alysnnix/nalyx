@@ -128,6 +128,7 @@
                   vars = hostVars;
                   enableClaude = true;
                   enableGemini = true;
+                  enableOpencode = true;
                 };
               };
             }
@@ -193,6 +194,7 @@
               isWsl = true;
               enableClaude = false;
               enableGemini = false;
+              enableOpencode = false;
               inherit hasPrivate private;
             };
             modules = [
