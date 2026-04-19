@@ -23,6 +23,8 @@ PRIVATE_REPO="git@github.com:alysnnix/nalyx-private.git"
 
 EXTRA_ARGS=()
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/vars-override.nix" ]; then
+  echo "  private: pulling latest..."
+  git -C "$PRIVATE_DIR" pull --ff-only 2>/dev/null || echo "  private: pull failed, using local version"
   echo "  private: $PRIVATE_DIR"
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
 elif ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new git@github.com 2>/dev/null; [ $? -eq 1 ]; then
