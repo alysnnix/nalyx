@@ -85,13 +85,22 @@ in
     };
   };
 
-  xdg.mimeApps = lib.mkIf isWsl {
+  xdg.mimeApps = {
     enable = true;
-    defaultApplications = {
-      "x-scheme-handler/http" = "wslview.desktop";
-      "x-scheme-handler/https" = "wslview.desktop";
-      "x-scheme-handler/file" = "wslview.desktop";
-    };
+    defaultApplications =
+      if isWsl then
+        {
+          "x-scheme-handler/http" = "wslview.desktop";
+          "x-scheme-handler/https" = "wslview.desktop";
+          "x-scheme-handler/file" = "wslview.desktop";
+        }
+      else
+        {
+          "x-scheme-handler/http" = "google-chrome.desktop";
+          "x-scheme-handler/https" = "google-chrome.desktop";
+          "text/html" = "google-chrome.desktop";
+          "application/xhtml+xml" = "google-chrome.desktop";
+        };
   };
 
   programs.home-manager.enable = true;
