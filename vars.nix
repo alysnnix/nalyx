@@ -16,7 +16,7 @@
   desktop = "hyprland";
 
   # Options: "caelestia", "waybar"
-  shell = "waybar";
+  shell = "caelestia";
 
   homelab = {
     address = "homelab.local";
