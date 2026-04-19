@@ -39,9 +39,10 @@
     ];
 
     # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
-    home.activation.ensureHyprColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      mkdir -p ~/.config/hypr
+    home.activation.ensureMatugenFiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      mkdir -p ~/.config/hypr ~/.config/kitty
       [ -f ~/.config/hypr/colors.conf ] || touch ~/.config/hypr/colors.conf
+      [ -f ~/.config/kitty/colors.conf ] || touch ~/.config/kitty/colors.conf
     '';
 
     services.dunst = lib.mkIf (vars.shell == "waybar") {
@@ -88,7 +89,21 @@
     programs.kitty = {
       enable = true;
       settings = {
+        include = "colors.conf";
         window_padding_width = 10;
+        background_opacity = "0.85";
+        background_blur = 1;
+        confirm_os_window_close = 0;
+        font_family = "CaskaydiaCove NF";
+        bold_font = "auto";
+        italic_font = "auto";
+        bold_italic_font = "auto";
+        font_size = 11;
+        cursor_shape = "beam";
+        cursor_beam_thickness = "1.5";
+        cursor_blink_interval = "0.5";
+        scrollback_lines = 10000;
+        enable_audio_bell = false;
       };
       keybindings = {
         "ctrl+equal" = "change_font_size all +1.0";
