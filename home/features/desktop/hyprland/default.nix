@@ -34,6 +34,8 @@
       qalculate-gtk
       nwg-look
       btop
+      blueman
+      networkmanagerapplet
     ];
 
     # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)

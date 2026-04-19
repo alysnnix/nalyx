@@ -1,133 +1,124 @@
-/* === Catppuccin Mocha Palette === */
-@define-color base #1e1e2e;
-@define-color mantle #181825;
-@define-color crust #11111b;
-@define-color surface0 #313244;
-@define-color surface1 #45475a;
+/* === Catppuccin Mocha === */
+@define-color bg #1e1e2e;
+@define-color bg-alt #181825;
+@define-color surface #313244;
+@define-color overlay #45475a;
 @define-color text #cdd6f4;
-@define-color subtext0 #a6adc8;
-@define-color subtext1 #bac2de;
+@define-color subtext #a6adc8;
 @define-color blue #89b4fa;
 @define-color lavender #b4befe;
 @define-color sapphire #74c7ec;
-@define-color sky #89dceb;
 @define-color teal #94e2d5;
 @define-color green #a6e3a1;
 @define-color yellow #f9e2af;
 @define-color peach #fab387;
-@define-color maroon #eba0ac;
 @define-color red #f38ba8;
 @define-color mauve #cba6f7;
 @define-color pink #f5c2e7;
-@define-color flamingo #f2cdcd;
-@define-color rosewater #f5e0dc;
 
-/* === Global === */
 * {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: bold;
     border: none;
     border-radius: 0;
     min-height: 0;
 }
 
-/* === Bar === */
 window#waybar {
-    background: transparent;
+    background-color: @bg;
+    color: @text;
 }
 
-window#waybar > box {
-    background: @base;
-    border-radius: 0;
-    padding: 0 6px;
-    border-bottom: 1px solid alpha(@surface1, 0.5);
+.modules-left {
+    margin-left: 8px;
+}
+
+.modules-right {
+    margin-right: 8px;
+}
+
+/* === Logo === */
+#custom-logo {
+    font-size: 16px;
+    color: @blue;
+    padding: 0 10px 0 4px;
 }
 
 /* === Workspaces === */
-#workspaces {
-    margin: 2px 4px;
-}
-
 #workspaces button {
-    padding: 2px 8px;
-    margin: 2px 1px;
-    border-radius: 10px;
-    color: @subtext0;
-    background: transparent;
-    transition: all 0.2s ease;
+    all: initial;
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 8px;
+    padding: 0 5px;
+    margin: 0 1px;
+    color: @overlay;
+    transition: all 0.15s ease;
 }
 
 #workspaces button.empty {
-    color: @surface1;
+    color: @surface;
+    font-size: 6px;
 }
 
 #workspaces button.active {
-    color: @base;
-    background: @blue;
+    color: @blue;
+    font-size: 10px;
 }
 
 #workspaces button:hover {
-    color: @base;
-    background: alpha(@lavender, 0.6);
-}
-
-/* === Module base === */
-#clock,
-#battery,
-#network,
-#pulseaudio,
-#backlight,
-#tray,
-#custom-launcher,
-#custom-power {
-    padding: 2px 12px;
-    margin: 2px 2px;
-    border-radius: 10px;
-    color: @text;
-    background: transparent;
-    transition: all 0.2s ease;
-}
-
-/* === Launcher === */
-#custom-launcher {
-    font-size: 18px;
-    color: @blue;
-    padding-left: 10px;
-    padding-right: 6px;
-}
-
-#custom-launcher:hover {
-    color: @sapphire;
+    color: @lavender;
 }
 
 /* === Clock === */
 #clock {
-    color: @lavender;
-    font-weight: 700;
+    color: @text;
+    margin-left: 8px;
+}
+
+/* === Right modules === */
+#tray,
+#network,
+#bluetooth,
+#pulseaudio,
+#backlight,
+#battery,
+#custom-power {
+    padding: 0 7px;
+    color: @subtext;
+}
+
+#tray {
+    margin-right: 8px;
+}
+
+/* === Icon hover states === */
+#network:hover,
+#bluetooth:hover,
+#pulseaudio:hover,
+#backlight:hover,
+#battery:hover {
+    color: @text;
+}
+
+/* === Network === */
+#network.disconnected {
+    color: @overlay;
+}
+
+/* === Bluetooth === */
+#bluetooth.disabled {
+    color: @overlay;
 }
 
 /* === Audio === */
-#pulseaudio {
-    color: @peach;
-}
-
 #pulseaudio.muted {
-    color: @surface1;
+    color: @overlay;
 }
 
-/* === Backlight === */
-#backlight {
-    color: @yellow;
-}
-
-/* === Battery === */
-#battery {
-    color: @green;
-}
-
+/* === Battery states === */
 #battery.charging {
-    color: @teal;
+    color: @green;
 }
 
 #battery.warning:not(.charging) {
@@ -136,53 +127,32 @@ window#waybar > box {
 
 #battery.critical:not(.charging) {
     color: @red;
-    animation: blink 1s linear infinite;
+    animation: blink 1s linear infinite alternate;
 }
 
 @keyframes blink {
-    to {
-        color: @base;
-        background: @red;
-    }
-}
-
-/* === Network === */
-#network {
-    color: @sapphire;
-}
-
-#network.disconnected {
-    color: @surface1;
-}
-
-/* === Tray === */
-#tray {
-    padding: 2px 8px;
-}
-
-#tray > .passive {
-    -gtk-icon-effect: dim;
+    to { color: @bg; background-color: @red; }
 }
 
 /* === Power === */
 #custom-power {
-    color: @red;
-    font-size: 15px;
-    padding-right: 10px;
+    color: @subtext;
+    padding-right: 4px;
 }
 
 #custom-power:hover {
-    color: @maroon;
+    color: @red;
 }
 
-/* === Tooltips === */
+/* === Tooltip === */
 tooltip {
-    background: @base;
-    border: 1px solid @surface1;
-    border-radius: 10px;
+    background-color: @bg-alt;
+    border: 1px solid @surface;
+    border-radius: 8px;
+    padding: 4px;
 }
 
 tooltip label {
     color: @text;
-    padding: 4px 8px;
+    padding: 2px 6px;
 }

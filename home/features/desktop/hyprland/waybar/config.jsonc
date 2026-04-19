@@ -1,10 +1,11 @@
 {
   "layer": "top",
   "position": "top",
-  "height": 36,
+  "height": 28,
   "spacing": 0,
+  "reload_style_on_change": true,
   "modules-left": [
-    "custom/launcher",
+    "custom/logo",
     "hyprland/workspaces"
   ],
   "modules-center": [
@@ -12,13 +13,14 @@
   ],
   "modules-right": [
     "tray",
+    "network",
+    "bluetooth",
     "pulseaudio",
     "backlight",
     "battery",
-    "network",
     "custom/power"
   ],
-  "custom/launcher": {
+  "custom/logo": {
     "format": "󱄅",
     "on-click": "pkill rofi || rofi -show drun",
     "tooltip": false
@@ -26,7 +28,7 @@
   "hyprland/workspaces": {
     "format": "{icon}",
     "format-icons": {
-      "active": "󰮯",
+      "active": "",
       "default": "",
       "empty": ""
     },
@@ -36,23 +38,45 @@
     "on-click": "activate"
   },
   "clock": {
-    "format": "󰥔  {:%H:%M}",
-    "format-alt": "󰃭  {:%A, %d %b %Y}",
+    "format": "{:%a %H:%M}",
+    "format-alt": "{:%A, %d %B %Y}",
     "tooltip-format": "<tt>{calendar}</tt>"
+  },
+  "tray": {
+    "icon-size": 14,
+    "spacing": 8,
+    "reverse-direction": true
+  },
+  "network": {
+    "format-wifi": "󰖩",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰖪",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-ethernet": "{ipaddr}/{cidr}",
+    "on-click": "nm-connection-editor"
+  },
+  "bluetooth": {
+    "format": "󰂯",
+    "format-connected": "󰂱",
+    "format-disabled": "󰂲",
+    "tooltip-format": "{controller_alias}\t{controller_address}",
+    "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
+    "on-click": "blueman-manager"
   },
   "pulseaudio": {
     "scroll-step": 5,
-    "format": "{icon}  {volume}%",
-    "format-muted": "󰝟  Mute",
+    "format": "{icon}",
+    "format-muted": "󰝟",
     "format-icons": {
       "default": ["󰕿", "󰖀", "󰕾"]
     },
-    "on-click": "pamixer -t",
-    "tooltip": false
+    "tooltip-format": "{volume}%",
+    "on-click": "pamixer -t"
   },
   "backlight": {
-    "format": "󰃟  {percent}%",
-    "tooltip": false
+    "format": "󰃟",
+    "tooltip-format": "{percent}%"
   },
   "battery": {
     "bat": "BAT0",
@@ -62,22 +86,11 @@
       "warning": 30,
       "critical": 15
     },
-    "format": "{icon}  {capacity}%",
-    "format-charging": "󰂄  {capacity}%",
-    "format-plugged": "󰚥  {capacity}%",
+    "format": "{icon}",
+    "format-charging": "󰂄",
+    "format-plugged": "󰚥",
     "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
-    "tooltip-format": "{timeTo}"
-  },
-  "network": {
-    "format-wifi": "󰖩  {essid}",
-    "format-ethernet": "󰈀  Wired",
-    "format-disconnected": "󰖪  Off",
-    "tooltip-format": "{ipaddr}/{cidr}",
-    "on-click": "nm-connection-editor"
-  },
-  "tray": {
-    "icon-size": 16,
-    "spacing": 8
+    "tooltip-format": "{capacity}% — {timeTo}"
   },
   "custom/power": {
     "format": "⏻",

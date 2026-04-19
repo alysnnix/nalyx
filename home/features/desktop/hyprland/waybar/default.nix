@@ -1,8 +1,7 @@
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 {
   home.packages = with pkgs; [
-    nerd-fonts.hack
-    mpc
+    nerd-fonts.jetbrains-mono
   ];
 
   programs.waybar = {
