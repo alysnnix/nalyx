@@ -21,31 +21,67 @@
   };
 
   config = lib.mkIf (vars.desktop == "hyprland") {
-    home.packages =
-      with pkgs;
-      [
-        swww
-        wl-clipboard
-        grim
-        slurp
-        pamixer
-        brightnessctl
-        playerctl
-        nautilus
-        thunderbird
-        qalculate-gtk
-        nwg-look
-        btop
-      ]
-      ++ (lib.optionals (vars.shell == "waybar") [
-        dunst
-      ]);
+    home.packages = with pkgs; [
+      swww
+      wl-clipboard
+      grim
+      slurp
+      pamixer
+      brightnessctl
+      playerctl
+      nautilus
+      thunderbird
+      qalculate-gtk
+      nwg-look
+      btop
+    ];
 
     # Ensure colors.conf exists before Hyprland starts (Matugen generates it later)
     home.activation.ensureHyprColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p ~/.config/hypr
       [ -f ~/.config/hypr/colors.conf ] || touch ~/.config/hypr/colors.conf
     '';
+
+    services.dunst = lib.mkIf (vars.shell == "waybar") {
+      enable = true;
+      settings = {
+        global = {
+          width = 350;
+          height = 150;
+          offset = "10x10";
+          origin = "top-right";
+          transparency = 0;
+          frame_color = "#89b4fa";
+          frame_width = 2;
+          corner_radius = 12;
+          font = "JetBrainsMono Nerd Font 10";
+          padding = 12;
+          horizontal_padding = 16;
+          icon_position = "left";
+          max_icon_size = 48;
+          separator_color = "frame";
+          gap_size = 6;
+        };
+        urgency_low = {
+          background = "#1e1e2e";
+          foreground = "#cdd6f4";
+          frame_color = "#45475a";
+          timeout = 5;
+        };
+        urgency_normal = {
+          background = "#1e1e2e";
+          foreground = "#cdd6f4";
+          frame_color = "#89b4fa";
+          timeout = 10;
+        };
+        urgency_critical = {
+          background = "#1e1e2e";
+          foreground = "#cdd6f4";
+          frame_color = "#f38ba8";
+          timeout = 0;
+        };
+      };
+    };
 
     programs.kitty = {
       enable = true;
@@ -67,7 +103,9 @@
 
           # --- Waybar shell ---
           exec-once = waybar
-          exec-once = dunst
+
+          # Launcher via Rofi (replaces Caelestia)
+          bind = $mainMod, Space, exec, pkill rofi || rofi -show drun
         '');
     };
   };

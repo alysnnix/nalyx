@@ -1,113 +1,87 @@
 {
   "layer": "top",
   "position": "top",
+  "height": 36,
+  "spacing": 0,
   "modules-left": [
     "custom/launcher",
-    "hyprland/workspaces",
-    "temperature",
-    "mpd",
-    "custom/cava-internal"
+    "hyprland/workspaces"
   ],
   "modules-center": [
     "clock"
   ],
   "modules-right": [
+    "tray",
     "pulseaudio",
     "backlight",
     "battery",
-    "memory",
-    "cpu",
     "network",
-    "custom/powermenu",
-    "tray"
+    "custom/power"
   ],
-  "hyprland/workspaces": {
-    "disable-scroll": true,
-    "all-outputs": true,
-    "format": "{name}",
-    "on-click": "activate"
-  },
   "custom/launcher": {
-    "format": " ",
+    "format": "󱄅",
     "on-click": "pkill rofi || rofi -show drun",
     "tooltip": false
   },
-  "custom/cava-internal": {
-    "exec": "sleep 1s && cava-internal",
-    "tooltip": false
+  "hyprland/workspaces": {
+    "format": "{icon}",
+    "format-icons": {
+      "active": "󰮯",
+      "default": "",
+      "empty": ""
+    },
+    "persistent-workspaces": {
+      "*": 5
+    },
+    "on-click": "activate"
+  },
+  "clock": {
+    "format": "󰥔  {:%H:%M}",
+    "format-alt": "󰃭  {:%A, %d %b %Y}",
+    "tooltip-format": "<tt>{calendar}</tt>"
   },
   "pulseaudio": {
-    "scroll-step": 1,
-    "format": "{icon} {volume}%",
-    "format-muted": "󰖁 Muted",
+    "scroll-step": 5,
+    "format": "{icon}  {volume}%",
+    "format-muted": "󰝟  Mute",
     "format-icons": {
-      "default": [
-        "",
-        "",
-        ""
-      ]
+      "default": ["󰕿", "󰖀", "󰕾"]
     },
     "on-click": "pamixer -t",
     "tooltip": false
   },
-  "clock": {
-    "interval": 1,
-    "format": "{:%I:%M %p  %A %b %d}",
-    "tooltip": true,
-    "tooltip-format": "{=%A; %d %B %Y}\n<tt>{calendar}</tt>"
-  },
-  "memory": {
-    "interval": 1,
-    "format": "󰻠 {percentage}%",
-    "states": {
-      "warning": 85
-    }
-  },
-  "cpu": {
-    "interval": 1,
-    "format": "󰍛 {usage}%"
-  },
-  "mpd": {
-    "max-length": 25,
-    "format": "<span foreground='#bb9af7'></span> {title}",
-    "format-paused": " {title}",
-    "format-stopped": "<span foreground='#bb9af7'></span>",
-    "format-disconnected": "",
-    "on-click": "mpc --quiet toggle",
-    "on-click-right": "mpc update; mpc ls | mpc add",
-    "on-scroll-up": "mpc --quiet prev",
-    "on-scroll-down": "mpc --quiet next",
-    "smooth-scrolling-threshold": 5,
-    "tooltip-format": "{title} - {artist} ({elapsedTime:%M:%S}/{totalTime:%H:%M:%S})"
+  "backlight": {
+    "format": "󰃟  {percent}%",
+    "tooltip": false
   },
   "battery": {
     "bat": "BAT0",
     "interval": 10,
     "states": {
+      "good": 80,
       "warning": 30,
       "critical": 15
     },
-    "format": "{icon} {capacity}%",
-    "format-charging": "󰂄 {capacity}%",
-    "format-plugged": "󰚥 {capacity}%",
+    "format": "{icon}  {capacity}%",
+    "format-charging": "󰂄  {capacity}%",
+    "format-plugged": "󰚥  {capacity}%",
     "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
     "tooltip-format": "{timeTo}"
   },
   "network": {
-    "format-disconnected": "󰯡 Disconnected",
-    "format-ethernet": "󰒢 Connected!",
-    "format-linked": "󰖪 {essid} (No IP)",
-    "format-wifi": "󰖩 {essid}",
-    "interval": 1,
-    "tooltip": false
-  },
-  "custom/powermenu": {
-    "format": "",
-    "on-click": "pkill rofi || rofi -show power-menu",
-    "tooltip": false
+    "format-wifi": "󰖩  {essid}",
+    "format-ethernet": "󰈀  Wired",
+    "format-disconnected": "󰖪  Off",
+    "tooltip-format": "{ipaddr}/{cidr}",
+    "on-click": "nm-connection-editor"
   },
   "tray": {
-    "icon-size": 15,
-    "spacing": 5
+    "icon-size": 16,
+    "spacing": 8
+  },
+  "custom/power": {
+    "format": "⏻",
+    "on-click": "pkill rofi || rofi -show power-menu",
+    "tooltip": false
   }
 }

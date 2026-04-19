@@ -1,172 +1,188 @@
+/* === Catppuccin Mocha Palette === */
+@define-color base #1e1e2e;
+@define-color mantle #181825;
+@define-color crust #11111b;
+@define-color surface0 #313244;
+@define-color surface1 #45475a;
+@define-color text #cdd6f4;
+@define-color subtext0 #a6adc8;
+@define-color subtext1 #bac2de;
+@define-color blue #89b4fa;
+@define-color lavender #b4befe;
+@define-color sapphire #74c7ec;
+@define-color sky #89dceb;
+@define-color teal #94e2d5;
+@define-color green #a6e3a1;
+@define-color yellow #f9e2af;
+@define-color peach #fab387;
+@define-color maroon #eba0ac;
+@define-color red #f38ba8;
+@define-color mauve #cba6f7;
+@define-color pink #f5c2e7;
+@define-color flamingo #f2cdcd;
+@define-color rosewater #f5e0dc;
+
+/* === Global === */
 * {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 12pt;
-    font-weight: bold;
-    border-radius: 8px;
-    transition-property: background-color;
-    transition-duration: 0.5s;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
 }
 
-@keyframes blink_red {
-    to {
-        background-color: rgb(242, 143, 173);
-        color: rgb(26, 24, 38);
-    }
-}
-
-.warning,
-.critical,
-.urgent {
-    animation-name: blink_red;
-    animation-duration: 1s;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-    animation-direction: alternate;
-}
-
+/* === Bar === */
 window#waybar {
-    background-color: transparent;
-}
-
-window>box {
-    margin-left: 5px;
-    margin-right: 5px;
-    margin-top: 5px;
-    background-color: #1e1e2a;
-    padding: 3px;
-    padding-left: 8px;
-    border: 2px none #33ccff;
-}
-
-#workspaces {
-    padding-left: 0px;
-    padding-right: 4px;
-}
-
-#workspaces button {
-    padding-top: 5px;
-    padding-bottom: 5px;
-    padding-left: 6px;
-    padding-right: 6px;
-}
-
-#workspaces button.active {
-    background-color: rgb(181, 232, 224);
-    color: rgb(26, 24, 38);
-}
-
-#workspaces button.urgent {
-    color: rgb(26, 24, 38);
-}
-
-#workspaces button:hover {
-    background-color: rgb(248, 189, 150);
-    color: rgb(26, 24, 38);
-}
-
-tooltip {
-    background: rgb(48, 45, 65);
-}
-
-tooltip label {
-    color: rgb(217, 224, 238);
-}
-
-#custom-launcher {
-    font-size: 20px;
-    padding-left: 8px;
-    padding-right: 6px;
-    color: #7ebae4;
-}
-
-#mode,
-#clock,
-#memory,
-#temperature,
-#cpu,
-#mpd,
-#custom-wall,
-#temperature,
-#backlight,
-#pulseaudio,
-#network,
-#battery,
-#custom-powermenu,
-#custom-cava-internal {
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
-/* #mode {
-    margin-left: 10px;
-    background-color: rgb(248, 189, 150);
-    color: rgb(26, 24, 38);
-} */
-
-#memory {
-    color: rgb(181, 232, 224);
-}
-
-#cpu {
-    color: rgb(245, 194, 231);
-}
-
-#clock {
-    color: rgb(217, 224, 238);
-}
-
-/* #idle_inhibitor {
-    color: rgb(221, 182, 242);
-}*/
-
-#custom-wall {
-    color: #33ccff;
-}
-
-#temperature {
-    color: rgb(150, 205, 251);
-}
-
-#backlight {
-    color: rgb(248, 189, 150);
-}
-
-#pulseaudio {
-    color: rgb(245, 224, 220);
-}
-
-#network {
-    color: #ABE9B3;
-}
-
-#network.disconnected {
-    color: rgb(255, 255, 255);
-}
-
-#custom-powermenu {
-    color: rgb(242, 143, 173);
-    padding-right: 8px;
-}
-
-#tray {
-    padding-right: 8px;
-    padding-left: 10px;
-}
-
-#mpd.paused {
-    color: #414868;
-    font-style: italic;
-}
-
-#mpd.stopped {
     background: transparent;
 }
 
-#mpd {
-    color: #c0caf5;
+window#waybar > box {
+    background: @base;
+    border-radius: 0;
+    padding: 0 6px;
+    border-bottom: 1px solid alpha(@surface1, 0.5);
 }
 
-#custom-cava-internal {
-    font-family: "Hack Nerd Font";
-    color: #33ccff;
+/* === Workspaces === */
+#workspaces {
+    margin: 2px 4px;
+}
+
+#workspaces button {
+    padding: 2px 8px;
+    margin: 2px 1px;
+    border-radius: 10px;
+    color: @subtext0;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+#workspaces button.empty {
+    color: @surface1;
+}
+
+#workspaces button.active {
+    color: @base;
+    background: @blue;
+}
+
+#workspaces button:hover {
+    color: @base;
+    background: alpha(@lavender, 0.6);
+}
+
+/* === Module base === */
+#clock,
+#battery,
+#network,
+#pulseaudio,
+#backlight,
+#tray,
+#custom-launcher,
+#custom-power {
+    padding: 2px 12px;
+    margin: 2px 2px;
+    border-radius: 10px;
+    color: @text;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+/* === Launcher === */
+#custom-launcher {
+    font-size: 18px;
+    color: @blue;
+    padding-left: 10px;
+    padding-right: 6px;
+}
+
+#custom-launcher:hover {
+    color: @sapphire;
+}
+
+/* === Clock === */
+#clock {
+    color: @lavender;
+    font-weight: 700;
+}
+
+/* === Audio === */
+#pulseaudio {
+    color: @peach;
+}
+
+#pulseaudio.muted {
+    color: @surface1;
+}
+
+/* === Backlight === */
+#backlight {
+    color: @yellow;
+}
+
+/* === Battery === */
+#battery {
+    color: @green;
+}
+
+#battery.charging {
+    color: @teal;
+}
+
+#battery.warning:not(.charging) {
+    color: @yellow;
+}
+
+#battery.critical:not(.charging) {
+    color: @red;
+    animation: blink 1s linear infinite;
+}
+
+@keyframes blink {
+    to {
+        color: @base;
+        background: @red;
+    }
+}
+
+/* === Network === */
+#network {
+    color: @sapphire;
+}
+
+#network.disconnected {
+    color: @surface1;
+}
+
+/* === Tray === */
+#tray {
+    padding: 2px 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+/* === Power === */
+#custom-power {
+    color: @red;
+    font-size: 15px;
+    padding-right: 10px;
+}
+
+#custom-power:hover {
+    color: @maroon;
+}
+
+/* === Tooltips === */
+tooltip {
+    background: @base;
+    border: 1px solid @surface1;
+    border-radius: 10px;
+}
+
+tooltip label {
+    color: @text;
+    padding: 4px 8px;
 }
