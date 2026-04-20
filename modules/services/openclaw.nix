@@ -232,20 +232,13 @@ in
     ];
 
     script = ''
-      # Wait for the container to get its IP
-      for i in $(seq 1 30); do
-        IP=$(docker inspect openclaw --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
-        [ -n "$IP" ] && break
-        sleep 1
-      done
-
-      if [ -z "$IP" ]; then
-        echo "FATAL: could not resolve openclaw container IP"
-        exit 1
-      fi
-
-      echo "Proxying 127.0.0.1:18789 → $IP:18789"
-      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork TCP:$IP:18789
+      # socat accepts each TCP connection and pipes it through "docker exec"
+      # into a Node.js one-liner that relays bytes to the app's localhost socket.
+      # This is the only reliable path into a Kata micro-VM because the VM has
+      # its own kernel and network stack — the container IP on the bridge (eth0)
+      # is unreachable from the host, but "docker exec" uses the containerd shim.
+      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork \
+        EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
     '';
   };
 }
