@@ -29,6 +29,39 @@ let
   networkName = "openclaw-isolated";
   subnet = "172.30.0.0/24";
   dataDir = "/var/lib/openclaw";
+
+  # Seed config for first boot — OpenClaw can modify this file freely after creation
+  openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
+    builtins.toJSON {
+      agents.defaults.model.primary = "minimax/MiniMax-M2.7";
+      models = {
+        mode = "merge";
+        providers.minimax = {
+          baseUrl = "https://api.minimax.io/anthropic";
+          api = "anthropic-messages";
+          models = [
+            {
+              id = "MiniMax-M2.7";
+              name = "MiniMax M2.7";
+              reasoning = true;
+              input = [
+                "text"
+                "image"
+              ];
+              cost = {
+                input = 0.3;
+                output = 1.2;
+                cacheRead = 0.06;
+                cacheWrite = 0.375;
+              };
+              contextWindow = 204800;
+              maxTokens = 131072;
+            }
+          ];
+        };
+      };
+    }
+  );
 in
 {
   # ── Utility Script: Automate OpenClaw updates ──
@@ -196,6 +229,15 @@ in
       if ! docker info --format '{{json .Runtimes}}' | jq -e '.kata' >/dev/null 2>&1; then
         echo "FATAL: kata runtime not registered — refusing to start without hardware isolation"
         exit 1
+      fi
+
+      # Seed openclaw.json with MiniMax M2.7 config (only if missing).
+      # The file stays writable so OpenClaw can update it at runtime.
+      if [ ! -f "${dataDir}/openclaw.json" ]; then
+        cp ${openclawConfigSeed} "${dataDir}/openclaw.json"
+        chmod 0640 "${dataDir}/openclaw.json"
+        chown 1000:1000 "${dataDir}/openclaw.json"
+        echo "Seeded openclaw.json with MiniMax M2.7 provider"
       fi
 
       # Clean up stale container from previous crash
