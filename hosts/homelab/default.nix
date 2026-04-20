@@ -84,7 +84,23 @@
     })
   ];
 
-  environment.systemPackages = [ pkgs.duperemove ];
+  environment.systemPackages = with pkgs; [
+    duperemove
+    iw
+    wakeonlan
+  ];
+
+  # WoWLAN: allow waking the homelab via WiFi magic packet
+  systemd.services.wowlan = {
+    description = "Enable Wake-on-WLAN";
+    after = [ "network.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.iw}/bin/iw phy phy0 wowlan enable magic-packet";
+    };
+  };
 
   # Create Syncthing receive directories on btrfs
   systemd.tmpfiles.rules = [
