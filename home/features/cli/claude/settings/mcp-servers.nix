@@ -14,16 +14,6 @@ let
 in
 {
   publicMcpServers = {
-    anytype = {
-      command = "npx";
-      args = [
-        "-y"
-        "@anyproto/anytype-mcp"
-      ];
-      env = {
-        OPENAPI_MCP_HEADERS = "__ANYTYPE_TOKEN_PLACEHOLDER__";
-      };
-    };
     slack = {
       command = "npx";
       args = [

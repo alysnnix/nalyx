@@ -6,7 +6,6 @@
 }:
 
 lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-  ANYTYPE_SECRET="/run/secrets/anytype_api_token"
   SLACK_SECRET="/run/secrets/slack_bot_token"
   LITELLM_SECRET="/run/secrets/litellm_api_key"
   JQ="${pkgs.jq}/bin/jq"
@@ -31,19 +30,6 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       '.provider.litellm.options.apiKey = $key')
   else
     MANAGED=$(echo "$MANAGED" | $JQ 'del(.provider.litellm)')
-  fi
-
-  # Inject Anytype token or remove MCP entry
-  if [ -f "$ANYTYPE_SECRET" ]; then
-    TOKEN=$(cat "$ANYTYPE_SECRET")
-    HEADERS=$($JQ -c -n \
-      --arg token "$TOKEN" \
-      '{"Authorization": ("Bearer " + $token), "Anytype-Version": "2025-11-08"}')
-    MANAGED=$(echo "$MANAGED" | \
-      $JQ --arg headers "$HEADERS" \
-      '.mcp.anytype.environment.OPENAPI_MCP_HEADERS = $headers')
-  else
-    MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcp.anytype)')
   fi
 
   # Inject Slack token or remove MCP entry

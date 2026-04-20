@@ -10,7 +10,6 @@
 # so Claude Code can write its own keys (effort, etc.) without being overwritten.
 # Only generates for personal config — profiles symlink to it.
 lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-  ANYTYPE_SECRET="/run/secrets/anytype_api_token"
   SLACK_SECRET="/run/secrets/slack_bot_token"
   JQ="${pkgs.jq}/bin/jq"
 
@@ -25,19 +24,6 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   fi
 
   MANAGED=$(echo ${lib.escapeShellArg claudeSettingsBase})
-
-  # Inject Anytype token or remove MCP entry
-  if [ -f "$ANYTYPE_SECRET" ]; then
-    TOKEN=$(cat "$ANYTYPE_SECRET")
-    HEADERS=$($JQ -c -n \
-      --arg token "$TOKEN" \
-      '{"Authorization": ("Bearer " + $token), "Anytype-Version": "2025-11-08"}')
-    MANAGED=$(echo "$MANAGED" | \
-      $JQ --arg headers "$HEADERS" \
-      '.mcpServers.anytype.env.OPENAPI_MCP_HEADERS = $headers')
-  else
-    MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcpServers.anytype)')
-  fi
 
   # Inject Slack token or remove MCP entry
   if [ -f "$SLACK_SECRET" ]; then
