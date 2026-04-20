@@ -97,6 +97,10 @@ in
     "vhost_net" # Accelerates virtio-net in Kata VMs
   ];
 
+  # Pin Docker to 25.x — Docker 26+ has a bug that prevents Kata VMs from
+  # receiving a network interface (moby/moby#47626). Only loopback is created.
+  virtualisation.docker.package = pkgs.docker_25;
+
   # Kata 3.x uses containerd shims, not the OCI runtime binary.
   # Docker spawns containerd which discovers shims by name in PATH.
   virtualisation.docker.daemon.settings = {
