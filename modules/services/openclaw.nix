@@ -16,11 +16,14 @@
 #   docker exec -it openclaw openclaw channels login --channel whatsapp
 #
 # Dashboard Access (from any Tailscale device):
-#   http://homelab.alysson.dev:18789
+#   https://homelab.<tailnet>.ts.net
 {
   pkgs,
   vars,
+  lib,
   config,
+  hasPrivate ? false,
+  private ? null,
   ...
 }:
 let
@@ -93,6 +96,11 @@ in
       echo "Update complete!"
     '')
   ];
+
+  # ── SOPS: tailnet suffix for Tailscale Serve origin ──
+  sops = lib.mkIf hasPrivate {
+    secrets.tailnet_suffix = { };
+  };
 
   # ── Kata Containers: Hardware-level isolation ──
   # Each container runs in its own micro-VM with a dedicated kernel.
@@ -239,6 +247,20 @@ in
         echo "Seeded openclaw.json with MiniMax M2.7 provider"
       fi
 
+      ${lib.optionalString hasPrivate ''
+        # Ensure Tailscale Serve origin is allowed in the Control UI
+        TAILNET_SUFFIX=$(cat ${config.sops.secrets.tailnet_suffix.path})
+        ORIGIN="https://homelab.''${TAILNET_SUFFIX}"
+        CURRENT=$(jq -r '.gateway.controlUi.allowedOrigins // [] | join(",")' "${dataDir}/openclaw.json")
+        if ! echo "$CURRENT" | grep -qF "$ORIGIN"; then
+          jq --arg origin "$ORIGIN" '.gateway.controlUi.allowedOrigins = ((.gateway.controlUi.allowedOrigins // []) + [$origin] | unique)' \
+            "${dataDir}/openclaw.json" > "${dataDir}/openclaw.json.tmp"
+          mv "${dataDir}/openclaw.json.tmp" "${dataDir}/openclaw.json"
+          chown 1000:1000 "${dataDir}/openclaw.json"
+          echo "Added $ORIGIN to allowedOrigins"
+        fi
+      ''}
+
       # Clean up stale container from previous crash
       docker rm -f openclaw 2>/dev/null || true
     '';
@@ -290,9 +312,16 @@ in
       # This is the only reliable path into a Kata micro-VM because the VM has
       # its own kernel and network stack — the container IP on the bridge (eth0)
       # is unreachable from the host, but "docker exec" uses the containerd shim.
-      exec socat TCP-LISTEN:18789,bind=0.0.0.0,reuseaddr,fork,max-children=5 \
+      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
         EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
     '';
   };
 
+  # ── Tailscale Serve: expose dashboard with HTTPS on tailnet ──
+  # Provides a secure context (https://homelab.<tailnet>.ts.net) required
+  # by the OpenClaw Control UI for device identity / OAuth login.
+  services.tailscale.serve = {
+    enable = true;
+    services.openclaw.endpoints."tcp:443" = "http://localhost:18789";
+  };
 }
