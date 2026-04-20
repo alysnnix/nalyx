@@ -15,9 +15,8 @@
 # WhatsApp pairing:
 #   docker exec -it openclaw openclaw channels login --channel whatsapp
 #
-# Dashboard Access (from personal computer via Tailscale):
-#   ssh -N -L 18789:127.0.0.1:18789 USER@homelab
-#   Then open http://127.0.0.1:18789
+# Dashboard Access (from any Tailscale device):
+#   http://homelab.alysson.dev:18789
 {
   pkgs,
   vars,
@@ -291,8 +290,9 @@ in
       # This is the only reliable path into a Kata micro-VM because the VM has
       # its own kernel and network stack — the container IP on the bridge (eth0)
       # is unreachable from the host, but "docker exec" uses the containerd shim.
-      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
+      exec socat TCP-LISTEN:18789,bind=0.0.0.0,reuseaddr,fork,max-children=5 \
         EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
     '';
   };
+
 }
