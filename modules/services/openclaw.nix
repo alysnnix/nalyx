@@ -36,32 +36,6 @@ let
   openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
     builtins.toJSON {
       agents.defaults.model.primary = "minimax/MiniMax-M2.7";
-      models = {
-        mode = "merge";
-        providers.minimax = {
-          baseUrl = "https://api.minimax.io/anthropic";
-          api = "anthropic-messages";
-          models = [
-            {
-              id = "MiniMax-M2.7";
-              name = "MiniMax M2.7";
-              reasoning = true;
-              input = [
-                "text"
-                "image"
-              ];
-              cost = {
-                input = 0.3;
-                output = 1.2;
-                cacheRead = 0.06;
-                cacheWrite = 0.375;
-              };
-              contextWindow = 204800;
-              maxTokens = 131072;
-            }
-          ];
-        };
-      };
     }
   );
 in
@@ -103,8 +77,7 @@ in
     secrets.openclaw_minimax_key = { };
     templates."openclaw-env" = {
       content = ''
-        ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
-        ANTHROPIC_API_KEY=${config.sops.placeholder.openclaw_minimax_key}
+        MINIMAX_API_KEY=${config.sops.placeholder.openclaw_minimax_key}
       '';
       path = "${dataDir}/.env";
       owner = "1000";
