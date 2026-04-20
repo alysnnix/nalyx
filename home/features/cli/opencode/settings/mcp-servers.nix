@@ -14,17 +14,6 @@ let
 in
 {
   publicMcpServers = {
-    anytype = {
-      type = "local";
-      command = [
-        "npx"
-        "-y"
-        "@anyproto/anytype-mcp"
-      ];
-      environment = {
-        OPENAPI_MCP_HEADERS = "__ANYTYPE_TOKEN_PLACEHOLDER__";
-      };
-    };
     slack = {
       type = "local";
       command = [

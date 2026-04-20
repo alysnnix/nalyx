@@ -98,7 +98,6 @@
     age.sshKeyPaths = [ "/home/${vars.user.name}/.ssh/id_ed25519" ];
     secrets = {
       password.neededForUsers = true;
-      anytype_api_token.owner = vars.user.name;
       slack_bot_token.owner = vars.user.name;
       sapron_cf_client_id.owner = vars.user.name;
       sapron_cf_client_secret.owner = vars.user.name;

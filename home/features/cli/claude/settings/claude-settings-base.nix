@@ -9,10 +9,8 @@ builtins.toJSON {
   enabledPlugins = {
     "code-review@claude-plugins-official" = true;
     "context7@claude-plugins-official" = true;
-    "figma@claude-plugins-official" = true;
     "firebase@claude-plugins-official" = true;
     "frontend-design@claude-plugins-official" = true;
-    "impeccable@pbakaus" = true;
     "playground@claude-plugins-official" = true;
     "playwright@claude-plugins-official" = true;
     "posthog@claude-plugins-official" = true;
@@ -45,16 +43,6 @@ builtins.toJSON {
     ];
   };
   mcpServers = {
-    anytype = {
-      command = "npx";
-      args = [
-        "-y"
-        "@anyproto/anytype-mcp"
-      ];
-      env = {
-        OPENAPI_MCP_HEADERS = "__ANYTYPE_TOKEN_PLACEHOLDER__";
-      };
-    };
     slack = {
       command = "npx";
       args = [
