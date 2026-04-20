@@ -102,21 +102,21 @@
             output = 65536;
           };
         };
-        glm-5 = {
+        zhipu-glm5 = {
           name = "GLM-5";
           limit = {
             context = 128000;
             output = 16384;
           };
         };
-        "glm-5-turbo" = {
+        "zhipu-glm5-turbo" = {
           name = "GLM-5 Turbo";
           limit = {
             context = 128000;
             output = 16384;
           };
         };
-        "glm-5.1" = {
+        "zhipu-glm5.1" = {
           name = "GLM-5.1";
           limit = {
             context = 128000;
