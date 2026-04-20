@@ -27,9 +27,10 @@
   ...
 }:
 let
-  bridgeName = "br-openclaw";
-  networkName = "openclaw-isolated";
-  subnet = "172.30.0.0/24";
+  # Use Docker's default bridge — Kata 3.x + Docker 26+ has a known bug where
+  # custom bridge networks fail to create a network interface inside the VM
+  # (moby/moby#47626). The default bridge is unaffected.
+  bridgeName = "docker0";
   dataDir = "/var/lib/openclaw";
 
   # Seed config for first boot — OpenClaw can modify this file freely after creation
@@ -119,31 +120,6 @@ in
   ]
   ++ lib.optional (!hasPrivate) "f ${dataDir}/.env 0640 1000 1000 -";
 
-  # Create isolated Docker network on boot (IPv4 only, IPv6 disabled)
-  systemd.services.docker-network-openclaw = {
-    description = "Create isolated Docker network for OpenClaw";
-    after = [ "docker.service" ];
-    requires = [ "docker.service" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-    path = [
-      config.virtualisation.docker.package
-      pkgs.procps
-    ];
-    script = ''
-      docker network inspect ${networkName} >/dev/null 2>&1 || \
-      docker network create ${networkName} \
-        --subnet ${subnet} \
-        --opt com.docker.network.bridge.name=${bridgeName}
-
-      # Disable IPv6 on the bridge to prevent firewall bypass
-      sysctl -w net.ipv6.conf.${bridgeName}.disable_ipv6=1
-    '';
-  };
-
   # ── Firewall: Isolate container from LAN, host, and Tailscale ──
   networking.firewall.extraCommands = ''
     # === IPv4 ===
@@ -167,14 +143,8 @@ in
     iptables -I INPUT -i ${bridgeName} -j DROP
     iptables -I INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-    # Explicit NAT/FORWARD for Kata VMs — Docker may not set these up
-    # for custom bridge networks when using the Kata runtime.
-    iptables -t nat -C POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE 2>/dev/null || \
-      iptables -t nat -A POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE
-    iptables -C FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT 2>/dev/null || \
-      iptables -A FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT
-    iptables -C FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
-      iptables -A FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    # Disable IPv6 on the bridge to prevent firewall bypass
+    sysctl -w net.ipv6.conf.${bridgeName}.disable_ipv6=1 || true
 
     # === IPv6: block everything (defense in depth) ===
     ip6tables -I DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
@@ -194,9 +164,6 @@ in
     iptables -D DOCKER-USER -i ${bridgeName} -d 100.64.0.0/10 -j DROP 2>/dev/null || true
     iptables -D INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     iptables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
-    iptables -t nat -D POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE 2>/dev/null || true
-    iptables -D FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT 2>/dev/null || true
-    iptables -D FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     ip6tables -D DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
   '';
@@ -204,14 +171,8 @@ in
   # ── Container service: Auto-start OpenClaw with kata isolation ──
   systemd.services.openclaw = {
     description = "OpenClaw AI Assistant (Kata Container)";
-    after = [
-      "docker.service"
-      "docker-network-openclaw.service"
-    ];
-    requires = [
-      "docker.service"
-      "docker-network-openclaw.service"
-    ];
+    after = [ "docker.service" ];
+    requires = [ "docker.service" ];
     wantedBy = [ "multi-user.target" ];
 
     unitConfig = {
@@ -278,7 +239,6 @@ in
       # The exec replaces the shell with docker run, letting systemd track the container lifecycle directly
       exec docker run --rm --name openclaw \
         --runtime=kata \
-        --network ${networkName} \
         --log-driver journald \
         --cap-drop ALL \
         --security-opt no-new-privileges \
