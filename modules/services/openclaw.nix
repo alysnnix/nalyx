@@ -34,6 +34,7 @@ in
   # ── Utility Script: Automate OpenClaw updates ──
   environment.systemPackages = [
     pkgs.git
+    pkgs.socat
     (pkgs.writeShellScriptBin "update-openclaw" ''
       # Define a persistent path for the repository, keeping it near the data directory
       REPO_DIR="${dataDir}/source"
@@ -194,7 +195,6 @@ in
       exec docker run --rm --name openclaw \
         --runtime=kata \
         --network ${networkName} \
-        -p 127.0.0.1:18789:18789 \
         --log-driver journald \
         --cap-drop ALL \
         --security-opt no-new-privileges \
@@ -208,6 +208,44 @@ in
         -v ${dataDir}:/home/node/.openclaw \
         --env-file ${dataDir}/.env \
         openclaw:latest
+    '';
+  };
+
+  # ── Port forwarding: bridge host port to Kata container via docker exec ──
+  # Docker's port publishing (-p) does not work reliably with Kata containers
+  # because the micro-VM has its own kernel and network stack. Instead, socat
+  # on the host forwards TCP connections through "docker exec" into the container.
+  systemd.services.openclaw-proxy = {
+    description = "OpenClaw dashboard proxy (socat → docker exec)";
+    after = [ "openclaw.service" ];
+    requires = [ "openclaw.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
+
+    path = [
+      pkgs.socat
+      config.virtualisation.docker.package
+    ];
+
+    script = ''
+      # Wait for the container to get its IP
+      for i in $(seq 1 30); do
+        IP=$(docker inspect openclaw --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null)
+        [ -n "$IP" ] && break
+        sleep 1
+      done
+
+      if [ -z "$IP" ]; then
+        echo "FATAL: could not resolve openclaw container IP"
+        exit 1
+      fi
+
+      echo "Proxying 127.0.0.1:18789 → $IP:18789"
+      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork TCP:$IP:18789
     '';
   };
 }
