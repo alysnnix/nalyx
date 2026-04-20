@@ -126,6 +126,13 @@ in
     iptables -I DOCKER-USER -i ${bridgeName} -d 169.254.0.0/16 -j DROP
     iptables -I DOCKER-USER -i ${bridgeName} -d 100.64.0.0/10 -j DROP
 
+    # Block abusive outbound ports (SMTP spam, BitTorrent)
+    iptables -I DOCKER-USER -i ${bridgeName} -p tcp --dport 25 -j DROP
+    iptables -I DOCKER-USER -i ${bridgeName} -p tcp --dport 465 -j DROP
+    iptables -I DOCKER-USER -i ${bridgeName} -p tcp --dport 587 -j DROP
+    iptables -I DOCKER-USER -i ${bridgeName} -p tcp --dport 6881:6889 -j DROP
+    iptables -I DOCKER-USER -i ${bridgeName} -p udp --dport 6881:6889 -j DROP
+
     # INPUT: allow return traffic for host-initiated connections (docker-proxy port forwarding),
     # but block new connections from the container to the host.
     # Order: -I inserts at position 1, so the DROP is inserted first, then ACCEPT goes above it.
@@ -138,6 +145,11 @@ in
   '';
 
   networking.firewall.extraStopCommands = ''
+    iptables -D DOCKER-USER -i ${bridgeName} -p tcp --dport 25 -j DROP 2>/dev/null || true
+    iptables -D DOCKER-USER -i ${bridgeName} -p tcp --dport 465 -j DROP 2>/dev/null || true
+    iptables -D DOCKER-USER -i ${bridgeName} -p tcp --dport 587 -j DROP 2>/dev/null || true
+    iptables -D DOCKER-USER -i ${bridgeName} -p tcp --dport 6881:6889 -j DROP 2>/dev/null || true
+    iptables -D DOCKER-USER -i ${bridgeName} -p udp --dport 6881:6889 -j DROP 2>/dev/null || true
     iptables -D DOCKER-USER -i ${bridgeName} -d 10.0.0.0/8 -j DROP 2>/dev/null || true
     iptables -D DOCKER-USER -i ${bridgeName} -d 172.16.0.0/12 -j DROP 2>/dev/null || true
     iptables -D DOCKER-USER -i ${bridgeName} -d 192.168.0.0/16 -j DROP 2>/dev/null || true
@@ -237,7 +249,7 @@ in
       # This is the only reliable path into a Kata micro-VM because the VM has
       # its own kernel and network stack — the container IP on the bridge (eth0)
       # is unreachable from the host, but "docker exec" uses the containerd shim.
-      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork \
+      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
         EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
     '';
   };
