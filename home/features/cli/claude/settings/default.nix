@@ -13,6 +13,7 @@ let
 in
 {
   claudeSettingsBase = builtins.toJSON {
+    copyOnSelect = false;
     enabledPlugins = plugins.enabledPlugins;
     statusLine = statusline.statusLineConfig;
     hooks = hooks.hooksConfig;
