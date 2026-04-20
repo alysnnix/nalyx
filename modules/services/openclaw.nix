@@ -97,9 +97,20 @@ in
     '')
   ];
 
-  # ── SOPS: tailnet suffix for Tailscale Serve origin ──
+  # ── SOPS: secrets for Tailscale Serve and MiniMax API ──
   sops = lib.mkIf hasPrivate {
     secrets.tailnet_suffix = { };
+    secrets.minimax_api_key = { };
+    templates."openclaw-env" = {
+      content = ''
+        ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
+        ANTHROPIC_API_KEY=${config.sops.placeholder.minimax_api_key}
+      '';
+      path = "${dataDir}/.env";
+      owner = "1000";
+      group = "1000";
+      mode = "0640";
+    };
   };
 
   # ── Kata Containers: Hardware-level isolation ──
@@ -126,10 +137,12 @@ in
   # Persistent data directory (credentials, config, WhatsApp session)
   # Assuming the container runs as user 'node' (UID 1000).
   # This prevents permission denied errors inside the container.
+  # When hasPrivate, SOPS template manages .env with the MiniMax API key;
+  # otherwise create an empty .env so --env-file doesn't fail.
   systemd.tmpfiles.rules = [
     "d ${dataDir} 0750 1000 1000 -"
-    "f ${dataDir}/.env 0640 1000 1000 -"
-  ];
+  ]
+  ++ lib.optional (!hasPrivate) "f ${dataDir}/.env 0640 1000 1000 -";
 
   # Create isolated Docker network on boot (IPv4 only, IPv6 disabled)
   systemd.services.docker-network-openclaw = {
