@@ -80,8 +80,8 @@ in
         MINIMAX_API_KEY=${config.sops.placeholder.openclaw_minimax_key}
       '';
       path = "${dataDir}/.env";
-      owner = "1000";
-      group = "1000";
+      owner = vars.user.name;
+      group = "users";
       mode = "0640";
     };
   };
