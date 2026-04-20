@@ -18,76 +18,6 @@
         apiKey = "__LITELLM_API_KEY_PLACEHOLDER__";
       };
       models = {
-        claude-opus = {
-          name = "Claude Opus (latest)";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        claude-opus-4-6 = {
-          name = "Claude Opus 4.6";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        "claude-opus-4-6[1m]" = {
-          name = "Claude Opus 4.6 (1M)";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
-        claude-opus-4-7 = {
-          name = "Claude Opus 4.7";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        "claude-opus-4-7[1m]" = {
-          name = "Claude Opus 4.7 (1M)";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
-        claude-sonnet = {
-          name = "Claude Sonnet (latest)";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        claude-sonnet-4-6 = {
-          name = "Claude Sonnet 4.6";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        "claude-sonnet-4-6[1m]" = {
-          name = "Claude Sonnet 4.6 (1M)";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
-        claude-haiku-4-5 = {
-          name = "Claude Haiku 4.5";
-          limit = {
-            context = 200000;
-            output = 65536;
-          };
-        };
-        "claude-haiku-4-5[1m]" = {
-          name = "Claude Haiku 4.5 (1M)";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
         "minimax-m2.7" = {
           name = "MiniMax M2.7";
           limit = {
@@ -167,5 +97,5 @@
     };
   };
 
-  model = "litellm/claude-sonnet";
+  model = "claude-code/claude-sonnet-4-6";
 }
