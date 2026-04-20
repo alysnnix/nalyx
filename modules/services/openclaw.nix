@@ -125,8 +125,11 @@ in
     iptables -I DOCKER-USER -i ${bridgeName} -d 169.254.0.0/16 -j DROP
     iptables -I DOCKER-USER -i ${bridgeName} -d 100.64.0.0/10 -j DROP
 
-    # INPUT: block ALL container to host traffic (no exceptions)
+    # INPUT: allow return traffic for host-initiated connections (docker-proxy port forwarding),
+    # but block new connections from the container to the host.
+    # Order: -I inserts at position 1, so the DROP is inserted first, then ACCEPT goes above it.
     iptables -I INPUT -i ${bridgeName} -j DROP
+    iptables -I INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
     # === IPv6: block everything (defense in depth) ===
     ip6tables -I DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
@@ -139,6 +142,7 @@ in
     iptables -D DOCKER-USER -i ${bridgeName} -d 192.168.0.0/16 -j DROP 2>/dev/null || true
     iptables -D DOCKER-USER -i ${bridgeName} -d 169.254.0.0/16 -j DROP 2>/dev/null || true
     iptables -D DOCKER-USER -i ${bridgeName} -d 100.64.0.0/10 -j DROP 2>/dev/null || true
+    iptables -D INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     iptables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -D DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
