@@ -92,6 +92,8 @@ in
   boot.kernelModules = [
     "kvm-intel"
     "kvm-amd"
+    "tun" # Kata uses tap devices for VM networking
+    "vhost_net" # Accelerates virtio-net in Kata VMs
   ];
 
   # Kata 3.x uses containerd shims, not the OCI runtime binary.
@@ -165,6 +167,15 @@ in
     iptables -I INPUT -i ${bridgeName} -j DROP
     iptables -I INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
+    # Explicit NAT/FORWARD for Kata VMs — Docker may not set these up
+    # for custom bridge networks when using the Kata runtime.
+    iptables -t nat -C POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE 2>/dev/null || \
+      iptables -t nat -A POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE
+    iptables -C FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT 2>/dev/null || \
+      iptables -A FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT
+    iptables -C FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+      iptables -A FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
     # === IPv6: block everything (defense in depth) ===
     ip6tables -I DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -I INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
@@ -183,6 +194,9 @@ in
     iptables -D DOCKER-USER -i ${bridgeName} -d 100.64.0.0/10 -j DROP 2>/dev/null || true
     iptables -D INPUT -i ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     iptables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
+    iptables -t nat -D POSTROUTING -s ${subnet} ! -o ${bridgeName} -j MASQUERADE 2>/dev/null || true
+    iptables -D FORWARD -i ${bridgeName} ! -o ${bridgeName} -j ACCEPT 2>/dev/null || true
+    iptables -D FORWARD ! -i ${bridgeName} -o ${bridgeName} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || true
     ip6tables -D DOCKER-USER -i ${bridgeName} -j DROP 2>/dev/null || true
     ip6tables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
   '';
