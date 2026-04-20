@@ -100,11 +100,11 @@ in
   # ── SOPS: secrets for Tailscale Serve and MiniMax API ──
   sops = lib.mkIf hasPrivate {
     secrets.tailnet_suffix = { };
-    secrets.minimax_api_key = { };
+    secrets.openclaw_minimax_key = { };
     templates."openclaw-env" = {
       content = ''
         ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic
-        ANTHROPIC_API_KEY=${config.sops.placeholder.minimax_api_key}
+        ANTHROPIC_API_KEY=${config.sops.placeholder.openclaw_minimax_key}
       '';
       path = "${dataDir}/.env";
       owner = "1000";
