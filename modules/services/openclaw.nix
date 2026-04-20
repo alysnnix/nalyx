@@ -238,13 +238,22 @@ in
         exit 1
       fi
 
-      # Seed openclaw.json with MiniMax M2.7 config (only if missing).
-      # The file stays writable so OpenClaw can update it at runtime.
+      # Ensure MiniMax M2.7 provider config is always present.
+      # OpenClaw may overwrite openclaw.json at runtime (e.g. "openclaw setup"),
+      # stripping our model config. This merges the seed fields on every start
+      # without clobbering keys that OpenClaw has added.
       if [ ! -f "${dataDir}/openclaw.json" ]; then
         cp ${openclawConfigSeed} "${dataDir}/openclaw.json"
         chmod 0640 "${dataDir}/openclaw.json"
         chown 1000:1000 "${dataDir}/openclaw.json"
         echo "Seeded openclaw.json with MiniMax M2.7 provider"
+      else
+        SEED=${openclawConfigSeed}
+        jq -s '.[0] * .[1]' "${dataDir}/openclaw.json" "$SEED" \
+          > "${dataDir}/openclaw.json.tmp"
+        mv "${dataDir}/openclaw.json.tmp" "${dataDir}/openclaw.json"
+        chown 1000:1000 "${dataDir}/openclaw.json"
+        echo "Merged MiniMax M2.7 provider into existing openclaw.json"
       fi
 
       ${lib.optionalString hasPrivate ''
