@@ -6,7 +6,7 @@
   lanzaboote,
   sops-nix,
   caelestia,
-  claude-code,
+  claudeOverlay,
   privateHmModules,
 }:
 
@@ -33,7 +33,7 @@ let
       modules = [
         ../hosts/${hostname}/default.nix
         sops-nix.nixosModules.sops
-        { nixpkgs.overlays = [ claude-code.overlays.default ]; }
+        { nixpkgs.overlays = [ claudeOverlay ]; }
 
         inputs.home-manager.nixosModules.home-manager
         {

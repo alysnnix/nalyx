@@ -35,6 +35,10 @@
       url = "github:sadjow/claude-code-nix";
     };
 
+    claude-code-prev = {
+      url = "github:sadjow/claude-code-nix/335c96551a1650e0306b756039f15c3364d2e0ac";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -61,16 +65,23 @@
       git-hooks,
       sops-nix,
       claude-code,
+      claude-code-prev,
       caelestia,
       private ? null,
       ...
     }@inputs:
     let
       system = "x86_64-linux";
+
+      claudeOverlay = _: _: {
+        claude-code = claude-code.packages.${system}.default;
+        claude-code-prev = claude-code-prev.packages.${system}.default;
+      };
+
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
-        overlays = [ claude-code.overlays.default ];
+        overlays = [ claudeOverlay ];
       };
 
       vars = import ./vars.nix;
@@ -115,7 +126,7 @@
             ./hosts/${hostname}/default.nix
             sops-nix.nixosModules.sops
             home-manager.nixosModules.home-manager
-            { nixpkgs.overlays = [ claude-code.overlays.default ]; }
+            { nixpkgs.overlays = [ claudeOverlay ]; }
             {
               home-manager = {
                 useGlobalPkgs = true;
@@ -151,7 +162,7 @@
           lanzaboote
           sops-nix
           caelestia
-          claude-code
+          claudeOverlay
           privateHmModules
           ;
       };

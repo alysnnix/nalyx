@@ -35,6 +35,7 @@ in
 
     packages = [
       pkgs.claude-code
+      (pkgs.writeShellScriptBin "claude-prev" ''exec ${pkgs.claude-code-prev}/bin/claude "$@"'')
       scripts.claude-notify
     ];
 
