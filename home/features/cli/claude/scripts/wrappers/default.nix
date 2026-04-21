@@ -1,6 +1,6 @@
 # Main claude wrapper — parses flags and dispatches to appropriate handler.
 # Profiles (--sec, etc.) use separate config dirs with shared settings via symlinks.
-# Modifiers (--minimax, --openrouter, --litellm, --english) compose with each other and profiles.
+# Modifiers (--minimax, --openrouter, --litellm) compose with each other and profiles.
 # Profile flags and modifier cases are auto-generated from profiles.nix.
 {
   pkgs,
@@ -16,9 +16,6 @@ let
 in
 ''
     : ''${NALYX_DIR:=$HOME/nalyx}
-
-    ${import ./cc.nix}
-    ${import ./cc-rebuild.nix}
 
     # Ensure a profile dir has shared config symlinked from personal.
     # If Claude replaced a symlink (atomic write), merge changes back first.
@@ -51,7 +48,7 @@ in
 
     claude() {
       local profile=""
-      local minimax=0 openrouter=0 litellm=0 english=0
+      local minimax=0 openrouter=0 litellm=0
       local remaining_args=()
 
       for arg in "$@"; do
@@ -60,7 +57,6 @@ in
           --minimax) minimax=1 ;;
           --openrouter) openrouter=1 ;;
           --litellm) litellm=1 ;;
-          --english) english=1 ;;
           *) remaining_args+=("$arg") ;;
         esac
       done
@@ -94,11 +90,6 @@ in
       fi
       if (( litellm )); then
   ${import ./litellm.nix}
-      fi
-
-      # Behavior modifiers
-      if (( english )); then
-  ${import ./english.nix}
       fi
 
       # Execute in subshell to isolate env changes
