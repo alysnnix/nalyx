@@ -47,7 +47,7 @@ in
 
     sessionVariables = {
       EDITOR = "nvim";
-      BROWSER = if isWsl then "wslview" else "firefox";
+      BROWSER = if isWsl then "wslview" else "google-chrome-stable";
     };
 
     stateVersion = "25.11";
