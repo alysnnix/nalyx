@@ -1,176 +1,93 @@
 # Nalyx
 
-Personal NixOS configuration (dotfiles/rice) with multi-host support: desktop, laptop, WSL, VM, and homelab.
+Personal NixOS configuration with multi-host support: desktop, laptop, WSL, VM, and homelab.
 
-Built with **Flakes**, **Home-Manager**, **SOPS-nix** for secrets management, and a **public/private split** so the repo can be shared without leaking personal data.
+Built with **Flakes**, **Home-Manager**, **SOPS-nix**, and a **public/private split** using composable flake modules.
 
 ## Quick Start
 
 ```bash
 switch          # auto-detects hostname and private repo
-switch wsl      # switch to a specific host
-switch desktop  # switch to desktop config
-```
-
-## Architecture: Public / Private Split
-
-```
-~/nalyx/                        # PUBLIC repo (this one)
-├── .private/                    # gitignored — private repos live here
-│   └── nalyx-private/           # PRIVATE repo (optional)
-│       ├── vars-override.nix    # Real email, SSH keys, GitHub username
-│       ├── secrets/             # SOPS-encrypted secrets (passwords, tokens)
-│       ├── scripts/             # Private shell scripts
-│       └── .sops.yaml           # SOPS encryption rules
-├── flake.nix                    # Entry point — detects private repo automatically
-├── vars.nix                     # Safe defaults (user@example.com, empty keys)
-├── private/                     # Empty placeholder (keeps flake happy)
-├── hosts/                       # Per-machine configurations
-│   ├── desktop/                 # Main PC (NVIDIA, gaming)
-│   ├── laptop/                  # Notebook (Intel)
-│   ├── wsl/                     # Windows Subsystem for Linux
-│   ├── vm/                      # Virtual machine
-│   └── homelab/                 # Headless server (Tailscale only)
-├── home/features/               # Home-Manager modules (cli, desktop, languages, programs)
-├── modules/                     # Reusable NixOS modules (core, desktop, drivers, secureboot)
-└── generators/                  # ISO generation
-```
-
-### How It Works
-
-The `switch` command checks if `.private/nalyx-private/vars-override.nix` exists:
-
-- **With private repo**: Merges `vars-override.nix` over defaults, enables SOPS secrets, loads private scripts
-- **Without private repo**: Uses safe defaults from `vars.nix`, sets `initialPassword = "changeme"`, skips SOPS entirely
-
-Modules receive `hasPrivate` and `private` as arguments, and use them to conditionally enable features.
-
-## Setup
-
-### 1. Clone
-
-```bash
-git clone https://github.com/<your-username>/nalyx.git ~/nalyx
-cd ~/nalyx
-
-# Optional: clone private repo inside .private/
-git clone git@github.com:<your-username>/nalyx-private.git .private/nalyx-private
-```
-
-### 2. Build
-
-```bash
-# First time (switch alias doesn't exist yet)
-bash home/features/cli/zsh/scripts/update-sys.sh wsl
-
-# After the first rebuild, the alias is available
-switch
 switch wsl      # specify a host
 ```
 
-### Alternative: Lock Private Permanently
+## Architecture
 
-Instead of relying on auto-detection at build time, you can lock the private input:
-
-```bash
-nix flake lock --override-input private git+ssh://git@github.com/<your-username>/nalyx-private
+```
+nalyx/ (public)                     nalyx-private/ (optional flake)
+├── flake.nix                       ├── flake.nix (exports modules)
+├── vars.nix                        ├── nixos/ (SOPS, passwords, secrets)
+├── hosts/                          ├── home/ (MCPs, scripts, aliases)
+│   ├── desktop/                    └── secrets/secrets.yaml
+│   ├── laptop/
+│   ├── wsl/
+│   ├── vm/
+│   └── homelab/
+├── modules/ (core, desktop, drivers, services)
+├── home/features/ (cli, desktop, languages, programs)
+└── ci/empty-private/ (CI placeholder)
 ```
 
-This writes the private repo reference into `flake.lock`. Subsequent `nix flake update` will pull it automatically.
+The private repo is an optional flake that exports NixOS and Home-Manager modules. When present, they overlay config on top of public defaults. When absent, the system builds with safe defaults.
 
-## Fork and Personalize
+No public module references secrets, private URLs, or knows the private repo exists.
 
-1. **Fork this repository**
-2. **Edit `vars.nix`** with your information (or create a private repo with `vars-override.nix`)
-3. **Replace hardware configs** for your machines:
-   ```bash
-   sudo nixos-generate-config --show-hardware-config > hosts/<host>/hardware-configuration.nix
-   ```
-4. **Set up SOPS** (see below) if you want encrypted secrets
-
-## Setting Up SOPS Secrets
-
-SOPS encrypts secrets so they can live safely in your private repo.
-
-1. **Generate your Age key from your SSH key:**
-   ```bash
-   nix-shell -p ssh-to-age --run "ssh-to-age < ~/.ssh/id_ed25519.pub"
-   ```
-
-2. **Create `.sops.yaml` in your private repo** with your Age public key:
-   ```yaml
-   keys:
-     - &user_you age1your_public_key_here
-   creation_rules:
-     - path_regex: secrets/.*\.yaml$
-       key_groups:
-         - age:
-             - *user_you
-   ```
-
-3. **Create secrets:**
-   ```bash
-   cd ~/nalyx-private
-   sops secrets/secrets.yaml
-   ```
-
-4. **Generate a hashed password:**
-   ```bash
-   nix-shell -p mkpasswd --run "mkpasswd -m sha-512"
-   ```
-
-## Available Hosts
+## Hosts
 
 | Host | Description | Desktop | Extras |
 |------|-------------|---------|--------|
-| `desktop` | Main PC | Hyprland / GNOME | NVIDIA drivers, Steam, gaming |
-| `laptop` | Notebook | Hyprland / GNOME | Intel drivers |
-| `wsl` | WSL2 | None | Docker Desktop integration |
-| `vm` | Test VM | Hyprland / GNOME | Minimal config |
-| `homelab` | Server | None | Tailscale-only, SSH, headless |
+| `desktop` | Main PC | Hyprland / GNOME | NVIDIA, Steam, gaming |
+| `laptop` | Notebook | Hyprland / GNOME | Intel |
+| `wsl` | WSL2 | None | Docker Desktop |
+| `vm` | Test VM | Hyprland / GNOME | Minimal |
+| `homelab` | Server | None | Tailscale, SSH, headless |
 
 ## Stack
 
 | Layer | Technologies |
 |-------|-------------|
 | System | NixOS, Flakes, Home-Manager |
-| Desktop | Hyprland, GNOME |
+| Desktop | Hyprland (Caelestia), GNOME |
 | Secrets | SOPS-nix, Age |
 | Boot | Lanzaboote (Secure Boot), systemd-boot |
 | Shell | Zsh, Oh-My-Zsh |
 | Drivers | NVIDIA, Intel |
 
+## Setup
+
+### 1. Clone
+
+```bash
+git clone https://github.com/alysnnix/nalyx.git ~/nalyx
+cd ~/nalyx
+```
+
+### 2. Private repo (optional)
+
+```bash
+git clone git@github.com:alysnnix/nalyx-private.git .private/nalyx-private
+```
+
+### 3. Build
+
+```bash
+# First time (switch alias doesn't exist yet)
+bash home/features/cli/zsh/scripts/update-sys.sh wsl
+
+# After the first rebuild
+switch wsl
+```
+
 ## Development
 
 ```bash
-# Enter dev shell (activates pre-commit hooks)
-nix develop
-
-# Format all Nix files
-nix fmt
-
-# Validate configuration (no build, fast check)
-nix flake check --no-build
-
-# Dry-run rebuild
-sudo nixos-rebuild dry-run --flake .#desktop
-
-# Update all flake inputs
-nix flake update
-
-# Update a single input
-nix flake update nixpkgs
-
-# Edit secrets (from private repo)
-cd ~/nalyx-private && sops secrets/secrets.yaml
+nix develop             # Enter dev shell (activates pre-commit hooks)
+nix fmt                 # Format all Nix files
+nix flake check --no-build  # Validate configurations
 ```
 
-Pre-commit hooks (activated via `nix develop`):
-
-- **nixfmt** - Code formatting
-- **statix** - Nix linter
-- **deadnix** - Dead code detection
+Pre-commit hooks: **nixfmt**, **statix**, **deadnix**
 
 ## License
 
-This is a personal configuration. Feel free to fork and adapt it to your needs.
+[GPL-3.0](LICENSE)
