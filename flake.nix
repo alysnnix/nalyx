@@ -207,9 +207,6 @@
         desktop-iso = isos.desktop;
         laptop-iso = isos.laptop;
         homelab-iso = isos.homelab;
-
-        # Minimal Docker image with Claude Code — build with: nix build .#claude-container
-        claude-container = import ./packages/claude-container.nix { inherit pkgs; };
       };
 
       # Eval-only checks: validates all configurations without building
