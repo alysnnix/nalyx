@@ -21,39 +21,77 @@ nix develop      # Enter devShell (installs pre-commit hooks)
 
 ## Public / Private Architecture
 
-The repo has an optional private companion (`nalyx-private`) cloned into `.private/` (gitignored). Detection uses `hasPrivate`:
+The repo has an optional private companion (`nalyx-private`) cloned into `.private/` (gitignored). Detection uses `private ? null` in `flake.nix`:
 
 - **Without private repo**: safe defaults, `initialPassword = "changeme"`, SOPS disabled
-- **With private repo**: merges real values via `recursiveUpdate`, enables SOPS secrets
+- **With private repo**: conditionally includes `privateNixosModules` and `privateHmModules`
 
-Modules receive `hasPrivate` and `private` via specialArgs to conditionally enable private features.
+Private modules are only referenced in `flake.nix` — no public module knows the private repo exists.
 
 ## Stack
 
 | Layer | Technologies |
 |-------|-------------|
 | System | NixOS, Flakes, Home-Manager |
-| Desktop | Hyprland, GNOME |
+| Desktop | Hyprland (Caelestia/Waybar), GNOME |
+| Theming | Matugen (dynamic color generation) |
 | Secrets | SOPS-nix, Age |
-| Boot | Lanzaboote (Secure Boot), systemd-boot |
-| Shell | Zsh, Oh-My-Zsh |
+| Boot | systemd-boot (Lanzaboote optional) |
+| Shell | Zsh |
 | Drivers | NVIDIA, Intel |
+| AI Tools | Claude Code, Gemini CLI, OpenCode |
+| Services | Tailscale, Syncthing, NordVPN, OpenClaw |
 
 ## Hosts
 
 | Host | Description | Desktop | Extras |
 |------|-------------|---------|--------|
 | `desktop` | Main PC | Hyprland/GNOME | NVIDIA, Steam, Gaming |
-| `laptop` | Notebook | Hyprland/GNOME | Intel |
-| `wsl` | WSL2 | None | Docker Desktop |
-| `vm` | Test VM | Hyprland/GNOME | Minimal |
-| `homelab` | Server | None | Tailscale-only, headless |
+| `laptop` | Notebook | Hyprland/GNOME | Intel, KDE Connect |
+| `wsl` | WSL2 | None | Docker, Pritunl, Playwright |
+| `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
+| `homelab` | Server | None | Tailscale, Syncthing, OpenClaw |
+
+There is also a standalone `homeConfigurations.wsl-ubuntu` for Ubuntu WSL without NixOS.
+
+## Project Structure
+
+```
+hosts/           # NixOS system configs per host
+modules/
+  core/          # Base system (all hosts)
+  desktop/       # Hyprland, GNOME (system-level)
+  drivers/       # NVIDIA, Intel
+  services/      # NordVPN, Syncthing, OpenClaw
+  secureboot/    # Lanzaboote (optional)
+home/
+  default.nix    # Root HM config
+  features/
+    cli/         # zsh, git, ssh, neovim, claude, gemini, opencode
+    desktop/     # hyprland (caelestia/waybar/rofi/matugen), gnome
+    languages/   # go, java, latex, nix, node, python
+    programs/    # docker, firefox, games, obs, vscode, zed
+generators/      # ISO generation for installation
+packages/        # Custom Nix packages
+ci/              # CI scaffolding (empty-private placeholder)
+scripts/         # Utility scripts (homelab-install)
+```
 
 ## Code Conventions
 
-- Module pattern: `{ pkgs, vars, lib, hasPrivate ? false, private ? null, ... }:`
+- Module pattern: `{ pkgs, vars, lib, config, ... }:`
 - Conditional imports: `lib.optional (vars.desktop == "hyprland") ./hyprland`
+- HM special args: `isWsl`, `isServer`, `enableClaude`, `enableGemini`, `enableOpencode`
 - Directories: `kebab-case`, main files: `default.nix`
+- Host helper: `fnMountSystem` in `flake.nix` builds each host config
+
+## Key Variables (`vars.nix`)
+
+- `vars.user.name`, `vars.user.email`, `vars.user.publicKey`
+- `vars.desktop` — `"hyprland"`, `"gnome"`, or `null` (headless)
+- `vars.shell` — `"caelestia"` or `"waybar"` (Hyprland shell choice)
+- `vars.terminal`, `vars.editor`
+- `vars.homelab.address`
 
 ## Pre-commit Hooks
 
