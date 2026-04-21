@@ -1,50 +1,5 @@
 {
   providers = {
-    litellm = {
-      npm = "@ai-sdk/openai-compatible";
-      name = "LiteLLM";
-      options = {
-        baseURL = "https://hub.seazone.dev/v1";
-        apiKey = "__LITELLM_API_KEY_PLACEHOLDER__";
-      };
-      models = {
-        "minimax-m2.7" = {
-          name = "MiniMax M2.7";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
-        "minimax-m2.5" = {
-          name = "MiniMax M2.5";
-          limit = {
-            context = 1000000;
-            output = 65536;
-          };
-        };
-        zhipu-glm5 = {
-          name = "GLM-5";
-          limit = {
-            context = 128000;
-            output = 16384;
-          };
-        };
-        "zhipu-glm5-turbo" = {
-          name = "GLM-5 Turbo";
-          limit = {
-            context = 128000;
-            output = 16384;
-          };
-        };
-        "zhipu-glm5.1" = {
-          name = "GLM-5.1";
-          limit = {
-            context = 128000;
-            output = 16384;
-          };
-        };
-      };
-    };
     claude-code = {
       npm = "@ai-sdk/anthropic";
       name = "Claude Code";
