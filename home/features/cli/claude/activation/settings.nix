@@ -1,16 +1,15 @@
 {
   pkgs,
   lib,
-  privateMcpConfig,
   claudeSettingsBase,
 }:
 
-# Generate settings.json at activation time with sops secrets.
+# Generate settings.json at activation time.
 # Merges managed keys (plugins, mcpServers) into existing settings
 # so Claude Code can write its own keys (effort, etc.) without being overwritten.
 # Only generates for personal config — profiles symlink to it.
+# Secret injection (MCPs, tokens) is handled by the private repo.
 lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-  SLACK_SECRET="/run/secrets/slack_bot_token"
   JQ="${pkgs.jq}/bin/jq"
 
   CONFIG_DIR="$HOME/.claude"
@@ -24,19 +23,6 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   fi
 
   MANAGED=$(echo ${lib.escapeShellArg claudeSettingsBase})
-
-  # Inject Slack token or remove MCP entry
-  if [ -f "$SLACK_SECRET" ]; then
-    SLACK_TOKEN=$(cat "$SLACK_SECRET")
-    MANAGED=$(echo "$MANAGED" | \
-      $JQ --arg token "$SLACK_TOKEN" \
-      '.mcpServers.slack.env.SLACK_BOT_TOKEN = $token')
-  else
-    MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcpServers.slack)')
-  fi
-
-  # Inject private MCP tokens (sapron, seazone, etc.) from nalyx-private
-  ${privateMcpConfig.injectScript}
 
   # Merge: existing settings * managed settings (managed keys win)
   if [ -f "$SETTINGS_FILE" ]; then

@@ -1,17 +1,15 @@
 {
   pkgs,
   lib,
-  hasPrivate ? false,
-  private ? null,
   ...
 }:
 
 let
-  settings = import ./settings { inherit hasPrivate private; };
+  settings = import ./settings;
 
   activationSettings = import ./activation/settings.nix {
     inherit pkgs lib;
-    inherit (settings) privateMcpConfig opencodeSettingsBase;
+    inherit (settings) opencodeSettingsBase;
   };
 in
 {

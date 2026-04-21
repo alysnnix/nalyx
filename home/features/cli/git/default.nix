@@ -1,16 +1,10 @@
 {
   config,
-  pkgs,
   vars,
   ...
 }:
 
 {
-  programs.ssh = {
-    enable = true;
-    matchBlocks."*".addKeysToAgent = "yes";
-  };
-
   programs.git = {
     enable = true;
 

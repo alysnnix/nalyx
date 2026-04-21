@@ -1,9 +1,6 @@
 {
   vars,
   pkgs,
-  config,
-  lib,
-  hasPrivate ? false,
   ...
 }:
 {
@@ -25,11 +22,8 @@
       trustedInterfaces = [ "tailscale0" ];
     };
 
-    # WiFi — auto-connect to home network
+    # WiFi — configured via private module (SOPS template with WiFi password)
     networkmanager.ensureProfiles = {
-      environmentFiles = lib.mkIf hasPrivate [
-        config.sops.templates."wifi-env".path
-      ];
       profiles.home-wifi = {
         connection = {
           id = "Aly 5G";
@@ -47,13 +41,6 @@
         };
       };
     };
-  };
-
-  # SOPS template: env file with WiFi password for NetworkManager
-  sops.templates."wifi-env" = lib.mkIf hasPrivate {
-    content = ''
-      WIFI_PSK=${config.sops.placeholder.wifi_password}
-    '';
   };
 
   # SSH access (only reachable via Tailscale due to firewall)
@@ -90,42 +77,46 @@
     wakeonlan
   ];
 
-  # WoWLAN: allow waking the homelab via WiFi magic packet
-  systemd.services.wowlan = {
-    description = "Enable Wake-on-WLAN";
-    after = [ "network.target" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${pkgs.iw}/bin/iw phy phy0 wowlan enable magic-packet";
+  systemd = {
+    # Create Syncthing receive directories on btrfs
+    tmpfiles.rules = [
+      "d /data/sync/desktop 0755 ${vars.user.name} users -"
+      "d /data/sync/laptop 0755 ${vars.user.name} users -"
+      "d /data/sync/wsl 0755 ${vars.user.name} users -"
+    ];
+
+    services = {
+      # WoWLAN: allow waking the homelab via WiFi magic packet
+      wowlan = {
+        description = "Enable Wake-on-WLAN";
+        after = [ "network.target" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${pkgs.iw}/bin/iw phy phy0 wowlan enable magic-packet";
+        };
+      };
+
+      # Weekly btrfs deduplication
+      duperemove = {
+        description = "Deduplicate /data/sync with duperemove";
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = "${pkgs.duperemove}/bin/duperemove -rd /data/sync";
+          Nice = 19;
+          IOSchedulingClass = "idle";
+        };
+      };
     };
-  };
 
-  # Create Syncthing receive directories on btrfs
-  systemd.tmpfiles.rules = [
-    "d /data/sync/desktop 0755 ${vars.user.name} users -"
-    "d /data/sync/laptop 0755 ${vars.user.name} users -"
-    "d /data/sync/wsl 0755 ${vars.user.name} users -"
-  ];
-
-  # Weekly btrfs deduplication
-  systemd.services.duperemove = {
-    description = "Deduplicate /data/sync with duperemove";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.duperemove}/bin/duperemove -rd /data/sync";
-      Nice = 19;
-      IOSchedulingClass = "idle";
-    };
-  };
-
-  systemd.timers.duperemove = {
-    description = "Run duperemove weekly";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "weekly";
-      Persistent = true;
+    timers.duperemove = {
+      description = "Run duperemove weekly";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "weekly";
+        Persistent = true;
+      };
     };
   };
 

@@ -20,10 +20,7 @@
 {
   pkgs,
   vars,
-  lib,
   config,
-  hasPrivate ? false,
-  private ? null,
   ...
 }:
 let
@@ -72,21 +69,6 @@ in
     '')
   ];
 
-  # ── SOPS: secrets for Tailscale Serve and MiniMax API ──
-  sops = lib.mkIf hasPrivate {
-    secrets.tailnet_suffix = { };
-    secrets.openclaw_minimax_key = { };
-    templates."openclaw-env" = {
-      content = ''
-        MINIMAX_API_KEY=${config.sops.placeholder.openclaw_minimax_key}
-      '';
-      path = "${dataDir}/.env";
-      owner = vars.user.name;
-      group = "users";
-      mode = "0640";
-    };
-  };
-
   # ── Kata Containers: Hardware-level isolation ──
   # Each container runs in its own micro-VM with a dedicated kernel.
   # Even a kernel exploit inside the container cannot reach the host.
@@ -110,19 +92,6 @@ in
       };
     };
   };
-
-  # Put containerd-shim-kata-v2 in Docker/containerd's PATH
-  systemd.services.docker.path = [ pkgs.kata-runtime ];
-
-  # Persistent data directory (credentials, config, WhatsApp session)
-  # Assuming the container runs as user 'node' (UID 1000).
-  # This prevents permission denied errors inside the container.
-  # When hasPrivate, SOPS template manages .env with the MiniMax API key;
-  # otherwise create an empty .env so --env-file doesn't fail.
-  systemd.tmpfiles.rules = [
-    "d ${dataDir} 0750 1000 1000 -"
-  ]
-  ++ lib.optional (!hasPrivate) "f ${dataDir}/.env 0640 1000 1000 -";
 
   # ── Firewall: Isolate container from LAN, host, and Tailscale ──
   networking.firewall.extraCommands = ''
@@ -172,122 +141,124 @@ in
     ip6tables -D INPUT -i ${bridgeName} -j DROP 2>/dev/null || true
   '';
 
-  # ── Container service: Auto-start OpenClaw with kata isolation ──
-  systemd.services.openclaw = {
-    description = "OpenClaw AI Assistant (Kata Container)";
-    after = [ "docker.service" ];
-    requires = [ "docker.service" ];
-    wantedBy = [ "multi-user.target" ];
-
-    unitConfig = {
-      StartLimitIntervalSec = "5min";
-      StartLimitBurst = 5;
-    };
-
-    serviceConfig = {
-      Type = "simple";
-      Restart = "on-failure";
-      RestartSec = "30s";
-      TimeoutStopSec = "30s";
-    };
-
-    path = [
-      config.virtualisation.docker.package
-      pkgs.jq
+  systemd = {
+    # Persistent data directory (credentials, config, WhatsApp session)
+    # Assuming the container runs as user 'node' (UID 1000).
+    # This prevents permission denied errors inside the container.
+    # Create an empty .env fallback — private module overwrites via SOPS template
+    tmpfiles.rules = [
+      "d ${dataDir} 0750 1000 1000 -"
+      "f ${dataDir}/.env 0640 1000 1000 -"
     ];
 
-    preStart = ''
-      # Abort if kata runtime is missing — never run without hardware isolation
-      if ! docker info --format '{{json .Runtimes}}' | jq -e '.kata' >/dev/null 2>&1; then
-        echo "FATAL: kata runtime not registered — refusing to start without hardware isolation"
-        exit 1
-      fi
+    services = {
+      # Put containerd-shim-kata-v2 in Docker/containerd's PATH
+      docker.path = [ pkgs.kata-runtime ];
 
-      # Ensure MiniMax M2.7 provider config is always present.
-      # OpenClaw may overwrite openclaw.json at runtime (e.g. "openclaw setup"),
-      # stripping our model config. This merges the seed fields on every start
-      # without clobbering keys that OpenClaw has added.
-      if [ ! -f "${dataDir}/openclaw.json" ]; then
-        cp ${openclawConfigSeed} "${dataDir}/openclaw.json"
-        chmod 0640 "${dataDir}/openclaw.json"
-        chown 1000:1000 "${dataDir}/openclaw.json"
-        echo "Seeded openclaw.json with MiniMax M2.7 provider"
-      else
-        SEED=${openclawConfigSeed}
-        jq -s '.[0] * .[1]' "${dataDir}/openclaw.json" "$SEED" \
-          > "${dataDir}/openclaw.json.tmp"
-        mv "${dataDir}/openclaw.json.tmp" "${dataDir}/openclaw.json"
-        chown 1000:1000 "${dataDir}/openclaw.json"
-        echo "Merged MiniMax M2.7 provider into existing openclaw.json"
-      fi
+      # ── Container service: Auto-start OpenClaw with kata isolation ──
+      openclaw = {
+        description = "OpenClaw AI Assistant (Kata Container)";
+        after = [ "docker.service" ];
+        requires = [ "docker.service" ];
+        wantedBy = [ "multi-user.target" ];
 
-      ${lib.optionalString hasPrivate ''
-        # Ensure Tailscale Serve origin is allowed in the Control UI
-        TAILNET_SUFFIX=$(cat ${config.sops.secrets.tailnet_suffix.path})
-        ORIGIN="https://homelab.''${TAILNET_SUFFIX}"
-        CURRENT=$(jq -r '.gateway.controlUi.allowedOrigins // [] | join(",")' "${dataDir}/openclaw.json")
-        if ! echo "$CURRENT" | grep -qF "$ORIGIN"; then
-          jq --arg origin "$ORIGIN" '.gateway.controlUi.allowedOrigins = ((.gateway.controlUi.allowedOrigins // []) + [$origin] | unique)' \
-            "${dataDir}/openclaw.json" > "${dataDir}/openclaw.json.tmp"
-          mv "${dataDir}/openclaw.json.tmp" "${dataDir}/openclaw.json"
-          chown 1000:1000 "${dataDir}/openclaw.json"
-          echo "Added $ORIGIN to allowedOrigins"
-        fi
-      ''}
+        unitConfig = {
+          StartLimitIntervalSec = "5min";
+          StartLimitBurst = 5;
+        };
 
-      # Clean up stale container from previous crash
-      docker rm -f openclaw 2>/dev/null || true
-    '';
+        serviceConfig = {
+          Type = "simple";
+          Restart = "on-failure";
+          RestartSec = "30s";
+          TimeoutStopSec = "30s";
+        };
 
-    script = ''
-      # The exec replaces the shell with docker run, letting systemd track the container lifecycle directly
-      exec docker run --rm --name openclaw \
-        --runtime=kata \
-        --log-driver journald \
-        --cap-drop ALL \
-        --security-opt no-new-privileges \
-        --read-only \
-        --tmpfs /tmp \
-        --tmpfs /home/node/.openclaw/logs \
-        --memory 4g \
-        --cpus 2 \
-        --pids-limit 512 \
-        --dns 1.1.1.1 --dns 9.9.9.9 \
-        -v ${dataDir}:/home/node/.openclaw \
-        --env-file ${dataDir}/.env \
-        openclaw:latest
-    '';
-  };
+        path = [
+          config.virtualisation.docker.package
+          pkgs.jq
+        ];
 
-  # ── Port forwarding: bridge host port to Kata container via docker exec ──
-  # Docker's port publishing (-p) does not work reliably with Kata containers
-  # because the micro-VM has its own kernel and network stack. Instead, socat
-  # on the host forwards TCP connections through "docker exec" into the container.
-  systemd.services.openclaw-proxy = {
-    description = "OpenClaw dashboard proxy (socat → docker exec)";
-    after = [ "openclaw.service" ];
-    requires = [ "openclaw.service" ];
-    wantedBy = [ "multi-user.target" ];
+        preStart = ''
+          # Abort if kata runtime is missing — never run without hardware isolation
+          if ! docker info --format '{{json .Runtimes}}' | jq -e '.kata' >/dev/null 2>&1; then
+            echo "FATAL: kata runtime not registered — refusing to start without hardware isolation"
+            exit 1
+          fi
 
-    serviceConfig = {
-      Restart = "on-failure";
-      RestartSec = "5s";
+          # Ensure MiniMax M2.7 provider config is always present.
+          # OpenClaw may overwrite openclaw.json at runtime (e.g. "openclaw setup"),
+          # stripping our model config. This merges the seed fields on every start
+          # without clobbering keys that OpenClaw has added.
+          if [ ! -f "${dataDir}/openclaw.json" ]; then
+            cp ${openclawConfigSeed} "${dataDir}/openclaw.json"
+            chmod 0640 "${dataDir}/openclaw.json"
+            chown 1000:1000 "${dataDir}/openclaw.json"
+            echo "Seeded openclaw.json with MiniMax M2.7 provider"
+          else
+            SEED=${openclawConfigSeed}
+            jq -s '.[0] * .[1]' "${dataDir}/openclaw.json" "$SEED" \
+              > "${dataDir}/openclaw.json.tmp"
+            mv "${dataDir}/openclaw.json.tmp" "${dataDir}/openclaw.json"
+            chown 1000:1000 "${dataDir}/openclaw.json"
+            echo "Merged MiniMax M2.7 provider into existing openclaw.json"
+          fi
+
+          # Clean up stale container from previous crash
+          docker rm -f openclaw 2>/dev/null || true
+        '';
+
+        script = ''
+          # The exec replaces the shell with docker run, letting systemd track the container lifecycle directly
+          exec docker run --rm --name openclaw \
+            --runtime=kata \
+            --log-driver journald \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --read-only \
+            --tmpfs /tmp \
+            --tmpfs /home/node/.openclaw/logs \
+            --memory 4g \
+            --cpus 2 \
+            --pids-limit 512 \
+            --dns 1.1.1.1 --dns 9.9.9.9 \
+            -v ${dataDir}:/home/node/.openclaw \
+            --env-file ${dataDir}/.env \
+            openclaw:latest
+        '';
+      };
+
+      # ── Port forwarding: bridge host port to Kata container via docker exec ──
+      # Docker's port publishing (-p) does not work reliably with Kata containers
+      # because the micro-VM has its own kernel and network stack. Instead, socat
+      # on the host forwards TCP connections through "docker exec" into the container.
+      openclaw-proxy = {
+        description = "OpenClaw dashboard proxy (socat → docker exec)";
+        after = [ "openclaw.service" ];
+        requires = [ "openclaw.service" ];
+        wantedBy = [ "multi-user.target" ];
+
+        serviceConfig = {
+          Restart = "on-failure";
+          RestartSec = "5s";
+        };
+
+        path = [
+          pkgs.socat
+          config.virtualisation.docker.package
+        ];
+
+        script = ''
+          # socat accepts each TCP connection and pipes it through "docker exec"
+          # into a Node.js one-liner that relays bytes to the app's localhost socket.
+          # This is the only reliable path into a Kata micro-VM because the VM has
+          # its own kernel and network stack — the container IP on the bridge (eth0)
+          # is unreachable from the host, but "docker exec" uses the containerd shim.
+          exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
+            EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
+        '';
+      };
     };
-
-    path = [
-      pkgs.socat
-      config.virtualisation.docker.package
-    ];
-
-    script = ''
-      # socat accepts each TCP connection and pipes it through "docker exec"
-      # into a Node.js one-liner that relays bytes to the app's localhost socket.
-      # This is the only reliable path into a Kata micro-VM because the VM has
-      # its own kernel and network stack — the container IP on the bridge (eth0)
-      # is unreachable from the host, but "docker exec" uses the containerd shim.
-      exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
-        EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
-    '';
   };
 
   # ── Tailscale Serve: expose dashboard with HTTPS on tailnet ──

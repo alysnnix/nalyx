@@ -1,7 +1,7 @@
 # Main claude wrapper — parses flags and dispatches to appropriate handler.
 # Profiles (--sec, etc.) use separate config dirs with shared settings via symlinks.
-# Modifiers (--minimax, --openrouter, --litellm) compose with each other and profiles.
-# Profile flags and modifier cases are auto-generated from profiles.nix.
+# Profile flags are auto-generated from profiles.nix.
+# Provider modifiers (--minimax, etc.) are injected by the private repo.
 {
   pkgs,
   lib,
@@ -48,23 +48,14 @@ in
 
     claude() {
       local profile=""
-      local minimax=0 openrouter=0 litellm=0
       local remaining_args=()
 
       for arg in "$@"; do
         case "$arg" in
   ${profileCases}
-          --minimax) minimax=1 ;;
-          --openrouter) openrouter=1 ;;
-          --litellm) litellm=1 ;;
           *) remaining_args+=("$arg") ;;
         esac
       done
-
-      if (( minimax + openrouter + litellm > 1 )); then
-        echo "Error: --minimax, --openrouter, and --litellm are mutually exclusive"
-        return 1
-      fi
 
       local -a extra_env=()
       local -a extra_args=()
@@ -79,17 +70,6 @@ in
         if [[ -f "$prompt_file" ]]; then
           extra_args+=(--append-system-prompt "$(cat "$prompt_file")")
         fi
-      fi
-
-      # Provider modifiers
-      if (( minimax )); then
-  ${import ./minimax.nix}
-      fi
-      if (( openrouter )); then
-  ${import ./openrouter.nix}
-      fi
-      if (( litellm )); then
-  ${import ./litellm.nix}
       fi
 
       # Execute in subshell to isolate env changes
