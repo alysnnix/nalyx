@@ -22,6 +22,8 @@ let
   skillsFiles = import ../skills/files.nix { inherit pkgs lib; };
 in
 {
+  claudeGlobalMd = import ./global-claude-md.nix { inherit lib; };
+
   claudeSkills = import ./skills.nix {
     inherit pkgs lib;
     claudeSkillsSrc = skillsFiles.claudeSkillsSrc;
