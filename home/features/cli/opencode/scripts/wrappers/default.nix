@@ -1,6 +1,6 @@
 # Main opencode wrapper — parses flags and dispatches to appropriate handler.
 # Profiles (--sec, etc.) use OPENCODE_CONFIG to point to separate config files.
-# Modifiers (--minimax, --openrouter, --litellm, --english) compose with each other and profiles.
+# Modifiers (--minimax, --openrouter, --litellm, --cc) compose with each other and profiles.
 {
   pkgs,
   lib,
@@ -32,7 +32,7 @@ in
 
     opencode() {
       local profile=""
-      local minimax=0 openrouter=0 litellm=0 cc=0 english=0
+      local minimax=0 openrouter=0 litellm=0 cc=0
       local remaining_args=()
 
       for arg in "$@"; do
@@ -42,7 +42,6 @@ in
           --openrouter) openrouter=1 ;;
           --litellm) litellm=1 ;;
           --cc) cc=1 ;;
-          --english) english=1 ;;
           *) remaining_args+=("$arg") ;;
         esac
       done
@@ -72,11 +71,6 @@ in
       fi
       if (( cc )); then
   ${import ./cc.nix { inherit pkgs; }}
-      fi
-
-      # Behavior modifiers
-      if (( english )); then
-  ${import ./english.nix}
       fi
 
       # Execute in subshell to isolate env changes

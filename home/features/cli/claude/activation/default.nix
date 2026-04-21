@@ -1,32 +1,17 @@
 {
   pkgs,
   lib,
-  hasPrivate ? false,
-  private ? null,
   profiles,
-  claudeStatusline ? null,
-  claudeNotify ? null,
-  ...
-}@args:
+  claudeSettingsBase,
+  privateMcpConfig,
+  claudeSkillsSrc,
+}:
 
-let
-  mcpServersModule = import ../settings/mcp-servers.nix { inherit hasPrivate private; };
-  privateMcpConfig = mcpServersModule.privateMcpConfig;
-
-  claudeSettingsBaseModule = import ../settings/claude-settings-base.nix {
-    inherit lib privateMcpConfig;
-    inherit claudeStatusline claudeNotify;
-  };
-  claudeSettingsBase = claudeSettingsBaseModule;
-
-  skillsFiles = import ../skills/files.nix { inherit pkgs lib; };
-in
 {
   claudeGlobalMd = import ./global-claude-md.nix { inherit lib; };
 
   claudeSkills = import ./skills.nix {
-    inherit pkgs lib;
-    claudeSkillsSrc = skillsFiles.claudeSkillsSrc;
+    inherit pkgs lib claudeSkillsSrc;
   };
 
   claudeSettings = import ./settings.nix {

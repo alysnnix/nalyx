@@ -13,5 +13,5 @@ in
   claude-notify = notify;
   claude-statusline = statusline;
   claude-validate-pr = validatePr;
-  wrapper = import ./wrapper.nix { inherit pkgs lib profiles; };
+  wrapper = import ./wrappers/default.nix { inherit pkgs lib profiles; };
 }

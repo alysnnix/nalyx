@@ -10,7 +10,7 @@ pkgs.writeShellScriptBin "claude-validate-pr" ''
     # If --base main is explicitly used, check if develop exists
     if echo "$COMMAND" | grep -qE '\-\-base\s+main'; then
       if git ls-remote --heads origin develop &>/dev/null | grep -q develop; then
-        echo "BLOCKED: Este repo tem branch develop. Use --base develop ao inves de --base main."
+        echo "BLOCKED: This repo has a develop branch. Use --base develop instead of --base main."
         exit 2
       fi
     fi
