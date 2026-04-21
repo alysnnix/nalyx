@@ -1,5 +1,5 @@
 # Main claude wrapper — parses flags and dispatches to appropriate handler.
-# Profiles (--work, etc.) use separate config dirs with shared settings via symlinks.
+# Profiles (--sec, etc.) use separate config dirs with shared settings via symlinks.
 # Modifiers (--minimax, --openrouter, --litellm, --english) compose with each other and profiles.
 # Profile flags and modifier cases are auto-generated from profiles.nix.
 {

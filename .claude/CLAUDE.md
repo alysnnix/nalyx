@@ -204,6 +204,29 @@ cd ~/nalyx-private && sops secrets/secrets.yaml
 # Key: ~/.ssh/id_ed25519 (Age)
 ```
 
+## Git
+
+- ALWAYS add `Co-Authored-By: Claude <noreply@anthropic.com>` to ALL commit messages
+
+### Commit Format
+
+```
+type: short description
+
+- optional detail
+- another detail
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+### Commit Rules
+
+- Max 50 characters in title
+- Lowercase
+- No period at end
+- Imperative mood ("add" not "added")
+- Add bullet points below for non-trivial changes
+
 ## Quality Rules
 
 @.claude/rules/quality.md

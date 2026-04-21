@@ -1,5 +1,5 @@
 # Main opencode wrapper — parses flags and dispatches to appropriate handler.
-# Profiles (--work, etc.) use OPENCODE_CONFIG to point to separate config files.
+# Profiles (--sec, etc.) use OPENCODE_CONFIG to point to separate config files.
 # Modifiers (--minimax, --openrouter, --litellm, --english) compose with each other and profiles.
 {
   pkgs,
