@@ -88,6 +88,16 @@ nix flake check --no-build  # Validate configurations
 
 Pre-commit hooks: **nixfmt**, **statix**, **deadnix**
 
+## External Packages
+
+Packages sourced from outside [nixpkgs](https://github.com/NixOS/nixpkgs):
+
+| Package | Source | Description |
+|---------|--------|-------------|
+| Claude Code | [sadjow/claude-code-nix](https://github.com/sadjow/claude-code-nix) | Nix package for Anthropic's Claude Code CLI |
+
+All other flake inputs (home-manager, sops-nix, lanzaboote, etc.) are tools from the NixOS ecosystem and don't package external software.
+
 ## License
 
 [GPL-3.0](LICENSE)
