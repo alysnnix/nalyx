@@ -1,16 +1,12 @@
 {
   config,
   pkgs,
+  lib,
   vars,
   ...
 }:
 
 {
-  programs.ssh = {
-    enable = true;
-    matchBlocks."*".addKeysToAgent = "yes";
-  };
-
   programs.git = {
     enable = true;
 
@@ -30,5 +26,13 @@
     };
   };
 
-  home.file.".ssh/allowed_signers".text = "${vars.user.email} ${vars.user.publicKey}";
+  home.activation.fetchAllowedSigners = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    SIGNERS_FILE="${config.home.homeDirectory}/.ssh/allowed_signers"
+    mkdir -p "$(dirname "$SIGNERS_FILE")"
+
+    KEY=$(${pkgs.curl}/bin/curl -sf "${vars.user.publicKeyUrl}" | head -1)
+    if [ -n "$KEY" ]; then
+      echo "${vars.user.email} $KEY" > "$SIGNERS_FILE"
+    fi
+  '';
 }

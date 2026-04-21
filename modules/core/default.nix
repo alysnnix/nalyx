@@ -3,8 +3,6 @@
   vars,
   lib,
   config,
-  hasPrivate ? false,
-  private ? null,
   ...
 }:
 
@@ -66,7 +64,6 @@
 
     tailscale = {
       enable = true;
-      authKeyFile = if hasPrivate then config.sops.secrets.tailscale_auth_key.path else null;
     };
 
     envfs = {
@@ -92,26 +89,10 @@
 
   virtualisation.docker.enable = true;
 
-  sops = lib.mkIf hasPrivate {
-    defaultSopsFile = "${private}/secrets/secrets.yaml";
-    defaultSopsFormat = "yaml";
-    age.sshKeyPaths = [ "/home/${vars.user.name}/.ssh/id_ed25519" ];
-    secrets = {
-      password.neededForUsers = true;
-      slack_bot_token.owner = vars.user.name;
-      sapron_cf_client_id.owner = vars.user.name;
-      sapron_cf_client_secret.owner = vars.user.name;
-      seazone_mcp_api_key.owner = vars.user.name;
-      coolify_api_key.owner = vars.user.name;
-      grafana_api_key.owner = vars.user.name;
-      tailscale_auth_key = { };
-      wifi_password = { };
-    };
-  };
-
   users.users.${vars.user.name} = {
     isNormalUser = true;
     description = "Alysson";
+    initialPassword = lib.mkDefault "changeme";
     extraGroups = [
       "networkmanager"
       "wheel"
@@ -120,17 +101,7 @@
       "docker"
     ];
     shell = pkgs.zsh;
-  }
-  // (
-    if hasPrivate then
-      {
-        hashedPasswordFile = config.sops.secrets.password.path;
-      }
-    else
-      {
-        initialPassword = "changeme";
-      }
-  );
+  };
 
   security.sudo = {
     enable = true;

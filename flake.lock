@@ -370,16 +370,21 @@
       }
     },
     "private": {
-      "flake": false,
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
       "locked": {
-        "path": "./private",
+        "lastModified": 1776748720,
+        "narHash": "sha256-wBaixGlbbMt0vSerwXKgdT7cxkE5ImWRAc8XrSrCamg=",
+        "path": "/home/aly/nalyx/.private/nalyx-private",
         "type": "path"
       },
       "original": {
-        "path": "./private",
-        "type": "path"
-      },
-      "parent": []
+        "type": "git",
+        "url": "ssh://git@github.com/alysnnix/nalyx-private"
+      }
     },
     "quickshell": {
       "inputs": {

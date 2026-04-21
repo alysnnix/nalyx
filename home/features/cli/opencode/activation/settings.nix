@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  privateMcpConfig,
   opencodeSettingsBase,
 }:
 
@@ -41,9 +40,6 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   else
     MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcp.slack)')
   fi
-
-  # Inject private MCP tokens from nalyx-private
-  ${privateMcpConfig.injectScript}
 
   # Inject Claude Code OAuth token into claude-code provider or remove it
   CC_CREDS="$HOME/.claude/.credentials.json"

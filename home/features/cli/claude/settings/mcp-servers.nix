@@ -1,18 +1,4 @@
 {
-  hasPrivate ? false,
-  private ? null,
-}:
-let
-  privateMcpConfig =
-    if hasPrivate && builtins.pathExists "${private}/claude/private-mcps.nix" then
-      import "${private}/claude/private-mcps.nix"
-    else
-      {
-        mcpServers = { };
-        injectScript = "";
-      };
-in
-{
   publicMcpServers = {
     slack = {
       command = "npx";
@@ -26,6 +12,4 @@ in
       };
     };
   };
-
-  inherit privateMcpConfig;
 }

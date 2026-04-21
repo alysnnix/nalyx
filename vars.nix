@@ -1,8 +1,8 @@
 {
   user = {
     name = "aly";
-    email = "user@example.com";
-    publicKey = "";
+    email = "4ly.alcantara@gmail.com";
+    publicKeyUrl = "https://github.com/alysnnix.keys";
 
     social = {
       github = "alysnnix";
@@ -11,11 +11,7 @@
 
   terminal = "kitty";
   editor = "nvim";
-
-  # Options: "hyprland", "gnome", null
   desktop = "hyprland";
-
-  # Options: "caelestia", "waybar"
   shell = "caelestia";
 
   homelab = {

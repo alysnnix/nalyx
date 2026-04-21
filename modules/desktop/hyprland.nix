@@ -14,21 +14,23 @@
     programs.hyprland.enable = true;
     programs.hyprland.xwayland.enable = true;
 
-    services.displayManager.sddm = {
-      enable = true;
-      wayland.enable = true;
+    services = {
+      displayManager.sddm = {
+        enable = true;
+        wayland.enable = true;
 
-      autoNumlock = true;
-      settings = {
-        Autologin = {
-          Session = "hyprland";
-          User = vars.user.name;
+        autoNumlock = true;
+        settings = {
+          Autologin = {
+            Session = "hyprland";
+            User = vars.user.name;
+          };
         };
       };
-    };
 
-    services.upower.enable = true;
-    services.power-profiles-daemon.enable = true;
+      upower.enable = true;
+      power-profiles-daemon.enable = true;
+    };
 
     environment.sessionVariables = {
       NIXOS_OZONE_WL = "1";

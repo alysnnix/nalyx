@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  privateMcpConfig,
   claudeSettingsBase,
 }:
 
@@ -34,9 +33,6 @@ lib.hm.dag.entryAfter [ "writeBoundary" ] ''
   else
     MANAGED=$(echo "$MANAGED" | $JQ 'del(.mcpServers.slack)')
   fi
-
-  # Inject private MCP tokens (sapron, seazone, etc.) from nalyx-private
-  ${privateMcpConfig.injectScript}
 
   # Merge: existing settings * managed settings (managed keys win)
   if [ -f "$SETTINGS_FILE" ]; then

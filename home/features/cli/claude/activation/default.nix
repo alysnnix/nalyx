@@ -3,7 +3,6 @@
   lib,
   profiles,
   claudeSettingsBase,
-  privateMcpConfig,
   claudeSkillsSrc,
 }:
 
@@ -18,7 +17,6 @@
     inherit
       pkgs
       lib
-      privateMcpConfig
       claudeSettingsBase
       ;
   };

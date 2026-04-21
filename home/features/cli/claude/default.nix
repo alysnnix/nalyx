@@ -1,8 +1,6 @@
 {
   pkgs,
   lib,
-  hasPrivate ? false,
-  private ? null,
   ...
 }:
 
@@ -14,10 +12,7 @@ let
   skills = import ./skills/files.nix { inherit pkgs lib; };
 
   settings = import ./settings {
-    inherit hasPrivate private;
-    claude-statusline = scripts.claude-statusline;
-    claude-notify = scripts.claude-notify;
-    claude-validate-pr = scripts.claude-validate-pr;
+    inherit (scripts) claude-statusline claude-notify claude-validate-pr;
   };
 
   activation = import ./activation {
@@ -26,8 +21,8 @@ let
       lib
       profiles
       ;
-    inherit (settings) claudeSettingsBase privateMcpConfig;
-    claudeSkillsSrc = skills.claudeSkillsSrc;
+    inherit (settings) claudeSettingsBase;
+    inherit (skills) claudeSkillsSrc;
   };
 in
 {
@@ -43,9 +38,13 @@ in
       scripts.claude-notify
     ];
 
-    activation.claudeGlobalMd = activation.claudeGlobalMd;
-    activation.claudeSkills = activation.claudeSkills;
-    activation.claudeSettings = activation.claudeSettings;
-    activation.claudeProfiles = activation.claudeProfiles;
+    activation = {
+      inherit (activation)
+        claudeGlobalMd
+        claudeSkills
+        claudeSettings
+        claudeProfiles
+        ;
+    };
   };
 }

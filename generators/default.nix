@@ -5,10 +5,9 @@
   pkgs,
   lanzaboote,
   sops-nix,
-  hasPrivate,
-  private,
   caelestia,
   claude-code,
+  privateHmModules,
 }:
 
 let
@@ -27,8 +26,6 @@ let
           inputs
           lanzaboote
           sops-nix
-          hasPrivate
-          private
           ;
         vars = hostVars;
       };
@@ -45,13 +42,12 @@ let
             useUserPackages = true;
             sharedModules = [
               caelestia.homeManagerModules.default
-            ];
+            ]
+            ++ privateHmModules;
             extraSpecialArgs = {
               inherit
                 inputs
                 isServer
-                hasPrivate
-                private
                 ;
               vars = hostVars;
               isWsl = false;

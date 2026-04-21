@@ -43,11 +43,11 @@
     };
 
     # Private repository (optional)
-    # Default: empty placeholder (works for everyone)
-    # To use your private configs: nix flake lock --override-input private git+ssh://git@github.com/alysnnix/nalyx-private
+    # Contains SOPS secrets, private scripts, and MCP configs
+    # Without it: safe defaults, no secrets, public-only configs
     private = {
-      url = "path:./private";
-      flake = false;
+      url = "git+ssh://git@github.com/alysnnix/nalyx-private";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -73,18 +73,26 @@
         overlays = [ claude-code.overlays.default ];
       };
 
-      # Check if private repository is available
-      hasPrivate = private != null && builtins.pathExists "${private}/vars-override.nix";
+      vars = import ./vars.nix;
 
-      vars =
-        let
-          base = import ./vars.nix;
-          override = if hasPrivate then import "${private}/vars-override.nix" else { };
-        in
-        nixpkgs.lib.recursiveUpdate base override;
+      # Private flake module helpers — empty lists when private repo is absent
+      privateNixosModules =
+        if private != null && (private ? nixosModules) then [ private.nixosModules.default ] else [ ];
+
+      privateHmModules =
+        if private != null && (private ? homeManagerModules) then
+          [ private.homeManagerModules.default ]
+        else
+          [ ];
+
+      privateNixosModule =
+        name:
+        if private != null && (private ? nixosModules) && (private.nixosModules ? ${name}) then
+          [ private.nixosModules.${name} ]
+        else
+          [ ];
 
       # Helper function to generate system configurations
-      # Added 'isWsl' parameter with a default value of false
       fnMountSystem =
         {
           hostname,
@@ -100,8 +108,6 @@
               inputs
               lanzaboote
               sops-nix
-              hasPrivate
-              private
               ;
             vars = hostVars;
           };
@@ -116,14 +122,13 @@
                 useUserPackages = true;
                 sharedModules = [
                   caelestia.homeManagerModules.default
-                ];
+                ]
+                ++ privateHmModules;
                 extraSpecialArgs = {
                   inherit
                     inputs
                     isWsl
                     isServer
-                    hasPrivate
-                    private
                     ;
                   vars = hostVars;
                   enableClaude = true;
@@ -133,6 +138,7 @@
               };
             }
           ]
+          ++ privateNixosModules
           ++ extraModules;
         };
 
@@ -144,10 +150,9 @@
           pkgs
           lanzaboote
           sops-nix
-          hasPrivate
-          private
           caelestia
           claude-code
+          privateHmModules
           ;
       };
 
@@ -162,13 +167,17 @@
         # WSL configuration with explicit flag
         wsl = fnMountSystem {
           hostname = "wsl";
-          extraModules = [ nixos-wsl.nixosModules.default ];
+          extraModules = [
+            nixos-wsl.nixosModules.default
+          ]
+          ++ privateNixosModule "sops-wsl";
           isWsl = true;
         };
 
         # Homelab server (headless, no desktop)
         homelab = fnMountSystem {
           hostname = "homelab";
+          extraModules = privateNixosModule "homelab" ++ privateNixosModule "openclaw";
           isServer = true;
           hostVars = vars // {
             desktop = null;
@@ -195,11 +204,11 @@
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
-              inherit hasPrivate private;
             };
             modules = [
               ./home
-            ];
+            ]
+            ++ privateHmModules;
           };
       };
 

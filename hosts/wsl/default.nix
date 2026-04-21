@@ -1,10 +1,7 @@
 {
   vars,
   pkgs,
-  config,
   lib,
-  hasPrivate ? false,
-  private ? null,
   ...
 }:
 
@@ -57,24 +54,6 @@
     };
   };
 
-  sops = lib.mkIf hasPrivate {
-    defaultSopsFile = "${private}/secrets/secrets.yaml";
-    defaultSopsFormat = "yaml";
-    age.sshKeyPaths = [ "/home/${vars.user.name}/.ssh/id_ed25519" ];
-    secrets = {
-      password.neededForUsers = true;
-      slack_bot_token.owner = vars.user.name;
-      sapron_cf_client_id.owner = vars.user.name;
-      sapron_cf_client_secret.owner = vars.user.name;
-      seazone_mcp_api_key.owner = vars.user.name;
-      coolify_api_key.owner = vars.user.name;
-      grafana_api_key.owner = vars.user.name;
-      minimax_api_key.owner = vars.user.name;
-      openrouter_api_key.owner = vars.user.name;
-      litellm_api_key.owner = vars.user.name;
-    };
-  };
-
   # Create Playwright's expected Chrome path structure
   # Playwright expects /opt/google/chrome/chrome (directory with chrome symlink inside)
   systemd.tmpfiles.rules = [
@@ -84,23 +63,14 @@
 
   users.users.${vars.user.name} = {
     isNormalUser = true;
+    initialPassword = lib.mkDefault "changeme";
     extraGroups = [
       "wheel"
       "networkmanager"
       "docker"
     ];
     shell = pkgs.zsh;
-  }
-  // (
-    if hasPrivate then
-      {
-        hashedPasswordFile = config.sops.secrets.password.path;
-      }
-    else
-      {
-        initialPassword = "changeme";
-      }
-  );
+  };
 
   security.sudo = {
     enable = true;
