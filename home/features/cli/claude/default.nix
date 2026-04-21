@@ -50,6 +50,7 @@ in
       scripts.claude-notify
     ];
 
+    activation.claudeGlobalMd = activation.claudeGlobalMd;
     activation.claudeSkills = activation.claudeSkills;
     activation.claudeSettings = activation.claudeSettings;
     activation.claudeProfiles = activation.claudeProfiles;
