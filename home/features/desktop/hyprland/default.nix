@@ -121,8 +121,8 @@
           # --- Waybar shell ---
           exec-once = waybar
 
-          # Launcher via Rofi (replaces Caelestia)
-          bind = $mainMod, Space, exec, pkill rofi || rofi -show drun
+          # Launcher via Rofi (Super tap = open, Super+key = normal shortcut)
+          bindr = $mainMod, Super_L, exec, pkill rofi || rofi -show drun
         '');
     };
   };
