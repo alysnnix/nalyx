@@ -23,9 +23,9 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@v13
 
       # Evaluates all nixosConfigurations without building them.
-      # Catches syntax errors, type mismatches and missing options.
+      # Uses empty private placeholder since CI has no access to the private repo.
       - name: Evaluate all configurations
-        run: nix flake check --no-build
+        run: nix flake check --no-build --override-input private path:./ci/empty-private
 
       - name: Check Nix formatting
         run: nix fmt -- --check .
