@@ -1,15 +1,5 @@
-# Provider definitions for opencode.
-#
-# LiteLLM is configured as a custom provider with all available models.
-# The API key placeholder is replaced at activation time from sops.
-#
-# Claude Code (--cc flag) writes the OAuth token to opencode's auth.json
-# to enable the built-in anthropic provider.
 {
   providers = {
-    anthropic = {
-      env = [ "ANTHROPIC_API_KEY" ];
-    };
     litellm = {
       npm = "@ai-sdk/openai-compatible";
       name = "LiteLLM";

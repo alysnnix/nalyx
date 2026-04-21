@@ -7,10 +7,6 @@
 }:
 
 let
-  profiles = import ../claude/profiles.nix;
-
-  scripts = import ./scripts { inherit pkgs lib profiles; };
-
   settings = import ./settings { inherit hasPrivate private; };
 
   activationSettings = import ./activation/settings.nix {
@@ -19,8 +15,6 @@ let
   };
 in
 {
-  programs.zsh.initContent = scripts.wrapper;
-
   home = {
     packages = [
       pkgs.opencode
