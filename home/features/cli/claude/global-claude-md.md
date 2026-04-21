@@ -11,6 +11,22 @@ Current year: 2026
 
 - ALWAYS add `Co-Authored-By: Claude <noreply@anthropic.com>` to commit messages (project CLAUDE.md may override this)
 
+### Commit Format
+
+```
+type(scope): short description    ← max 50 chars total
+
+- bullet explaining what changed
+- another bullet if needed
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+- Title: `type(scope): message` — **50 characters max** including type and scope
+- Scope: module, feature, or area affected
+- Body: lowercase, short bullet points — concise but complete
+- Lowercase, no period, imperative mood
+
 ## Code Quality
 
 - Self-documenting code — comments explain **why**, never **what**

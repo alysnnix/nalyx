@@ -15,6 +15,7 @@ nix develop      # Enter devShell (installs pre-commit hooks)
 ## Critical Rules
 
 - NEVER edit `hardware-configuration.nix` files manually — they are auto-generated
+- NEVER edit `~/.claude/CLAUDE.md` directly — it is managed via Nix at `home/features/cli/claude/global-claude-md.md`
 - ALWAYS validate with `nix flake check --no-build` before commit
 - NEVER put personal data in the public repo — use nalyx-private for secrets and real values
 
@@ -65,19 +66,20 @@ Modules receive `hasPrivate` and `private` via specialArgs to conditionally enab
 ### Commit Format
 
 ```
-type: short description
+type(scope): short description    ← max 50 chars total
 
-- optional detail
-- another detail
+- bullet explaining what changed
+- another bullet if needed
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ### Commit Rules
 
-- Max 50 characters in title
+- Title: `type(scope): message` — **50 characters max** including type and scope
+- Scope: module, feature, or area affected
+- Body: lowercase, short bullet points — concise but complete
 - Lowercase, no period, imperative mood
-- Add bullet points for non-trivial changes
 
 ## Quality Rules
 
