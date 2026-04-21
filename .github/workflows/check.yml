@@ -1,0 +1,31 @@
+name: Check NixOS Configurations
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Evaluate and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+
+      # Evaluates all nixosConfigurations without building them.
+      # Catches syntax errors, type mismatches and missing options.
+      - name: Evaluate all configurations
+        run: nix flake check --no-build
+
+      - name: Check Nix formatting
+        run: nix fmt -- --check .

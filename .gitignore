@@ -1,0 +1,24 @@
+result
+result-*
+.direnv
+.envrc
+AI_WORKFLOW.md
+
+.playwright-mcp
+
+# Security - prevent accidental secret commits
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+*.age
+keys.txt
+
+# Private repositories (cloned inside .private/)
+.private/
+
+# Private configurations - ignore everything except the placeholder
+private/*
+!private/default.nix
