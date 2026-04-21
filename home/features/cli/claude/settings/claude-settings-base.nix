@@ -6,6 +6,7 @@
 }:
 
 builtins.toJSON {
+  copyOnSelect = false;
   enabledPlugins = {
     "code-review@claude-plugins-official" = true;
     "context7@claude-plugins-official" = true;
