@@ -72,6 +72,7 @@
   ];
 
   environment.systemPackages = with pkgs; [
+    btop
     duperemove
     iw
     wakeonlan
