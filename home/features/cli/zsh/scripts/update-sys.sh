@@ -2,22 +2,15 @@
 set -euo pipefail
 
 HOST="${1:-$(hostname)}"
-
-find_flake_dir() {
-  local dir="$PWD"
-  while [ "$dir" != "/" ]; do
-    [ -f "$dir/flake.nix" ] && echo "$dir" && return
-    dir=$(dirname "$dir")
-  done
-  echo "$HOME/nalyx"
-}
-
-FLAKE_DIR=$(find_flake_dir)
+FLAKE_DIR="$HOME/nalyx"
 PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
 
 echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
+
+echo "  nalyx: pulling latest..."
+git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null || echo "  nalyx: pull failed, using local version"
 
 EXTRA_ARGS=()
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
