@@ -6,7 +6,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 **Do NOT open a public issue.**
 
-Instead, email: 4ly.alcantara@gmail.com
+Instead, email: aly@alysnnix.dev
 
 Include:
 - Description of the vulnerability
