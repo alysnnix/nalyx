@@ -1,10 +1,13 @@
 {
+  pkgs,
   config,
   vars,
   ...
 }:
 
 {
+  home.packages = [ pkgs.gitflow ];
+
   programs.git = {
     enable = true;
 
