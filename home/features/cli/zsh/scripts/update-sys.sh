@@ -9,18 +9,22 @@ echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
 
-echo "  nalyx: pulling latest..."
-git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null || echo "  nalyx: pull failed, using local version"
+echo "  pulling repos in parallel..."
+git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null &
+PID_NALYX=$!
 
 EXTRA_ARGS=()
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
-  echo "  private: pulling latest..."
-  git -C "$PRIVATE_DIR" pull --ff-only 2>/dev/null || echo "  private: pull failed, using local version"
+  git -C "$PRIVATE_DIR" pull --ff-only 2>/dev/null &
+  PID_PRIVATE=$!
+  wait "$PID_PRIVATE" || echo "  private: pull failed, using local version"
   echo "  private: $PRIVATE_DIR"
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
 else
   echo "  private: (not found, using defaults)"
 fi
+
+wait "$PID_NALYX" || echo "  nalyx: pull failed, using local version"
 
 # Clone notes vault (Obsidian) if available and not already cloned
 NOTES_DIR="$FLAKE_DIR/.private/notes"
