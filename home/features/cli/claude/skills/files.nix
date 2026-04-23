@@ -8,6 +8,7 @@ let
     "gb-check-alfred-review/SKILL.md" = ./global/check-review/SKILL.md;
     "gb-merge-dev/SKILL.md" = ./global/merge-dev/SKILL.md;
     "gb-co-authored/SKILL.md" = ./global/co-authored/SKILL.md;
+    "gb-pipefy/SKILL.md" = ./global/pipefy/SKILL.md;
   };
 
   # Build a derivation with all skill files collected in one directory tree
