@@ -10,6 +10,7 @@ let
   cfg = config.modules.desktop.moonlight-kiosk;
 
   overridePath = "/etc/sddm.conf.d/99-moonlight-mode.conf";
+  sudoBin = "/run/wrappers/bin/sudo";
   teeBin = "${pkgs.coreutils}/bin/tee";
   rmBin = "${pkgs.coreutils}/bin/rm";
   systemctlBin = "${pkgs.systemd}/bin/systemctl";
@@ -19,12 +20,11 @@ let
     runtimeInputs = [
       pkgs.cage
       pkgs.moonlight-qt
-      pkgs.sudo
       pkgs.coreutils
     ];
     text = ''
       cleanup() {
-        sudo ${rmBin} -f ${overridePath} || true
+        ${sudoBin} ${rmBin} -f ${overridePath} || true
       }
       trap cleanup EXIT
       cage -s -- moonlight-qt
@@ -36,12 +36,11 @@ let
     runtimeInputs = [
       pkgs.coreutils
       pkgs.systemd
-      pkgs.sudo
     ];
     text = ''
       printf '[Autologin]\nSession=moonlight-kiosk\n' \
-        | sudo ${teeBin} ${overridePath} > /dev/null
-      exec sudo ${systemctlBin} restart display-manager
+        | ${sudoBin} ${teeBin} ${overridePath} > /dev/null
+      exec ${sudoBin} ${systemctlBin} restart display-manager
     '';
   };
 
@@ -50,11 +49,10 @@ let
     runtimeInputs = [
       pkgs.coreutils
       pkgs.systemd
-      pkgs.sudo
     ];
     text = ''
-      sudo ${rmBin} -f ${overridePath}
-      exec sudo ${systemctlBin} restart display-manager
+      ${sudoBin} ${rmBin} -f ${overridePath}
+      exec ${sudoBin} ${systemctlBin} restart display-manager
     '';
   };
 
