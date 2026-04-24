@@ -12,18 +12,22 @@ let
     exec ${pkgs.cage}/bin/cage -s -- ${pkgs.moonlight-qt}/bin/moonlight
   '';
 
-  kioskSession = pkgs.writeTextFile {
-    name = "moonlight-kiosk-session";
-    destination = "/share/wayland-sessions/moonlight-kiosk.desktop";
-    text = ''
-      [Desktop Entry]
-      Name=Moonlight Kiosk
-      Comment=Moonlight fullscreen for remote streaming over Tailscale
-      Exec=${kioskLauncher}/bin/moonlight-kiosk
-      Type=Application
-      DesktopNames=moonlight-kiosk
-    '';
-  };
+  kioskSession =
+    (pkgs.writeTextFile {
+      name = "moonlight-kiosk-session";
+      destination = "/share/wayland-sessions/moonlight-kiosk.desktop";
+      text = ''
+        [Desktop Entry]
+        Name=Moonlight Kiosk
+        Comment=Moonlight fullscreen for remote streaming over Tailscale
+        Exec=${kioskLauncher}/bin/moonlight-kiosk
+        Type=Application
+        DesktopNames=moonlight-kiosk
+      '';
+    }).overrideAttrs
+      (_: {
+        passthru.providedSessions = [ "moonlight-kiosk" ];
+      });
 in
 {
   options.modules.desktop.moonlight-kiosk = {
