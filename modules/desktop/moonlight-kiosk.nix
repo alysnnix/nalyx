@@ -27,7 +27,7 @@ let
         ${sudoBin} ${rmBin} -f ${overridePath} || true
       }
       trap cleanup EXIT
-      cage -s -- moonlight-qt
+      cage -s -- moonlight
     '';
   };
 
