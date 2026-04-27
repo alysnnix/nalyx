@@ -39,6 +39,9 @@ in
     initContent = ''
       # Accept autosuggestions with Ctrl+Space
       bindkey '^ ' autosuggest-accept
+
+      # Prefix prompt with hostname on remote machines
+      [[ "$(hostname)" == "homelab" ]] && PROMPT="%F{cyan}[homelab]%f $PROMPT"
     '';
 
     shellAliases = {
