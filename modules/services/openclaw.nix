@@ -219,9 +219,9 @@ in
             --read-only \
             --tmpfs /tmp \
             --tmpfs /home/node/.openclaw/logs \
-            --memory 4g \
-            --cpus 2 \
-            --pids-limit 512 \
+            --memory 8g \
+            --cpus 4 \
+            --pids-limit 1024 \
             --dns 1.1.1.1 --dns 9.9.9.9 \
             -v ${dataDir}:/home/node/.openclaw \
             --env-file ${dataDir}/.env \
