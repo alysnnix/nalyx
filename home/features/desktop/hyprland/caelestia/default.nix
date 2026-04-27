@@ -9,7 +9,7 @@ let
     background.visualiser.enabled = false;
     bar = { };
     dashboard.enabled = false;
-    launcher.enableDangerousActions = false;
+    launcher.enableDangerousActions = true;
     lock = { };
     notifs = { };
     osd = {
@@ -21,7 +21,7 @@ let
       weather.location = vars.weather.location;
       showLyrics = false;
     };
-    session.enabled = false;
+    session.enabled = true;
     sidebar.enabled = false;
     utilities.enabled = false;
   };
