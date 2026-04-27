@@ -169,7 +169,7 @@ in
 
         serviceConfig = {
           Type = "simple";
-          Restart = "on-failure";
+          Restart = "always";
           RestartSec = "30s";
           TimeoutStopSec = "30s";
         };
