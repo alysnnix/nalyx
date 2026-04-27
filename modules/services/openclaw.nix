@@ -34,7 +34,6 @@ let
   openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
     builtins.toJSON {
       agents.defaults.model.primary = "minimax/MiniMax-M2.7";
-      agents.defaults.effort = "high";
     }
   );
 in
