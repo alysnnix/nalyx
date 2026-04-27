@@ -269,4 +269,8 @@ in
     enable = true;
     services.openclaw.endpoints."tcp:443" = "http://localhost:18789";
   };
+
+  systemd.services.openclaw-serve = {
+    serviceConfig.TimeoutStartSec = "30s";
+  };
 }
