@@ -2,6 +2,7 @@
 
 pkgs.writeShellScriptBin "claude-statusline" ''
   JQ="${pkgs.jq}/bin/jq"
+  GIT="${pkgs.git}/bin/git"
   input=$(cat)
 
   model=$(echo "$input" | $JQ -r '.model.display_name // "Unknown"' | sed 's/^Claude //')
@@ -81,6 +82,13 @@ pkgs.writeShellScriptBin "claude-statusline" ''
     price="''${DIM}\$-.----''${RST}"
   fi
 
+  # --- git branch ---
+  branch_part=""
+  branch=$($GIT rev-parse --abbrev-ref HEAD 2>/dev/null)
+  if [ -n "$branch" ]; then
+    branch_part="''${DIM} ''${RST}''${GRN}$branch''${RST}  "
+  fi
+
   # --- account label ---
   account_label=""
   if [ -n "$CLAUDE_PROFILE" ]; then
@@ -88,8 +96,8 @@ pkgs.writeShellScriptBin "claude-statusline" ''
   fi
 
   if [ -n "$reset_part" ]; then
-    printf "%b" "''${account_label}''${ctx}  ''${DIM}''${RST}$model  $price  ''${reset_part}"
+    printf "%b" "''${account_label}''${branch_part}''${ctx}  ''${DIM}''${RST}$model  $price  ''${reset_part}"
   else
-    printf "%b" "''${account_label}''${ctx}  ''${DIM}''${RST}$model  $price"
+    printf "%b" "''${account_label}''${branch_part}''${ctx}  ''${DIM}''${RST}$model  $price"
   fi
 ''
