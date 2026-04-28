@@ -21,7 +21,7 @@ let
   routeCommands = builtins.concatStringsSep "\n" (
     map (r: ''
       echo "  ${r.path} → ${r.target}"
-      ${pkgs.tailscale}/bin/tailscale serve --set-path ${r.path} ${r.target}
+      ${pkgs.tailscale}/bin/tailscale serve --bg --set-path ${r.path} ${r.target}
     '') routes
   );
 in
