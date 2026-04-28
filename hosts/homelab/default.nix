@@ -9,6 +9,7 @@
     ../../modules/core/default.nix
     ../../modules/services/openclaw.nix
     ../../modules/services/syncthing.nix
+    ../../modules/services/tailscale-serve.nix
   ];
 
   networking = {
