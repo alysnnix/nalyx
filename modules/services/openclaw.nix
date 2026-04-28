@@ -34,6 +34,11 @@ let
   openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
     builtins.toJSON {
       agents.defaults.model.primary = "minimax/MiniMax-M2.7";
+      # Trust X-Forwarded-For from the loopback proxy chain (nginx → socat →
+      # docker exec). Without this, fresh device pair attempts from external
+      # tailnet users die with WS code 1006 because the gateway treats the
+      # untrusted proxy headers as a remote client and rejects pairing.
+      gateway.trustedProxies = [ "127.0.0.1" ];
     }
   );
 in
