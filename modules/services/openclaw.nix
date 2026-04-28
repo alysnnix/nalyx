@@ -260,12 +260,4 @@ in
       };
     };
   };
-
-  # ── Tailscale Serve: expose dashboard with HTTPS on tailnet ──
-  # Provides a secure context (https://homelab.<tailnet>.ts.net) required
-  # by the OpenClaw Control UI for device identity / OAuth login.
-  services.tailscale.serve = {
-    enable = true;
-    services.openclaw.endpoints."tcp:443" = "http://localhost:18789";
-  };
 }
