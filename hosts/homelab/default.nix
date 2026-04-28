@@ -1,3 +1,5 @@
+# Homelab host — server-only NixOS install, reachable only via Tailscale.
+# Threat model and one-time bootstrap steps: see nalyx-private SECURITY.md.
 {
   vars,
   pkgs,
@@ -9,7 +11,7 @@
     ../../modules/core/default.nix
     ../../modules/services/openclaw.nix
     ../../modules/services/syncthing.nix
-    ../../modules/services/tailscale-serve.nix
+    ../../modules/services/tailnet-proxy.nix
   ];
 
   networking = {
@@ -80,7 +82,8 @@
   ];
 
   systemd = {
-    # Create Syncthing receive directories on btrfs
+    # Syncthing receive directories on btrfs. Each folder MUST be marked
+    # "Receive Only" in the Syncthing UI — see nalyx-private SECURITY.md.
     tmpfiles.rules = [
       "d /data/sync/desktop 0755 ${vars.user.name} users -"
       "d /data/sync/laptop 0755 ${vars.user.name} users -"
