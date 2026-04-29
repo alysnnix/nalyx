@@ -4,18 +4,22 @@
 #   tailscale serve (:443 TLS) → nginx (127.0.0.1:18080) → backend services
 #
 # Nginx sits in the path because `tailscale serve` is a path-mount only and
-# cannot redirect bare /service → /service/, nor route the root WebSocket of
-# an SPA that hardcodes `wss://host/` to a specific backend.
+# does not handle WebSocket upgrades on bare-prefix paths reliably.
+#
+# Each service gets two nginx locations:
+#   - `= /<path>`  exact match, proxied without rewrite. WebSocket clients
+#                  hit this when the SPA derives its gateway URL as
+#                  `wss://host/<path>` (no trailing slash). A 301 here
+#                  would break the upgrade because browsers do not follow
+#                  redirects on WS handshakes (causes wsclose 1006).
+#   - `/<path>/`  prefix match, proxied with path stripped. Serves the SPA
+#                  HTML and any sub-paths.
 #
 # To add a service, append an entry to `services` below.
 # Fields:
-#   name           — informational, used for nginx vhost log clarity
-#   path           — public subpath (no trailing slash). Example: "/openclaw"
-#   target         — host:port of the local backend (loopback)
-#   rootWebSocket  — optional, default false. When true, nginx routes WS
-#                    upgrades on `/` to this service (for SPAs that hardcode
-#                    their WebSocket URL to the root). At most ONE service
-#                    may set this — the root path is a finite resource.
+#   name    — informational, used for nginx vhost log clarity
+#   path    — public subpath (no trailing slash). Example: "/openclaw"
+#   target  — host:port of the local backend (loopback)
 {
   pkgs,
   lib,
@@ -27,41 +31,42 @@ let
       name = "openclaw";
       path = "/openclaw";
       target = "127.0.0.1:18789";
-      rootWebSocket = true;
     }
   ];
 
   nginxPort = 18080;
 
-  rootWsService = lib.findFirst (s: s.rootWebSocket or false) null services;
+  proxyExtraConfig = ''
+    proxy_read_timeout 1d;
+    proxy_send_timeout 1d;
+  '';
 
   serviceLocations = lib.listToAttrs (
-    map (svc: {
-      name = "${svc.path}/";
-      value = {
-        proxyPass = "http://${svc.target}/";
-        proxyWebsockets = true;
-        extraConfig = ''
-          proxy_read_timeout 1d;
-          proxy_send_timeout 1d;
-        '';
-      };
-    }) services
+    lib.concatMap (svc: [
+      {
+        name = "= ${svc.path}";
+        value = {
+          proxyPass = "http://${svc.target}";
+          proxyWebsockets = true;
+          extraConfig = proxyExtraConfig;
+        };
+      }
+      {
+        name = "${svc.path}/";
+        value = {
+          proxyPass = "http://${svc.target}/";
+          proxyWebsockets = true;
+          extraConfig = proxyExtraConfig;
+        };
+      }
+    ]) services
   );
 
-  # Special-case `/` for SPAs whose WebSocket is hardcoded to root.
-  # Plain HTTP GETs on `/` get a 302 to the dashboard subpath; WS upgrades
-  # are proxied to the claiming backend.
-  rootLocation = lib.optionalAttrs (rootWsService != null) {
+  # Bare `/` redirects to the first service's dashboard.
+  defaultPath = (builtins.head services).path;
+  rootLocation = {
     "= /" = {
-      proxyPass = "http://${rootWsService.target}";
-      proxyWebsockets = true;
-      extraConfig = ''
-        if ($http_upgrade = "") {
-          return 302 ${rootWsService.path}/;
-        }
-        proxy_read_timeout 1d;
-      '';
+      return = "302 ${defaultPath}/";
     };
   };
 in
