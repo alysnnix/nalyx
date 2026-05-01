@@ -4,6 +4,7 @@
     "context7@claude-plugins-official" = true;
     "firebase@claude-plugins-official" = true;
     "frontend-design@claude-plugins-official" = true;
+    "impeccable@impeccable" = true;
     "playground@claude-plugins-official" = true;
     "playwright@claude-plugins-official" = true;
     "posthog@claude-plugins-official" = true;

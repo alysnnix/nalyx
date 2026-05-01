@@ -1,7 +1,7 @@
 { pkgs, lib }:
 
 # Skills managed by nix: destination (relative to ~/.claude/skills/) -> source
-# Impeccable skills are managed as a plugin (impeccable@pbakaus) via enabledPlugins
+# Impeccable skills are managed as a plugin (impeccable@impeccable, github:pbakaus/impeccable) via enabledPlugins
 let
   skillFiles = {
     "gb-open-pr/SKILL.md" = ./global/open-pr/SKILL.md;
