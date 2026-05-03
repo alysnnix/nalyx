@@ -6,24 +6,24 @@ user-invocable: true
 
 # `/save` — Archive Conversation to Notes Vault
 
-Save the active Claude Code conversation to `~/nalyx/.private/notes/claude/conversations/` as a self-contained folder with: a curated summary (`summary.md`), a human-readable rendered transcript (`transcript.md`), and the raw JSONL (`transcript.jsonl`). Then commit and push so other hosts pick it up.
+Save the active Claude Code conversation to `$HOME/nalyx/.private/notes/claude/conversations/` as a self-contained folder with: a curated summary (`summary.md`), a human-readable rendered transcript (`transcript.md`), and the raw JSONL (`transcript.jsonl`). Then commit and push so other hosts pick it up.
 
 ## Vault check
 
 Before doing anything else:
 
 ```bash
-ls ~/nalyx/.private/notes/claude/ 2>/dev/null
+[ -d "$HOME/nalyx/.private/notes/claude" ] || { echo "Vault not found at $HOME/nalyx/.private/notes/. Run \`switch\` to clone it."; exit 1; }
 ```
 
-If the directory does not exist, tell the user **"Vault not found at `~/nalyx/.private/notes/`. Run `switch` to clone it."** and stop. Do not create any files.
+If the directory does not exist, the message above is printed and the skill aborts. Do not proceed to Step 1.
 
 ## Step 1 — resolve session paths
 
 ```bash
 CWD="$(pwd)"
 ENCODED_CWD="$(echo "$CWD" | tr '/' '-')"          # /home/aly/nalyx → -home-aly-nalyx
-JSONL="$(ls -t ~/.claude/projects/$ENCODED_CWD/*.jsonl 2>/dev/null | head -1)"
+JSONL="$(ls -t "$HOME/.claude/projects/$ENCODED_CWD/"*.jsonl 2>/dev/null | head -1)"
 [ -z "$JSONL" ] && { echo "No active Claude Code session found for cwd $CWD"; exit 1; }
 SESSION_ID="$(basename "$JSONL" .jsonl)"
 HOST="$(hostname)"
@@ -31,6 +31,8 @@ DATE="$(date +%F)"                                  # YYYY-MM-DD
 echo "JSONL: $JSONL"
 echo "Session: $SESSION_ID  Host: $HOST  Date: $DATE"
 ```
+
+**Important — variables do not persist across Bash invocations.** Each subsequent step that uses `$CWD`, `$ENCODED_CWD`, `$JSONL`, `$SESSION_ID`, `$HOST`, or `$DATE` must substitute the literal value you observed above. Do not paste the variable name into a later Bash call expecting it to expand — it will be empty.
 
 If the `ls` returns nothing, abort with the printed message — do not invent a path.
 
@@ -60,6 +62,8 @@ echo "DIR: $DIR"
 ```
 
 Use the actual `$SLUG` you computed.
+
+Carry the resolved `$DIR` (and `$SLUG`) forward — substitute their literal values in Steps 4, 5, 6, and 8.
 
 ## Step 4 — copy raw transcript
 
@@ -148,6 +152,8 @@ Where `<one-line hook>` is a single sentence — what the conversation accomplis
 
 ## Step 8 — git: pull, commit, push
 
+**Before running the block**, replace `<TITLE>` in the heredoc with the actual title you generated in Step 2 (e.g. `Design da skill /save`). Do not run the block with the literal `<TITLE>` placeholder.
+
 ```bash
 cd "$HOME/nalyx/.private/notes" || exit 1
 
@@ -171,8 +177,6 @@ git push origin main || {
   exit 1;
 }
 ```
-
-Substitute `<TITLE>` literally in the commit message.
 
 ## Step 9 — report to the user
 
