@@ -172,7 +172,12 @@
       nixosConfigurations = {
         # Standard desktop/laptop configurations (isWsl defaults to false)
         desktop = fnMountSystem { hostname = "desktop"; };
-        laptop = fnMountSystem { hostname = "laptop"; };
+        laptop = fnMountSystem {
+          hostname = "laptop";
+          hostVars = vars // {
+            desktop = "gnome";
+          };
+        };
         vm = fnMountSystem { hostname = "vm"; };
 
         # WSL configuration with explicit flag
