@@ -6,6 +6,7 @@
 let
   defaultConfig = pkgs.writeText "ghostty-default-config" ''
     font-family = JetBrainsMono Nerd Font
+    font-style = bold
 
     # Follow system color-scheme (GNOME light/dark toggle)
     theme = light:Catppuccin Latte,dark:Catppuccin Mocha
