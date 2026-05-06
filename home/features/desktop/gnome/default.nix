@@ -89,5 +89,10 @@
         fi
       done
     '';
+
+    # Empty gtk-4.0 user css so libadwaita 1.7+ on GNOME 49 keeps its dynamic
+    # accent-color tokens. The HM gtk module otherwise imports adw-gtk3-dark
+    # here, hardcoding accents and breaking the Settings color swatches.
+    xdg.configFile."gtk-4.0/gtk.css".text = lib.mkForce "";
   };
 }
