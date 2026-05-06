@@ -10,6 +10,8 @@ let
     "gb-co-authored/SKILL.md" = ./global/co-authored/SKILL.md;
     "gb-pipefy/SKILL.md" = ./global/pipefy/SKILL.md;
     "gb-coolify/SKILL.md" = ./global/gb-coolify/SKILL.md;
+    "save/SKILL.md" = ./global/save/SKILL.md;
+    "excalidraw/SKILL.md" = ./global/excalidraw/SKILL.md;
   };
 
   # Build a derivation with all skill files collected in one directory tree
