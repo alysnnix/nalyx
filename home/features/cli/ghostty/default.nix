@@ -14,6 +14,13 @@ let
     window-height = 27
     window-padding-x = 16
     window-padding-y = 16
+
+    # Close surface immediately so ctrl+w doesn't show a confirmation prompt
+    confirm-close-surface = false
+
+    keybind = ctrl+alt+d=new_split:right
+    keybind = ctrl+w=close_surface
+    keybind = ctrl+t=new_tab
   '';
 in
 {
