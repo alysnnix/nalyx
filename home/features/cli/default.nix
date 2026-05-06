@@ -12,13 +12,13 @@
     ./git
     ./ssh
     ./neovim
+    ./ghostty
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
   ++ (lib.optional enableOpencode ./opencode);
 
   home.packages = with pkgs; [
-    ghostty
     glow
     lazygit
     imagemagick
