@@ -78,5 +78,16 @@
       geary
       gnomeExtensions.gsconnect # Adicionado o pacote da extensão
     ];
+
+    # Drop matugen leftovers from a previous Hyprland session that would
+    # override the GNOME 49 libadwaita accent-color tokens. Runs before HM
+    # link checks so the gtk-4.0 symlink lands without creating a backup.
+    home.activation.cleanStaleMatugenGtk = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+      for f in "$HOME/.config/gtk-3.0/gtk.css" "$HOME/.config/gtk-4.0/gtk.css"; do
+        if [ -f "$f" ] && [ ! -L "$f" ] && grep -q "Generated with Matugen" "$f" 2>/dev/null; then
+          rm -f "$f"
+        fi
+      done
+    '';
   };
 }
