@@ -33,7 +33,7 @@
     supabase-cli
     flyctl
     kubectl
-    wrangler
+    (lib.lowPrio wrangler)
     (pkgs.callPackage ../../../packages/render-cli.nix { })
   ];
 }
