@@ -39,3 +39,6 @@ elif [ -d "$NOTES_DIR" ]; then
 fi
 
 sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}"
+
+echo "  pruning old generations (keeping last 5)..."
+sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
