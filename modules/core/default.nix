@@ -33,6 +33,7 @@
       systemd-boot = {
         enable = lib.mkDefault true;
         editor = false;
+        configurationLimit = 5;
       };
       efi.canTouchEfiVariables = true;
       timeout = 10;
