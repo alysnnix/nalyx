@@ -1,4 +1,4 @@
-# Tailnet reverse proxy — exposes local services on the tailnet via HTTPS.
+# Tailnet reverse proxy - exposes local services on the tailnet via HTTPS.
 #
 # Pipeline:
 #   tailscale serve (:443 TLS) → nginx (127.0.0.1:18080) → backend services
@@ -17,9 +17,9 @@
 #
 # To add a service, append an entry to `services` below.
 # Fields:
-#   name    — informational, used for nginx vhost log clarity
-#   path    — public subpath (no trailing slash). Example: "/openclaw"
-#   target  — host:port of the local backend (loopback)
+#   name    - informational, used for nginx vhost log clarity
+#   path    - public subpath (no trailing slash). Example: "/openclaw"
+#   target  - host:port of the local backend (loopback)
 {
   pkgs,
   lib,
@@ -103,10 +103,19 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      TimeoutStartSec = "30s";
+      TimeoutStartSec = "120s";
+      Restart = "on-failure";
+      RestartSec = "5s";
     };
 
     script = ''
+      # On a cold boot tailscaled is still settling (netMap is nil / NoState)
+      # and `tailscale serve` fails. Wait until the backend is Running first.
+      for _ in $(seq 1 60); do
+        ${pkgs.tailscale}/bin/tailscale status --json 2>/dev/null \
+          | grep -q '"BackendState": *"Running"' && break
+        sleep 1
+      done
       ${pkgs.tailscale}/bin/tailscale serve reset || true
       echo "Forwarding tailnet HTTPS → nginx (127.0.0.1:${toString nginxPort})"
       ${pkgs.tailscale}/bin/tailscale serve --bg http://127.0.0.1:${toString nginxPort}
