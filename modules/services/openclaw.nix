@@ -1,4 +1,4 @@
-# OpenClaw AI assistant — runs 24/7 in a Kata Containers micro-VM
+# OpenClaw AI assistant - runs 24/7 in a Kata Containers micro-VM
 # Isolation: each container gets its own kernel (hardware virtualization via KVM)
 # Network policy: internet YES, LAN/host/Tailscale NO
 #
@@ -7,10 +7,10 @@
 #   2. Switch: the container starts automatically via systemd
 #
 # Management:
-#   update-openclaw                    — clone/pull repo, build image and restart service
-#   systemctl status openclaw          — check status
-#   journalctl -u openclaw -f          — follow logs
-#   systemctl restart openclaw         — restart
+#   update-openclaw                    - clone/pull repo, build image and restart service
+#   systemctl status openclaw          - check status
+#   journalctl -u openclaw -f          - follow logs
+#   systemctl restart openclaw         - restart
 #
 # WhatsApp pairing:
 #   docker exec -it openclaw openclaw channels login --channel whatsapp
@@ -24,13 +24,13 @@
   ...
 }:
 let
-  # Use Docker's default bridge — Kata 3.x + Docker 26+ has a known bug where
+  # Use Docker's default bridge - Kata 3.x + Docker 26+ has a known bug where
   # custom bridge networks fail to create a network interface inside the VM
   # (moby/moby#47626). The default bridge is unaffected.
   bridgeName = "docker0";
   dataDir = "/var/lib/openclaw";
 
-  # Seed config for first boot — OpenClaw can modify this file freely after creation
+  # Seed config for first boot - OpenClaw can modify this file freely after creation
   openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
     builtins.toJSON {
       agents.defaults.model.primary = "minimax/MiniMax-M2.7";
@@ -62,8 +62,13 @@ in
 
       echo "Building Docker image..."
 
-      # Build the image using the local Docker daemon
-      ${config.virtualisation.docker.package}/bin/docker build -t openclaw:latest --build-arg OPENCLAW_INSTALL_BROWSER=1 "$REPO_DIR"
+      # Build the base image using the local Docker daemon
+      ${config.virtualisation.docker.package}/bin/docker build -t openclaw:base --build-arg OPENCLAW_INSTALL_BROWSER=1 "$REPO_DIR"
+
+      # Layer the MiniMax CLI (mmx) on top so the agent can generate images and
+      # video. mmx config persists in the mount via the ~/.mmx symlink.
+      printf 'FROM openclaw:base\nUSER root\nRUN npm install -g mmx-cli\nRUN ln -sfn /home/node/.openclaw/.mmx /home/node/.mmx\nUSER node\n' \
+        | ${config.virtualisation.docker.package}/bin/docker build -t openclaw:latest -
 
       echo "Restarting OpenClaw service to apply changes..."
 
@@ -84,7 +89,7 @@ in
     "vhost_net" # Accelerates virtio-net in Kata VMs
   ];
 
-  # Pin Docker to 25.x — Docker 26+ has a bug that prevents Kata VMs from
+  # Pin Docker to 25.x - Docker 26+ has a bug that prevents Kata VMs from
   # receiving a network interface (moby/moby#47626). Only loopback is created.
   virtualisation.docker.package = pkgs.docker_25;
 
@@ -150,7 +155,7 @@ in
     # Persistent data directory (credentials, config, WhatsApp session)
     # Assuming the container runs as user 'node' (UID 1000).
     # This prevents permission denied errors inside the container.
-    # Create an empty .env fallback — private module overwrites via SOPS template
+    # Create an empty .env fallback - private module overwrites via SOPS template
     tmpfiles.rules = [
       "d ${dataDir} 0750 1000 1000 -"
       "f ${dataDir}/.env 0640 1000 1000 -"
@@ -185,9 +190,9 @@ in
         ];
 
         preStart = ''
-          # Abort if kata runtime is missing — never run without hardware isolation
+          # Abort if kata runtime is missing - never run without hardware isolation
           if ! docker info --format '{{json .Runtimes}}' | jq -e '.kata' >/dev/null 2>&1; then
-            echo "FATAL: kata runtime not registered — refusing to start without hardware isolation"
+            echo "FATAL: kata runtime not registered - refusing to start without hardware isolation"
             exit 1
           fi
 
@@ -257,7 +262,7 @@ in
           # socat accepts each TCP connection and pipes it through "docker exec"
           # into a Node.js one-liner that relays bytes to the app's localhost socket.
           # This is the only reliable path into a Kata micro-VM because the VM has
-          # its own kernel and network stack — the container IP on the bridge (eth0)
+          # its own kernel and network stack - the container IP on the bridge (eth0)
           # is unreachable from the host, but "docker exec" uses the containerd shim.
           exec socat TCP-LISTEN:18789,bind=127.0.0.1,reuseaddr,fork,max-children=5 \
             EXEC:"docker exec -i openclaw node -e \"require('net').createConnection(18789,'127.0.0.1',function(){this.pipe(process.stdout);process.stdin.pipe(this)})\""
