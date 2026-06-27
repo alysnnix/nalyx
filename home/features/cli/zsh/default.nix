@@ -42,6 +42,7 @@ in
 
       # Prefix prompt with hostname on remote machines
       [[ "$(hostname)" == "homelab" ]] && PROMPT="%F{cyan}[homelab]%f $PROMPT"
+      [[ "$(hostname)" == "laptop" ]] && PROMPT="%F{cyan}[laptop]%f $PROMPT"
     '';
 
     shellAliases = {
