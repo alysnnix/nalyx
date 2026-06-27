@@ -1,7 +1,6 @@
 {
   vars,
   lib,
-  config,
   ...
 }:
 let
@@ -39,23 +38,18 @@ in
       devices = {
         laptop.id = lib.mkDefault placeholderId;
         wsl.id = lib.mkDefault placeholderId;
-        homelab.id = lib.mkDefault placeholderId;
       };
 
-      # Single shared work folder, identical on every host (path differs:
-      # homelab uses its data disk, work hosts use $HOME).
+      # Single shared work folder, identical on wsl and laptop.
       # maxConflicts = 0 -> last-writer-wins, no .sync-conflict files.
-      # No versioning by design (limited homelab storage).
+      # No versioning by design.
       folders.wrk = {
         id = "wrk";
-        # Homelab keeps the shared folder on its data disk; work hosts in $HOME.
-        path =
-          if config.networking.hostName == "homelab" then "/data/sync/wrk" else "/home/${vars.user.name}/wrk";
+        path = "/home/${vars.user.name}/wrk";
         type = "sendreceive";
         devices = [
           "laptop"
           "wsl"
-          "homelab"
         ];
         maxConflicts = 0;
       };

@@ -10,7 +10,6 @@
     ./hardware-configuration.nix
     ../../modules/core/default.nix
     ../../modules/services/openclaw.nix
-    ../../modules/services/syncthing.nix
     ../../modules/services/tailnet-proxy.nix
   ];
 
@@ -76,51 +75,19 @@
 
   environment.systemPackages = with pkgs; [
     btop
-    duperemove
     iw
     wakeonlan
   ];
 
-  systemd = {
-    # Backing dir for the shared `wrk` Syncthing folder (path set in
-    # modules/services/syncthing.nix). Lives on the data disk, not $HOME.
-    # Bidirectional hub for ~/wrk; see nalyx-private SECURITY.md for tradeoffs.
-    tmpfiles.rules = [
-      "d /data/sync/wrk 0755 ${vars.user.name} users -"
-    ];
-
-    services = {
-      # WoWLAN: allow waking the homelab via WiFi magic packet
-      wowlan = {
-        description = "Enable Wake-on-WLAN";
-        after = [ "network.target" ];
-        wantedBy = [ "multi-user.target" ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-          ExecStart = "${pkgs.iw}/bin/iw phy phy0 wowlan enable magic-packet";
-        };
-      };
-
-      # Weekly btrfs deduplication
-      duperemove = {
-        description = "Deduplicate /data/sync with duperemove";
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${pkgs.duperemove}/bin/duperemove -rd /data/sync";
-          Nice = 19;
-          IOSchedulingClass = "idle";
-        };
-      };
-    };
-
-    timers.duperemove = {
-      description = "Run duperemove weekly";
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnCalendar = "weekly";
-        Persistent = true;
-      };
+  # WoWLAN: allow waking the homelab via WiFi magic packet
+  systemd.services.wowlan = {
+    description = "Enable Wake-on-WLAN";
+    after = [ "network.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.iw}/bin/iw phy phy0 wowlan enable magic-packet";
     };
   };
 
