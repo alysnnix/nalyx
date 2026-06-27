@@ -6,6 +6,9 @@ AI_WORKFLOW.md
 
 .playwright-mcp
 
+# Superpowers generated docs (specs/plans)
+docs/superpowers/
+
 # Security - prevent accidental secret commits
 *.pem
 *.key
