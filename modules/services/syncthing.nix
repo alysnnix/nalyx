@@ -21,6 +21,21 @@ in
     overrideFolders = true;
 
     settings = {
+      # Traffic is pinned 100% to Tailscale: no public relays, no global or
+      # local discovery, no NAT traversal. Peers are dialed only by their
+      # Tailscale addresses (set in the private repo). If Tailscale is down,
+      # sync waits for it to come back (fail-closed).
+      options = {
+        relaysEnabled = false;
+        globalAnnounceEnabled = false;
+        localAnnounceEnabled = false;
+        natEnabled = false;
+        listenAddresses = [
+          "tcp://0.0.0.0:22000"
+          "quic://0.0.0.0:22000"
+        ];
+      };
+
       devices = {
         laptop.id = lib.mkDefault placeholderId;
         wsl.id = lib.mkDefault placeholderId;
@@ -54,7 +69,6 @@ in
     ];
     allowedUDPPorts = [
       22000
-      21027
     ];
   };
 }

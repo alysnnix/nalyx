@@ -34,6 +34,13 @@ so "continue on another host" was impossible.
 - **Storage win**: the shared model stores one copy on the homelab
   (`/data/sync/wrk`), versus up to three separate copies in the old backup
   model. Net space is freed.
+- **Network: Tailscale-only (fail-closed)**: relays, global discovery, local
+  discovery, and NAT traversal are all disabled in the module options. Each
+  device is dialed only by its pinned Tailscale (MagicDNS) address, set in the
+  private repo. Combined with the existing tailscale0-only firewall, Syncthing
+  never contacts a public server and data never leaves the tailnet. If
+  Tailscale is down, sync waits for it to return rather than falling back to a
+  relay. The local-discovery firewall port (21027/udp) is dropped.
 
 ## Where config lives (public / private split)
 
