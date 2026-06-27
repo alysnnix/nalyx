@@ -82,12 +82,11 @@
   ];
 
   systemd = {
-    # Syncthing receive directories on btrfs. Each folder MUST be marked
-    # "Receive Only" in the Syncthing UI — see nalyx-private SECURITY.md.
+    # Backing dir for the shared `wrk` Syncthing folder (path set in
+    # modules/services/syncthing.nix). Lives on the data disk, not $HOME.
+    # Bidirectional hub for ~/wrk; see nalyx-private SECURITY.md for tradeoffs.
     tmpfiles.rules = [
-      "d /data/sync/desktop 0755 ${vars.user.name} users -"
-      "d /data/sync/laptop 0755 ${vars.user.name} users -"
-      "d /data/sync/wsl 0755 ${vars.user.name} users -"
+      "d /data/sync/wrk 0755 ${vars.user.name} users -"
     ];
 
     services = {
