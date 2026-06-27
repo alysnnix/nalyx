@@ -26,6 +26,7 @@ in
       .direnv
       .devenv
       .terraform
+      .docker
       vendor
     '';
   };
