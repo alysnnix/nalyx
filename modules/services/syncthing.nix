@@ -52,6 +52,9 @@ in
           "wsl"
         ];
         maxConflicts = 0;
+        # More parallel writes on the receiving side speeds up the initial
+        # seed of many small files (the git repos). Default is 2.
+        maxConcurrentWrites = 8;
       };
     };
   };
