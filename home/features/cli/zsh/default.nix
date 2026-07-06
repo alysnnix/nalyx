@@ -5,9 +5,13 @@
 }:
 
 let
-  myScripts = builtins.map (
-    name: pkgs.writeShellScriptBin name (builtins.readFile ./scripts/${name}.sh)
-  ) [ "update-sys" ];
+  myScripts =
+    builtins.map (name: pkgs.writeShellScriptBin name (builtins.readFile ./scripts/${name}.sh))
+      [
+        "update-sys"
+        "approve"
+        "reviews"
+      ];
 in
 {
   home = {
