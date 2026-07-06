@@ -1,13 +1,57 @@
 #!/bin/bash
 set -euo pipefail
 
-HOST="${1:-$(hostname)}"
+usage() {
+  cat <<'EOF'
+switch - build the NixOS system from the nalyx flake
+
+Usage:
+  switch [host] [--no-main]
+
+Arguments:
+  host         host to build (default: current hostname)
+
+Options:
+  --no-main    pull the current branch instead of switching to main
+  -h, --help   show this help
+
+Examples:
+  switch                 # switch to main, pull, rebuild current host
+  switch wsl             # switch to main, pull, rebuild the wsl host
+  switch --no-main       # stay on current branch, pull, rebuild
+  switch wsl --no-main
+EOF
+}
+
+HOST="$(hostname)"
+NO_MAIN=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-main) NO_MAIN=1 ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *) HOST="$arg" ;;
+  esac
+done
+
 FLAKE_DIR="$HOME/nalyx"
 PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
 
 echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
+
+if [ "$NO_MAIN" -eq 0 ]; then
+  if git -C "$FLAKE_DIR" checkout main 2>/dev/null; then
+    echo "  branch: switched to main"
+  else
+    echo "  branch: checkout main failed, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
+  fi
+else
+  echo "  branch: --no-main, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
+fi
 
 echo "  pulling repos in parallel..."
 git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null &

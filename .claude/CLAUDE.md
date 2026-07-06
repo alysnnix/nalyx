@@ -5,8 +5,10 @@ Personal NixOS configuration with public/private split for multi-host support.
 ## Quick Start
 
 ```bash
-switch           # Build system (auto-detects hostname)
+switch           # Build system (switches to main, auto-detects hostname)
 switch wsl       # Specify a host
+switch --no-main # Build from current branch instead of main
+switch --help    # Show all switch options
 nix flake check --no-build  # Validate
 nix fmt          # Format code
 nix develop      # Enter devShell (installs pre-commit hooks)
