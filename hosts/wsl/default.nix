@@ -107,6 +107,10 @@
   # Playwright browser dependencies (X11/GUI libs for WSLg)
   hardware.graphics.enable = true;
 
+  # Link the Windows-side WSL driver libs (/usr/lib/wsl/lib) into
+  # /run/opengl-driver so nvidia-smi, CUDA and OpenGL-over-D3D12 work
+  wsl.useWindowsDriver = true;
+
   environment.sessionVariables = {
     DISPLAY = ":0";
   };
