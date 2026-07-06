@@ -43,11 +43,17 @@ echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
 
-echo "  pulling repos in parallel..."
 if [ "$NO_MAIN" -eq 0 ]; then
-  echo "  switching nalyx to main branch..."
-  git -C "$FLAKE_DIR" checkout main 2>/dev/null || echo "  nalyx: checkout main failed, using current branch"
+  if git -C "$FLAKE_DIR" checkout main 2>/dev/null; then
+    echo "  branch: switched to main"
+  else
+    echo "  branch: checkout main failed, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
+  fi
+else
+  echo "  branch: --no-main, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
 fi
+
+echo "  pulling repos in parallel..."
 git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null &
 PID_NALYX=$!
 
