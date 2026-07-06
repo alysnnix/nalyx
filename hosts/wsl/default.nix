@@ -63,7 +63,16 @@
 
   users.users.${vars.user.name} = {
     isNormalUser = true;
-    initialPassword = lib.mkDefault "changeme";
+    # The private module (nalyx-private) forces the login password to come from a
+    # SOPS secret (hashedPasswordFile) on every host. On a fresh WSL install the
+    # SOPS SSH key (~/.ssh/id_ed25519) isn't in place at first activation, so
+    # decryption fails and the account is created locked, recoverable only via
+    # `wsl -u root`. WSL doesn't need the SOPS-managed password: fall back to a
+    # bootstrap password and change it afterwards with `passwd` (mutableUsers is
+    # true, so the change persists). mkOverride 49 wins over the private module's
+    # mkForce (priority 50).
+    hashedPasswordFile = lib.mkOverride 49 null;
+    initialPassword = lib.mkOverride 49 "changeme";
     extraGroups = [
       "wheel"
       "networkmanager"
