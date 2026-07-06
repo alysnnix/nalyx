@@ -70,6 +70,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Only proceed after that second, unambiguous confirmation. If the answer is anything other than a clear yes, do not proceed.
 - Working on feature branches, committing to them, and opening PRs remains fine - this rule protects main only.
 
+## 6. Commit Messages
+
+**Write commits in English, with a short title and a descriptive body.**
+
+- ALWAYS write commit messages in English, regardless of the language used in the conversation.
+- The title must not exceed 50 characters (including type and scope).
+- ALWAYS include a body with descriptive bullet points explaining what changed and why.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
