@@ -31,10 +31,6 @@ in
   home = {
     sessionVariables = {
       CLAUDE_CODE_NO_FLICKER = "1";
-      # Disable Claude Code mouse handling so it stops opening links on click
-      # (terminal handles link clicks alone, avoiding double-open). Trade-off:
-      # no wheel scroll inside the TUI.
-      CLAUDE_CODE_DISABLE_MOUSE = "1";
     };
 
     packages = [
