@@ -15,6 +15,13 @@
     defaultUser = vars.user.name;
     startMenuLaunchers = true;
     docker-desktop.enable = true;
+    # O Docker Desktop roda seu script de integração como root dentro da distro
+    # (wsl -u root -e install ...). O módulo docker-desktop do NixOS-WSL só expõe
+    # cat/whoami/groupadd/usermod em /usr/bin; versões novas também chamam
+    # `install`, que faltava -> "execvpe(install) failed". Expomos ele aqui.
+    extraBin = [
+      { src = "${pkgs.coreutils}/bin/install"; }
+    ];
   };
 
   nix.settings.experimental-features = [
