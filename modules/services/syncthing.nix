@@ -56,6 +56,22 @@ in
         # seed of many small files (the git repos). Default is 2.
         maxConcurrentWrites = 8;
       };
+
+      # Claude Code conversation transcripts, so a chat started on one host
+      # can be resumed on the other. Only projects/ is synced (the resumable
+      # .jsonl session logs); credentials, caches and Nix-managed config files
+      # under .claude are left out. Resume matches by cwd path, which is
+      # identical on both hosts (/home/aly/...).
+      folders.claude = {
+        id = "claude";
+        path = "/home/${vars.user.name}/.claude/projects";
+        type = "sendreceive";
+        devices = [
+          "laptop"
+          "wsl"
+        ];
+        maxConflicts = 0;
+      };
     };
   };
 
