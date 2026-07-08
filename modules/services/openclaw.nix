@@ -48,10 +48,14 @@ let
 
       # Nick (the "goniche" agent, bound to the Goniche guild) auto-joins the
       # guild's voice channel and transcribes speech locally via whisper.cpp.
-      # tts.enabled = false keeps Nick muted: it only listens and transcribes,
-      # never speaks back.
+      # mode = "stt-tts" is required: it is the only voice mode whose STT path
+      # runs the local whisper-cli (via mediaUnderstanding). The default
+      # "agent-proxy" mode ignores whisper.cpp and needs a cloud realtime
+      # provider instead. tts.enabled = false keeps Nick muted: it only listens
+      # and transcribes, never speaks back.
       channels.discord.voice = {
         enabled = true;
+        mode = "stt-tts";
         autoJoin = [
           {
             guildId = "1308573920508772473";
