@@ -30,6 +30,12 @@ let
   bridgeName = "docker0";
   dataDir = "/var/lib/openclaw";
 
+  # whisper.cpp ggml model baked into the image for offline Discord voice
+  # transcription. "base" (~148MB) balances CPU cost and accuracy; bump to
+  # "small" or "medium" for better Portuguese at higher CPU cost.
+  whisperModel = "base";
+  whisperModelPath = "/opt/whisper-models/ggml-${whisperModel}.bin";
+
   # Seed config for first boot - OpenClaw can modify this file freely after creation
   openclawConfigSeed = pkgs.writeText "openclaw-seed.json" (
     builtins.toJSON {
@@ -39,8 +45,56 @@ let
       # tailnet users die with WS code 1006 because the gateway treats the
       # untrusted proxy headers as a remote client and rejects pairing.
       gateway.trustedProxies = [ "127.0.0.1" ];
+
+      # Nick (the "goniche" agent, bound to the Goniche guild) auto-joins the
+      # guild's voice channel and transcribes speech locally via whisper.cpp.
+      # tts.enabled = false keeps Nick muted: it only listens and transcribes,
+      # never speaks back.
+      channels.discord.voice = {
+        enabled = true;
+        autoJoin = [
+          {
+            guildId = "1308573920508772473";
+            channelId = "1308573921515409472";
+          }
+        ];
+        tts.enabled = false;
+      };
     }
   );
+
+  # Dockerfile layered on top of openclaw:base. Kept as a store file (not an
+  # inline heredoc) so its own indentation is independent of the shell script.
+  openclawDockerfile = pkgs.writeText "openclaw-latest.Dockerfile" ''
+    # Compile whisper.cpp in a throwaway stage that shares the base image's
+    # glibc (Debian bookworm), so the final image carries only the binary +
+    # model, not the build toolchain.
+    FROM debian:bookworm-slim AS whisper-build
+    RUN apt-get update \
+     && apt-get install -y --no-install-recommends git build-essential cmake ca-certificates \
+     && rm -rf /var/lib/apt/lists/*
+    RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp /src \
+     && cmake -S /src -B /src/build -DCMAKE_BUILD_TYPE=Release \
+     && cmake --build /src/build --target whisper-cli -j "$(nproc)"
+    RUN /src/models/download-ggml-model.sh ${whisperModel} /models
+
+    FROM openclaw:base
+    USER root
+    # ffmpeg: required by the Discord voice pipeline to decode/convert captured
+    # audio before transcription.
+    RUN apt-get update \
+     && apt-get install -y --no-install-recommends ffmpeg \
+     && rm -rf /var/lib/apt/lists/*
+    # mmx-cli: MiniMax CLI so the agent can generate images and video
+    # (config persists in the mount via the ~/.mmx symlink).
+    RUN npm install -g mmx-cli
+    RUN ln -sfn /home/node/.openclaw/.mmx /home/node/.mmx
+    # whisper.cpp: OpenClaw auto-detects whisper-cli + $WHISPER_CPP_MODEL for the
+    # audio capability, so Discord voice transcription runs with no cloud key.
+    COPY --from=whisper-build /src/build/bin/whisper-cli /usr/local/bin/whisper-cli
+    COPY --from=whisper-build /models /opt/whisper-models
+    USER node
+  '';
 in
 {
   # ── Utility Script: Automate OpenClaw updates ──
@@ -65,10 +119,13 @@ in
       # Build the base image using the local Docker daemon
       ${config.virtualisation.docker.package}/bin/docker build -t openclaw:base --build-arg OPENCLAW_INSTALL_BROWSER=1 "$REPO_DIR"
 
-      # Layer the MiniMax CLI (mmx) on top so the agent can generate images and
-      # video. mmx config persists in the mount via the ~/.mmx symlink.
-      printf 'FROM openclaw:base\nUSER root\nRUN npm install -g mmx-cli\nRUN ln -sfn /home/node/.openclaw/.mmx /home/node/.mmx\nUSER node\n' \
-        | ${config.virtualisation.docker.package}/bin/docker build -t openclaw:latest -
+      # Layer ffmpeg, whisper.cpp (local STT) and the MiniMax CLI on top.
+      # Build context is an empty temp dir; the Dockerfile pulls everything it
+      # needs via git clone / apt / npm, and the whisper model via COPY --from.
+      BUILD_CTX="$(mktemp -d)"
+      ${config.virtualisation.docker.package}/bin/docker build \
+        -t openclaw:latest -f ${openclawDockerfile} "$BUILD_CTX"
+      rm -rf "$BUILD_CTX"
 
       echo "Restarting OpenClaw service to apply changes..."
 
@@ -234,6 +291,7 @@ in
             --dns 1.1.1.1 --dns 9.9.9.9 \
             -v ${dataDir}:/home/node/.openclaw \
             --env-file ${dataDir}/.env \
+            -e WHISPER_CPP_MODEL=${whisperModelPath} \
             openclaw:latest
         '';
       };
