@@ -1,6 +1,7 @@
 {
   vars,
   lib,
+  config,
   ...
 }:
 let
@@ -8,6 +9,10 @@ let
   # override these placeholders. The placeholder keeps the public flake
   # evaluable on its own (CI / no private repo); it never connects.
   placeholderId = "AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA";
+
+  # This module is imported only by wsl and laptop. WSL is the source of
+  # truth for Claude history; the laptop only receives it.
+  isWsl = config.networking.hostName == "nixos-wsl";
 in
 {
   services.syncthing = {
@@ -55,6 +60,26 @@ in
         # More parallel writes on the receiving side speeds up the initial
         # seed of many small files (the git repos). Default is 2.
         maxConcurrentWrites = 8;
+      };
+
+      # Claude Code conversation transcripts, so a chat started on WSL can be
+      # resumed on the laptop. Only projects/ is synced (the resumable .jsonl
+      # session logs); credentials, caches and Nix-managed config files under
+      # .claude are left out. Resume matches by cwd path, which is identical
+      # on both hosts (/home/aly/...).
+      #
+      # Sync is one-way: WSL sends (sendonly), the laptop only receives
+      # (receiveonly). Claude activity on the laptop never propagates back to
+      # WSL, so WSL stays the single source of truth for chat history.
+      folders.claude = {
+        id = "claude";
+        path = "/home/${vars.user.name}/.claude/projects";
+        type = if isWsl then "sendonly" else "receiveonly";
+        devices = [
+          "laptop"
+          "wsl"
+        ];
+        maxConflicts = 0;
       };
     };
   };
