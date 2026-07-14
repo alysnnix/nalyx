@@ -43,11 +43,47 @@ echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
 
+ORIGINAL_BRANCH=""
+STASHED=0
+
+restore_state() {
+  if [ -n "$ORIGINAL_BRANCH" ]; then
+    if git -C "$FLAKE_DIR" checkout "$ORIGINAL_BRANCH" 2>/dev/null; then
+      echo "  branch: returned to $ORIGINAL_BRANCH"
+    else
+      echo "  branch: failed to return to $ORIGINAL_BRANCH"
+    fi
+  fi
+  if [ "$STASHED" -eq 1 ]; then
+    if git -C "$FLAKE_DIR" stash pop 2>/dev/null; then
+      echo "  stash: restored local changes"
+    else
+      echo "  stash: failed to restore, check 'git stash list'"
+    fi
+  fi
+}
+
 if [ "$NO_MAIN" -eq 0 ]; then
-  if git -C "$FLAKE_DIR" checkout main 2>/dev/null; then
-    echo "  branch: switched to main"
+  CURRENT_BRANCH="$(git -C "$FLAKE_DIR" branch --show-current)"
+  if [ "$CURRENT_BRANCH" = "main" ]; then
+    echo "  branch: already on main"
   else
-    echo "  branch: checkout main failed, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
+    if [ -n "$(git -C "$FLAKE_DIR" status --porcelain)" ]; then
+      git -C "$FLAKE_DIR" stash push -u -m "switch: auto-stash before main"
+      STASHED=1
+      echo "  stash: saved local changes from $CURRENT_BRANCH"
+    fi
+    if git -C "$FLAKE_DIR" checkout main 2>/dev/null; then
+      ORIGINAL_BRANCH="$CURRENT_BRANCH"
+      trap restore_state EXIT
+      echo "  branch: switched to main (from $CURRENT_BRANCH)"
+    else
+      echo "  branch: checkout main failed, staying on $CURRENT_BRANCH"
+      if [ "$STASHED" -eq 1 ]; then
+        git -C "$FLAKE_DIR" stash pop 2>/dev/null && STASHED=0
+        echo "  stash: restored local changes"
+      fi
+    fi
   fi
 else
   echo "  branch: --no-main, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
