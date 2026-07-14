@@ -41,6 +41,17 @@
   networking.hostName = "nixos-wsl";
   system.stateVersion = "24.05";
 
+  # Tailscale roda dentro do WSL como nó próprio na tailnet (independente do
+  # daemon do Windows). Assim dá pra dar SSH direto no WSL sem passar pelo host
+  # Windows. Autenticar uma vez com `sudo tailscale up`. O WSL só fica online
+  # enquanto a distro estiver rodando.
+  services = {
+    tailscale.enable = true;
+    openssh.enable = true;
+  };
+
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
   environment.systemPackages = with pkgs; [
     git
     vim

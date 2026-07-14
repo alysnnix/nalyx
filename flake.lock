@@ -430,11 +430,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777474909,
-        "narHash": "sha256-UWs13nN2B82kRP3RdiGUwoJaxkSIDFOSW18r0so2akY=",
+        "lastModified": 1783347055,
+        "narHash": "sha256-HeHxkR42onrL7urPwir0jrdIeYW5baQJVhHYjdfwRkA=",
         "ref": "refs/heads/main",
-        "rev": "6c887b7d405dd1ca164f8eccd15baf8df0ad4cdb",
-        "revCount": 69,
+        "rev": "a8127585a0e225ccdf5a42e80b2da80557e8211b",
+        "revCount": 89,
         "type": "git",
         "url": "ssh://git@github.com/alysnnix/nalyx-private"
       },

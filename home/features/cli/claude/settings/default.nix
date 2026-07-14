@@ -12,6 +12,7 @@ in
 {
   claudeSettingsBase = builtins.toJSON {
     copyOnSelect = false;
+    env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     inherit (plugins) enabledPlugins;
     statusLine = statusline.statusLineConfig;
     hooks = hooks.hooksConfig;
