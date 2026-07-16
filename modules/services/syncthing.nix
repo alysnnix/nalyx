@@ -10,9 +10,9 @@ let
   # evaluable on its own (CI / no private repo); it never connects.
   placeholderId = "AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA";
 
-  # This module is imported only by wsl and laptop. WSL is the source of
-  # truth for Claude history; the laptop only receives it.
-  isWsl = config.networking.hostName == "nixos-wsl";
+  # This module is imported by wsl, desktop and laptop. WSL and desktop send
+  # Claude history; the laptop only receives it.
+  isLaptop = config.networking.hostName == "laptop";
 in
 {
   services.syncthing = {
@@ -43,9 +43,10 @@ in
       devices = {
         laptop.id = lib.mkDefault placeholderId;
         wsl.id = lib.mkDefault placeholderId;
+        desktop.id = lib.mkDefault placeholderId;
       };
 
-      # Single shared work folder, identical on wsl and laptop.
+      # Single shared work folder, identical on wsl, desktop and laptop.
       # maxConflicts = 0 -> last-writer-wins, no .sync-conflict files.
       # No versioning by design.
       folders.wrk = {
@@ -55,6 +56,7 @@ in
         devices = [
           "laptop"
           "wsl"
+          "desktop"
         ];
         maxConflicts = 0;
         # More parallel writes on the receiving side speeds up the initial
@@ -62,22 +64,25 @@ in
         maxConcurrentWrites = 8;
       };
 
-      # Claude Code conversation transcripts, so a chat started on WSL can be
-      # resumed on the laptop. Only projects/ is synced (the resumable .jsonl
-      # session logs); credentials, caches and Nix-managed config files under
-      # .claude are left out. Resume matches by cwd path, which is identical
-      # on both hosts (/home/aly/...).
+      # Claude Code conversation transcripts, so a chat started on WSL or the
+      # desktop can be resumed on the laptop. Only projects/ is synced (the
+      # resumable .jsonl session logs); credentials, caches and Nix-managed
+      # config files under .claude are left out. Resume matches by cwd path,
+      # which is identical on all hosts (/home/aly/...).
       #
-      # Sync is one-way: WSL sends (sendonly), the laptop only receives
-      # (receiveonly). Claude activity on the laptop never propagates back to
-      # WSL, so WSL stays the single source of truth for chat history.
+      # Sync is one-way: WSL and desktop send (sendonly), the laptop only
+      # receives (receiveonly) and accumulates history from both. The two
+      # senders never accept remote changes, so they don't exchange history
+      # with each other and Claude activity on the laptop never propagates
+      # back.
       folders.claude = {
         id = "claude";
         path = "/home/${vars.user.name}/.claude/projects";
-        type = if isWsl then "sendonly" else "receiveonly";
+        type = if isLaptop then "receiveonly" else "sendonly";
         devices = [
           "laptop"
           "wsl"
+          "desktop"
         ];
         maxConflicts = 0;
       };
