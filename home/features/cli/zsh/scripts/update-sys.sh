@@ -118,7 +118,15 @@ elif [ -d "$NOTES_DIR" ]; then
   echo "  notes: $NOTES_DIR"
 fi
 
-sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}"
+# Do not abort on rebuild failure (e.g. exit 4 = switched with failed units):
+# the prune below must always run, and the exit code is propagated at the end.
+REBUILD_RC=0
+sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUILD_RC=$?
 
 echo "  pruning old generations (keeping last 5)..."
 sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
+
+if [ "$REBUILD_RC" -ne 0 ]; then
+  echo "  warning: nixos-rebuild exited with status $REBUILD_RC (check failed units above)"
+fi
+exit "$REBUILD_RC"
