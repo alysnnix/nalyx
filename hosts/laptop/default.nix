@@ -9,7 +9,7 @@
     ../../modules/core/default.nix
     ../../modules/drivers/intel.nix
     ../../modules/services/syncthing.nix
-    ../../modules/desktop/moonlight-kiosk.nix
+    ../../modules/desktop/stream-mode.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
@@ -34,7 +34,8 @@
   # LocalSend: transferência de arquivos P2P na rede local (LAN-only, nunca
   # exposto à internet). openFirewall abre 53317 por padrão.
   programs.localsend.enable = true;
-  modules.desktop.moonlight-kiosk.enable = true;
+  hardware.bluetooth.enable = true;
+  modules.desktop.stream-mode.enable = true;
   home-manager.users.${vars.user.name} = import ../../home;
   home-manager.backupFileExtension = "backup-laptop";
 }
