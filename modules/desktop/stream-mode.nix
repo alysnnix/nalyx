@@ -9,55 +9,35 @@
 let
   cfg = config.modules.desktop.stream-mode;
 
-  overridePath = "/etc/sddm.conf.d/99-stream-mode.conf";
   sudoBin = "/run/wrappers/bin/sudo";
-  teeBin = "${pkgs.coreutils}/bin/tee";
-  rmBin = "${pkgs.coreutils}/bin/rm";
   systemctlBin = "${pkgs.systemd}/bin/systemctl";
 
-  # Menu TUI em loop. Roda dentro de foot, dentro de cage (tela preta, sem
-  # desktop). Ao abrir aplica economia de bateria; a opcao "Sair" desfaz tudo
-  # e volta ao Hyprland.
+  # Menu TUI em loop. Roda dentro de foot, dentro de sway (kiosk, tela preta).
+  # Ao abrir aplica economia de bateria; a opcao "Sair" desfaz e encerra o sway
+  # (volta ao login).
   streamMenu = pkgs.writeShellApplication {
     name = "stream-menu";
     runtimeInputs = [
       pkgs.coreutils
       pkgs.power-profiles-daemon
-      pkgs.wlr-randr
-      pkgs.jq
       pkgs.networkmanager
       pkgs.bluetuith
       pkgs.moonlight-qt
       pkgs.gum
+      pkgs.sway
       pkgs.systemd
     ];
     text = ''
       prev_profile="$(powerprofilesctl get 2>/dev/null || echo balanced)"
 
-      # Baixa o refresh para o maior modo <=60Hz na resolucao atual (economia
-      # de bateria). Best-effort: precisa ser validado no painel do laptop.
-      set_low_refresh() {
-        local name mode
-        name="$(wlr-randr --json | jq -r '.[0].name')" || return 0
-        mode="$(wlr-randr --json | jq -r '
-          .[0].modes as $m
-          | ($m[] | select(.current)) as $c
-          | (([ $m[] | select(.width==$c.width and .height==$c.height and .refresh<=61) ] | max_by(.refresh))
-             // ([ $m[] | select(.width==$c.width and .height==$c.height) ] | min_by(.refresh)))
-          | "\(.width)x\(.height)@\(.refresh | round)Hz"')" || return 0
-        [ -n "$mode" ] && wlr-randr --output "$name" --mode "$mode" || true
-      }
-
       leave() {
         powerprofilesctl set "$prev_profile" || true
         ${sudoBin} ${systemctlBin} start syncthing || true
-        ${sudoBin} ${rmBin} -f ${overridePath} || true
-        exec ${sudoBin} ${systemctlBin} restart display-manager
+        swaymsg exit || true
       }
 
-      # Setup: economia de bateria
+      # Setup: economia de bateria (o refresh/resolucao ja vem do sway)
       powerprofilesctl set power-saver || true
-      set_low_refresh
       ${sudoBin} ${systemctlBin} stop syncthing || true
 
       while true; do
@@ -66,7 +46,7 @@ let
           "▶  Moonlight (stream)" \
           "📶  WiFi" \
           "🔵  Bluetooth" \
-          "🚪  Sair (voltar ao Hyprland)")" || continue
+          "🚪  Sair (voltar ao login)")" || continue
 
         case "$choice" in
           *Moonlight*) moonlight || true ;;
@@ -81,42 +61,47 @@ let
     '';
   };
 
-  # Sessao Wayland minima: cage (kiosk) rodando foot com o menu.
+  # Config minima do sway para o modo stream (kiosk). Ao contrario do cage, o
+  # sway habilita tap-to-click no touchpad e implementa os protocolos de captura
+  # de input (pointer-constraints/relative-pointer/keyboard-shortcuts-inhibit)
+  # que o Moonlight precisa para encaminhar teclado e mouse durante o stream.
+  swayConfig = pkgs.writeText "stream-sway.conf" ''
+    input "type:touchpad" {
+        tap enabled
+        natural_scroll enabled
+    }
+
+    output * {
+        mode 1920x1080@60Hz
+    }
+
+    default_border none
+
+    bar {
+        mode invisible
+    }
+
+    # Moonlight sempre fullscreen (captura teclado/mouse quando focado)
+    for_window [app_id="moonlight"] fullscreen enable
+    for_window [app_id="Moonlight"] fullscreen enable
+    for_window [title="Moonlight"] fullscreen enable
+
+    # Saida de emergencia caso o menu trave (encerra o sway, volta ao login)
+    bindsym Mod4+Shift+q exit
+
+    # Menu do modo stream, com fonte grande
+    exec ${pkgs.foot}/bin/foot -o font=monospace:size=28 -e ${streamMenu}/bin/stream-menu
+  '';
+
+  # Sessao Wayland minima: sway com a config do kiosk.
   sessionLauncher = pkgs.writeShellApplication {
     name = "stream-session";
     runtimeInputs = [
-      pkgs.cage
+      pkgs.sway
       pkgs.foot
     ];
     text = ''
-      exec cage -s -- foot -e ${streamMenu}/bin/stream-menu
-    '';
-  };
-
-  # Comando para entrar no modo stream a partir do Hyprland.
-  switchToStream = pkgs.writeShellApplication {
-    name = "stream-mode";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.systemd
-    ];
-    text = ''
-      printf '[Autologin]\nSession=stream\n' \
-        | ${sudoBin} ${teeBin} ${overridePath} > /dev/null
-      exec ${sudoBin} ${systemctlBin} restart display-manager
-    '';
-  };
-
-  # Comando de escape manual (caso precise forcar a volta ao Hyprland).
-  switchToHyprland = pkgs.writeShellApplication {
-    name = "hyprland-mode";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.systemd
-    ];
-    text = ''
-      ${sudoBin} ${rmBin} -f ${overridePath}
-      exec ${sudoBin} ${systemctlBin} restart display-manager
+      exec sway -c ${swayConfig}
     '';
   };
 
@@ -146,32 +131,15 @@ in
     environment.systemPackages = [
       streamMenu
       sessionLauncher
-      switchToStream
-      switchToHyprland
     ];
 
+    # A sessao "Stream" aparece no seletor de sessao do login (GDM).
     services.displayManager.sessionPackages = [ streamSession ];
-
-    systemd.tmpfiles.rules = [
-      "d /etc/sddm.conf.d 0755 root root -"
-    ];
 
     security.sudo.extraRules = [
       {
         users = [ vars.user.name ];
         commands = [
-          {
-            command = "${teeBin} ${overridePath}";
-            options = [ "NOPASSWD" ];
-          }
-          {
-            command = "${rmBin} -f ${overridePath}";
-            options = [ "NOPASSWD" ];
-          }
-          {
-            command = "${systemctlBin} restart display-manager";
-            options = [ "NOPASSWD" ];
-          }
           {
             command = "${systemctlBin} stop syncthing";
             options = [ "NOPASSWD" ];
