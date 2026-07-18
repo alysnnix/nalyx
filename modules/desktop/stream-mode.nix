@@ -40,33 +40,47 @@ let
       powerprofilesctl set power-saver || true
       ${sudoBin} ${systemctlBin} stop syncthing || true
 
+      items="Moonlight WiFi Bluetooth Sair"
+
       while true; do
         # bateria atual no cabecalho (atualiza cada vez que volta ao menu)
         bat="$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1 || true)"
         header="MODO STREAM"
-        [ -n "$bat" ] && header="MODO STREAM    bateria: $bat%"
+        [ -n "$bat" ] && header="MODO STREAM  -  bateria: $bat%"
+
+        # centraliza o texto na horizontal: espacos a esquerda ate o meio da
+        # tela (a caixa ocupa a largura toda para nada ser cortado).
+        cols="$(tput cols 2>/dev/null || echo 80)"
+        maxlen=''${#header}
+        for it in $items; do
+          [ ''${#it} -gt "$maxlen" ] && maxlen=''${#it}
+        done
+        pad=$(( (cols - maxlen) / 2 ))
+        [ "$pad" -lt 0 ] && pad=0
+        sp="$(printf "%*s" "$pad" "")"
 
         # fzf em tela cheia usa a tela alternativa: menu sempre limpo e
-        # centralizado, sem sobras dos logs do comando anterior.
-        choice="$(printf '%s\n' Moonlight WiFi Bluetooth Sair \
+        # centralizado na vertical (margin) e horizontal (padding).
+        choice="$(printf "%s\n" \
+          "''${sp}Moonlight" "''${sp}WiFi" "''${sp}Bluetooth" "''${sp}Sair" \
           | fzf --layout=reverse \
                 --disabled \
                 --info=hidden \
                 --prompt="" \
-                --pointer=">" \
-                --header="$header" \
+                --pointer=" " \
+                --header="''${sp}$header" \
                 --header-first \
-                --margin=35%,45% \
+                --margin=35%,0 \
                 --cycle)" || continue
 
         case "$choice" in
-          Moonlight)
+          *Moonlight*)
             # logs do moonlight vao para arquivo (tela limpa + diagnostico)
             { echo "=== $(date) ==="; moonlight; } >> /tmp/moonlight.log 2>&1 || true
             ;;
-          WiFi) nmtui || true ;;
-          Bluetooth) bluetuith || true ;;
-          Sair)
+          *WiFi*) nmtui || true ;;
+          *Bluetooth*) bluetuith || true ;;
+          *Sair*)
             leave
             break
             ;;
