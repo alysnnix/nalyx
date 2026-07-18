@@ -23,7 +23,7 @@ let
       pkgs.networkmanager
       pkgs.bluetuith
       pkgs.moonlight-qt
-      pkgs.gum
+      pkgs.fzf
       pkgs.sway
       pkgs.systemd
     ];
@@ -41,18 +41,32 @@ let
       ${sudoBin} ${systemctlBin} stop syncthing || true
 
       while true; do
-        choice="$(gum choose \
-          --header "  MODO STREAM  ·  setas navegam, Enter seleciona" \
-          "▶  Moonlight (stream)" \
-          "📶  WiFi" \
-          "🔵  Bluetooth" \
-          "🚪  Sair (voltar ao login)")" || continue
+        # bateria atual no cabecalho (atualiza cada vez que volta ao menu)
+        bat="$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1 || true)"
+        header="MODO STREAM"
+        [ -n "$bat" ] && header="MODO STREAM    bateria: $bat%"
+
+        # fzf em tela cheia usa a tela alternativa: menu sempre limpo e
+        # centralizado, sem sobras dos logs do comando anterior.
+        choice="$(printf '%s\n' Moonlight WiFi Bluetooth Sair \
+          | fzf --layout=reverse \
+                --disabled \
+                --info=hidden \
+                --prompt="" \
+                --pointer=">" \
+                --header="$header" \
+                --header-first \
+                --margin=35%,45% \
+                --cycle)" || continue
 
         case "$choice" in
-          *Moonlight*) moonlight || true ;;
-          *WiFi*) nmtui || true ;;
-          *Bluetooth*) bluetuith || true ;;
-          *Sair*)
+          Moonlight)
+            # logs do moonlight vao para arquivo (tela limpa + diagnostico)
+            { echo "=== $(date) ==="; moonlight; } >> /tmp/moonlight.log 2>&1 || true
+            ;;
+          WiFi) nmtui || true ;;
+          Bluetooth) bluetuith || true ;;
+          Sair)
             leave
             break
             ;;
@@ -66,7 +80,9 @@ let
   # de input (pointer-constraints/relative-pointer/keyboard-shortcuts-inhibit)
   # que o Moonlight precisa para encaminhar teclado e mouse durante o stream.
   swayConfig = pkgs.writeText "stream-sway.conf" ''
-    input "type:touchpad" {
+    # O wildcard "*" garante o match do touchpad independente de como o
+    # libinput o tipa (o identificador "type:touchpad" nao pegou).
+    input * {
         tap enabled
         natural_scroll enabled
     }
@@ -88,6 +104,10 @@ let
 
     # Saida de emergencia caso o menu trave (encerra o sway, volta ao login)
     bindsym Mod4+Shift+q exit
+
+    # Diagnostico temporario: despeja os inputs vistos pelo sway (para
+    # descobrir o identificador/tipo do touchpad caso o tap ainda falhe).
+    exec ${pkgs.sway}/bin/swaymsg -t get_inputs > /tmp/stream-inputs.json
 
     # Menu do modo stream, com fonte grande
     exec ${pkgs.foot}/bin/foot -o font=monospace:size=28 -e ${streamMenu}/bin/stream-menu
