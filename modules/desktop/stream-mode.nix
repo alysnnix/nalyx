@@ -11,6 +11,30 @@ let
 
   sudoBin = "/run/wrappers/bin/sudo";
   systemctlBin = "${pkgs.systemd}/bin/systemctl";
+  rfkillBin = "${pkgs.util-linux}/bin/rfkill";
+
+  # Economia agressiva de CPU: desliga o turbo boost e poe o EPP de todos os
+  # cores em "power". Roda como root via sudo (escreve em sysfs). Cada write e
+  # guardado por -e caso o path nao exista no hardware.
+  batterySave = pkgs.writeShellScript "stream-battery-save" ''
+    if [ -e /sys/devices/system/cpu/intel_pstate/no_turbo ]; then
+      echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
+    fi
+    for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+      [ -e "$f" ] && echo power > "$f"
+    done
+  '';
+
+  # Reverte a economia agressiva: turbo de volta e EPP em balance_performance
+  # (padrao tipico do governor powersave do intel_pstate).
+  batteryRestore = pkgs.writeShellScript "stream-battery-restore" ''
+    if [ -e /sys/devices/system/cpu/intel_pstate/no_turbo ]; then
+      echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo
+    fi
+    for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+      [ -e "$f" ] && echo balance_performance > "$f"
+    done
+  '';
 
   # Menu TUI em loop. Roda dentro de foot, dentro de sway (kiosk, tela preta).
   # Ao abrir aplica economia de bateria; a opcao "Sair" desfaz e encerra o sway
@@ -22,6 +46,7 @@ let
       pkgs.power-profiles-daemon
       pkgs.networkmanager
       pkgs.bluetuith
+      pkgs.brightnessctl
       pkgs.moonlight-qt
       pkgs.fzf
       pkgs.sway
@@ -31,16 +56,18 @@ let
       prev_profile="$(powerprofilesctl get 2>/dev/null || echo balanced)"
 
       leave() {
+        ${sudoBin} ${batteryRestore} || true
         powerprofilesctl set "$prev_profile" || true
         ${sudoBin} ${systemctlBin} start syncthing || true
         swaymsg exit || true
       }
 
-      # Setup: economia de bateria (o refresh/resolucao ja vem do sway)
+      # Setup: economia agressiva de bateria + brilho inicial em 50%
+      # (o refresh/resolucao ja vem do sway).
       powerprofilesctl set power-saver || true
+      ${sudoBin} ${batterySave} || true
+      brightnessctl set 50% || true
       ${sudoBin} ${systemctlBin} stop syncthing || true
-
-      items="Moonlight WiFi Bluetooth Sair"
 
       while true; do
         # bateria atual no cabecalho (atualiza cada vez que volta ao menu)
@@ -48,11 +75,20 @@ let
         header="MODO STREAM"
         [ -n "$bat" ] && header="MODO STREAM  -  bateria: $bat%"
 
+        # rotulo do toggle reflete o estado atual do radio bluetooth
+        if ${rfkillBin} list bluetooth 2>/dev/null | grep -q "Soft blocked: yes"; then
+          bt_label="Bluetooth: desligado"
+        else
+          bt_label="Bluetooth: ligado"
+        fi
+
+        labels=( "Moonlight" "Brilho +" "Brilho -" "WiFi" "$bt_label" "Bluetooth (gerenciar)" "Sair" )
+
         # centraliza o texto na horizontal: espacos a esquerda ate o meio da
         # tela (a caixa ocupa a largura toda para nada ser cortado).
         cols="$(tput cols 2>/dev/null || echo 80)"
         maxlen=''${#header}
-        for it in $items; do
+        for it in "''${labels[@]}"; do
           [ ''${#it} -gt "$maxlen" ] && maxlen=''${#it}
         done
         pad=$(( (cols - maxlen) / 2 ))
@@ -61,8 +97,7 @@ let
 
         # fzf em tela cheia usa a tela alternativa: menu sempre limpo e
         # centralizado na vertical (margin) e horizontal (padding).
-        choice="$(printf "%s\n" \
-          "''${sp}Moonlight" "''${sp}WiFi" "''${sp}Bluetooth" "''${sp}Sair" \
+        choice="$(for it in "''${labels[@]}"; do printf '%s%s\n' "$sp" "$it"; done \
           | fzf --layout=reverse \
                 --disabled \
                 --info=hidden \
@@ -78,8 +113,12 @@ let
             # logs do moonlight vao para arquivo (tela limpa + diagnostico)
             { echo "=== $(date) ==="; moonlight; } >> /tmp/moonlight.log 2>&1 || true
             ;;
+          *"Brilho +"*) brightnessctl set +10% || true ;;
+          *"Brilho -"*) brightnessctl set 10%- || true ;;
           *WiFi*) nmtui || true ;;
-          *Bluetooth*) bluetuith || true ;;
+          *"gerenciar"*) bluetuith || true ;;
+          *"Bluetooth: ligado"*) ${sudoBin} ${rfkillBin} block bluetooth || true ;;
+          *"Bluetooth: desligado"*) ${sudoBin} ${rfkillBin} unblock bluetooth || true ;;
           *Sair*)
             leave
             break
@@ -180,6 +219,22 @@ in
           }
           {
             command = "${systemctlBin} start syncthing";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${batterySave}";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${batteryRestore}";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${rfkillBin} block bluetooth";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${rfkillBin} unblock bluetooth";
             options = [ "NOPASSWD" ];
           }
         ];
