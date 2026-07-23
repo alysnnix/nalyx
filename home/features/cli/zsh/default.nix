@@ -73,6 +73,6 @@ in
 
   programs.oh-my-posh = {
     enable = true;
-    useTheme = "jandedobbeleer";
+    useTheme = "powerlevel10k_modern";
   };
 }
