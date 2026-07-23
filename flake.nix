@@ -72,6 +72,7 @@
 
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
+        omp = llm-agents.packages.${system}.omp;
       };
 
       pkgs = import nixpkgs {
@@ -208,6 +209,7 @@
             pkgs = import nixpkgs {
               inherit system;
               config.allowUnfree = true;
+              overlays = [ claudeOverlay ];
             };
             extraSpecialArgs = {
               inherit inputs;

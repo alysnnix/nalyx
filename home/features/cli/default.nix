@@ -20,6 +20,7 @@
 
   home.packages = with pkgs; [
     glow
+    omp
     lazygit
     imagemagick
     tree
