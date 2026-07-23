@@ -31,12 +31,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    claude-code = {
-      url = "github:sadjow/claude-code-nix";
-    };
-
-    claude-code-prev = {
-      url = "github:sadjow/claude-code-nix/335c96551a1650e0306b756039f15c3364d2e0ac";
+    # AI coding tools (claude-code, etc.), auto-updated daily.
+    # Not following nixpkgs: consume the prebuilt package to keep their cache.
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
     };
 
     caelestia = {
@@ -64,8 +62,7 @@
       nixos-wsl,
       git-hooks,
       sops-nix,
-      claude-code,
-      claude-code-prev,
+      llm-agents,
       caelestia,
       private ? null,
       ...
@@ -74,8 +71,7 @@
       system = "x86_64-linux";
 
       claudeOverlay = _: _: {
-        claude-code = claude-code.packages.${system}.default;
-        claude-code-prev = claude-code-prev.packages.${system}.default;
+        claude-code = llm-agents.packages.${system}.claude-code;
       };
 
       pkgs = import nixpkgs {
