@@ -126,6 +126,14 @@ sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUI
 echo "  pruning old generations (keeping last 5)..."
 sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
 
+# Refresh runtime-secret MCP tokens in ~/.claude.json. The
+# home-manager activation only re-runs when its derivation changes, so a pure
+# secret-value change would not propagate; sync explicitly on every switch.
+if command -v sync-claude-mcps >/dev/null 2>&1; then
+  echo "  syncing claude mcps..."
+  sync-claude-mcps || echo "  warning: sync-claude-mcps failed"
+fi
+
 if [ "$REBUILD_RC" -ne 0 ]; then
   echo "  warning: nixos-rebuild exited with status $REBUILD_RC (check failed units above)"
 fi
