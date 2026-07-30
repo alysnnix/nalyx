@@ -37,6 +37,12 @@
       url = "github:numtide/llm-agents.nix";
     };
 
+    # herdr: terminal multiplexer for AI coding agents.
+    # Not following nixpkgs: consume its pinned rust toolchain to avoid a rebuild.
+    herdr = {
+      url = "github:herdrdev/herdr";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -73,6 +79,7 @@
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
+        herdr = inputs.herdr.packages.${system}.default;
       };
 
       pkgs = import nixpkgs {
