@@ -108,6 +108,21 @@ in
         ];
         maxConflicts = 0;
       };
+
+      # Herdr config (keybindings, theme): identical on all hosts and editable
+      # anywhere, so sendreceive like folders.wrk. herdr writes per-machine logs
+      # into this dir too, so a seeded .stignore keeps *.log out of the sync.
+      folders.herdr = {
+        id = "herdr";
+        path = "/home/${vars.user.name}/.config/herdr";
+        type = "sendreceive";
+        devices = [
+          "laptop"
+          "wsl"
+          "desktop"
+        ];
+        maxConflicts = 0;
+      };
     };
   };
 
