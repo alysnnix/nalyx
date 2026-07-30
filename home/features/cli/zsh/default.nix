@@ -61,18 +61,12 @@ in
 
     oh-my-zsh = {
       enable = true;
-      # Prompt is handled by oh-my-posh; keep oh-my-zsh only for plugins.
-      theme = "";
+      theme = "robbyrussell";
       plugins = [
         "git"
         "sudo"
         "docker"
       ];
     };
-  };
-
-  programs.oh-my-posh = {
-    enable = true;
-    useTheme = "powerlevel10k_modern";
   };
 }
