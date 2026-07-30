@@ -13,6 +13,7 @@ let
   # This module is imported by wsl, desktop and laptop. WSL and desktop send
   # Claude Code and omp history; the laptop only receives it.
   isLaptop = config.networking.hostName == "laptop";
+  isWsl = config.networking.hostName == "nixos-wsl";
 in
 {
   services.syncthing = {
@@ -105,6 +106,21 @@ in
           "laptop"
           "wsl"
           "desktop"
+        ];
+        maxConflicts = 0;
+      };
+
+      # Herdr config (keybindings): one-way WSL -> laptop only, so config set on
+      # WSL follows to the laptop. sendonly on WSL, receiveonly on laptop; not
+      # defined on desktop (it uses the nix-seeded config). A seeded .stignore
+      # keeps herdr's per-machine *.log out of the sync.
+      folders.herdr = lib.mkIf (isLaptop || isWsl) {
+        id = "herdr";
+        path = "/home/${vars.user.name}/.config/herdr";
+        type = if isLaptop then "receiveonly" else "sendonly";
+        devices = [
+          "laptop"
+          "wsl"
         ];
         maxConflicts = 0;
       };

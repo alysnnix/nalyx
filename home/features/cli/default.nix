@@ -13,6 +13,7 @@
     ./ssh
     ./neovim
     ./ghostty
+    ./herdr
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
