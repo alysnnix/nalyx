@@ -55,6 +55,7 @@ in
       switch = "update-sys";
       pull = "git stash && git pull && git stash pop";
       nalyx = "cd ~/nalyx";
+      wrk = "cd ~/wrk";
       mount-homelab = "mkdir -p ~/mnt/homelab && sshfs ${vars.user.name}@${vars.homelab.address}:/data/sync ~/mnt/homelab -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3";
       umount-homelab = "fusermount -u ~/mnt/homelab";
     };
