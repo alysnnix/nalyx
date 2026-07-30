@@ -11,7 +11,7 @@ let
   placeholderId = "AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA";
 
   # This module is imported by wsl, desktop and laptop. WSL and desktop send
-  # Claude history; the laptop only receives it.
+  # Claude Code and omp history; the laptop only receives it.
   isLaptop = config.networking.hostName == "laptop";
 in
 {
@@ -78,6 +78,28 @@ in
       folders.claude = {
         id = "claude";
         path = "/home/${vars.user.name}/.claude/projects";
+        type = if isLaptop then "receiveonly" else "sendonly";
+        devices = [
+          "laptop"
+          "wsl"
+          "desktop"
+        ];
+        maxConflicts = 0;
+      };
+
+      # omp harness history, mirroring folders.claude so a chat started on WSL
+      # or the desktop can be resumed on the laptop. Syncs the whole agent
+      # store: sessions/*.jsonl transcripts plus the SQLite index/state
+      # (history.db, agent.db, models.db) and blobs/. Same one-way topology:
+      # WSL and desktop send (sendonly), the laptop only receives
+      # (receiveonly) and accumulates history from both.
+      #
+      # Caveat: the SQLite dbs are WAL and written live, so a mid-write sync
+      # can land a torn db on the laptop; maxConflicts = 0 means last-writer
+      # wins with no .sync-conflict copies. Accepted by design here.
+      folders.omp = {
+        id = "omp";
+        path = "/home/${vars.user.name}/.omp/agent";
         type = if isLaptop then "receiveonly" else "sendonly";
         devices = [
           "laptop"
