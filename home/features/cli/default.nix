@@ -23,6 +23,7 @@
     glow
     omp
     herdr
+    paseo
     lazygit
     imagemagick
     tree
