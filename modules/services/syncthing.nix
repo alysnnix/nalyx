@@ -110,10 +110,10 @@ in
         maxConflicts = 0;
       };
 
-      # Herdr config (keybindings): one-way WSL -> laptop only, so config set on
+      # Herdr config (config.toml): one-way WSL -> laptop only, so config set on
       # WSL follows to the laptop. sendonly on WSL, receiveonly on laptop; not
-      # defined on desktop (it uses the nix-seeded config). A seeded .stignore
-      # keeps herdr's per-machine *.log out of the sync.
+      # defined on desktop. A .stignore restricts the sync to config.toml, so
+      # herdr's per-machine session history, logs and sockets stay local.
       folders.herdr = lib.mkIf (isLaptop || isWsl) {
         id = "herdr";
         path = "/home/${vars.user.name}/.config/herdr";
