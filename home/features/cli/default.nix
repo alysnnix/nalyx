@@ -39,6 +39,7 @@
     kubectl
     (lib.lowPrio wrangler)
     (pkgs.callPackage ../../../packages/render-cli.nix { })
+    (pkgs.callPackage ../../../packages/composio-cli.nix { })
     ffmpeg
     openai-whisper
   ];
