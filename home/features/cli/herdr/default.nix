@@ -89,7 +89,7 @@ let
     keys = {
       previous_workspace = "alt+up";
       next_workspace = "alt+down";
-      close_workspace = "alt+w";
+      close_pane = "alt+w"; # close the selected pane
       new_workspace = "alt+n";
       previous_tab = "alt+left";
       next_tab = "alt+right";
