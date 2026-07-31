@@ -65,5 +65,12 @@
       type = "http";
       url = "https://graphql.mcp.cloudflare.com/mcp";
     };
+    # Composio unified MCP (Tool Router): Slack and 1000+ apps.
+    # OAuth on first connection (browser flow), no secret stored here.
+    # Source: https://composio.dev/claude
+    composio = {
+      type = "http";
+      url = "https://connect.composio.dev/mcp";
+    };
   };
 }
