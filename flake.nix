@@ -87,6 +87,7 @@
         omp = llm-agents.packages.${system}.omp;
         herdr = inputs.herdr.packages.${system}.default;
         paseo = inputs.paseo.packages.${system}.default;
+        paseo-desktop = inputs.paseo.packages.${system}.desktop;
       };
 
       pkgs = import nixpkgs {
@@ -229,6 +230,7 @@
               inherit inputs;
               vars = wslVars;
               isWsl = true;
+              isServer = false;
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
