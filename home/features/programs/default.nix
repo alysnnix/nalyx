@@ -11,6 +11,7 @@
 
   home.packages = with pkgs; [
     discord
+    impression
     k6
     vegeta
     moonlight-qt
