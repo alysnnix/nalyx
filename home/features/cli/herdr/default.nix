@@ -6,6 +6,60 @@
 let
   tomlFormat = pkgs.formats.toml { };
 
+  # Utility panes bound to keys below. Each is a self-contained script with its
+  # tools pinned from nixpkgs (no reliance on the pane's PATH). They open as a
+  # zoomed pane in the current directory; close the pane to return.
+  clockApp = pkgs.writeShellApplication {
+    name = "herdr-clock";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = ''
+      while true; do
+        printf '\033[2J\033[H'
+        date '+  %A, %d %B %Y'
+        date '+  %H:%M:%S %Z'
+        sleep 1
+      done
+    '';
+  };
+
+  gitStatusApp = pkgs.writeShellApplication {
+    name = "herdr-gitstatus";
+    runtimeInputs = [
+      pkgs.git
+      pkgs.coreutils
+    ];
+    text = ''
+      while true; do
+        printf '\033[2J\033[H'
+        (
+          if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            printf '# %s\n\n' "$(basename "$PWD")"
+            git -c color.ui=always status -sb
+            printf '\n-- recent --\n'
+            git -c color.ui=always log --oneline -10 --decorate
+          else
+            printf 'not a git repository: %s\n' "$PWD"
+          fi
+        ) 2>&1 || true
+        sleep 3
+      done
+    '';
+  };
+
+  # Weather auto-detects the location by IP (wttr.in). Change the URL to pin a
+  # city, e.g. https://wttr.in/Florianopolis
+  weatherApp = pkgs.writeShellApplication {
+    name = "herdr-weather";
+    runtimeInputs = [ pkgs.curl ];
+    text = ''
+      while true; do
+        printf '\033[2J\033[H'
+        curl -fsS --max-time 15 'https://wttr.in/?F' 2>&1 || printf 'weather unavailable\n'
+        sleep 900
+      done
+    '';
+  };
+
   # Declarative herdr config. This file is the source of truth; edit it here,
   # not in ~/.config/herdr/config.toml (that copy is overwritten on switch).
   configToml = tomlFormat.generate "herdr-config.toml" {
@@ -41,6 +95,28 @@ let
       next_tab = "alt+right";
       split_vertical = "alt+d"; # split right (side by side) in the current pane
       close_tab = "shift+alt+w"; # close the current tab
+
+      # Utility panes: open a zoomed pane in the current dir; close it to return.
+      command = [
+        {
+          key = "alt+t";
+          type = "pane";
+          command = lib.getExe clockApp;
+          description = "Clock";
+        }
+        {
+          key = "alt+g";
+          type = "pane";
+          command = lib.getExe gitStatusApp;
+          description = "Git status";
+        }
+        {
+          key = "alt+c";
+          type = "pane";
+          command = lib.getExe weatherApp;
+          description = "Weather";
+        }
+      ];
     };
   };
 
