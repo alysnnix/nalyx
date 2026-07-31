@@ -43,6 +43,12 @@
       url = "github:herdrdev/herdr";
     };
 
+    # paseo: self-hosted daemon for AI coding agents.
+    # Not following nixpkgs: consume its pinned npm-deps hash to avoid a rebuild.
+    paseo = {
+      url = "github:getpaseo/paseo";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -80,6 +86,7 @@
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
         herdr = inputs.herdr.packages.${system}.default;
+        paseo = inputs.paseo.packages.${system}.default;
       };
 
       pkgs = import nixpkgs {
