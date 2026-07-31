@@ -13,6 +13,7 @@
     ./ssh
     ./neovim
     ./ghostty
+    ./herdr
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
@@ -20,6 +21,8 @@
 
   home.packages = with pkgs; [
     glow
+    omp
+    herdr
     lazygit
     imagemagick
     tree

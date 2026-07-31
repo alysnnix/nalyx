@@ -11,8 +11,9 @@ let
   placeholderId = "AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA-AAAAAAA";
 
   # This module is imported by wsl, desktop and laptop. WSL and desktop send
-  # Claude history; the laptop only receives it.
+  # Claude Code and omp history; the laptop only receives it.
   isLaptop = config.networking.hostName == "laptop";
+  isWsl = config.networking.hostName == "nixos-wsl";
 in
 {
   services.syncthing = {
@@ -83,6 +84,43 @@ in
           "laptop"
           "wsl"
           "desktop"
+        ];
+        maxConflicts = 0;
+      };
+
+      # omp harness history, mirroring folders.claude so a chat started on WSL
+      # or the desktop can be resumed on the laptop. Syncs the whole agent
+      # store: sessions/*.jsonl transcripts plus the SQLite index/state
+      # (history.db, agent.db, models.db) and blobs/. Same one-way topology:
+      # WSL and desktop send (sendonly), the laptop only receives
+      # (receiveonly) and accumulates history from both.
+      #
+      # Caveat: the SQLite dbs are WAL and written live, so a mid-write sync
+      # can land a torn db on the laptop; maxConflicts = 0 means last-writer
+      # wins with no .sync-conflict copies. Accepted by design here.
+      folders.omp = {
+        id = "omp";
+        path = "/home/${vars.user.name}/.omp/agent";
+        type = if isLaptop then "receiveonly" else "sendonly";
+        devices = [
+          "laptop"
+          "wsl"
+          "desktop"
+        ];
+        maxConflicts = 0;
+      };
+
+      # Herdr config (config.toml): one-way WSL -> laptop only, so config set on
+      # WSL follows to the laptop. sendonly on WSL, receiveonly on laptop; not
+      # defined on desktop. A .stignore restricts the sync to config.toml, so
+      # herdr's per-machine session history, logs and sockets stay local.
+      folders.herdr = lib.mkIf (isLaptop || isWsl) {
+        id = "herdr";
+        path = "/home/${vars.user.name}/.config/herdr";
+        type = if isLaptop then "receiveonly" else "sendonly";
+        devices = [
+          "laptop"
+          "wsl"
         ];
         maxConflicts = 0;
       };
