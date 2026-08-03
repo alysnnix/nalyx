@@ -17,6 +17,12 @@ let
       # device URLs. Trade-off: all tool schemas ship on every request.
       xdev = false;
     };
+
+    # Load the context image-pruner extension in every session. It keeps only
+    # the most-recent N image blocks per request (env OMP_MAX_CONTEXT_IMAGES,
+    # default 10) so a long session never trips Anthropic's stricter 2000px
+    # per-image cap that applies once a request carries more than 20 images.
+    extensions = [ "${./prune-context-images.js}" ];
   };
 in
 {
