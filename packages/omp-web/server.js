@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 // omp-web: a local web UI to browse and continue omp sessions.
 //
-// Loopback-only by design: it binds 127.0.0.1 and exposes NO auth. Tailnet
-// access + TLS is handled by the reverse proxy in front of it (see the
-// tailnet-proxy NixOS module). Never bind this to 0.0.0.0.
+// Loopback-only by design: it binds 127.0.0.1. Tailnet access + TLS is handled
+// by the reverse proxy in front (see the omp-web NixOS module). Access is gated
+// by optional Google OIDC + an email allowlist when OMP_WEB_AUTH=google.
 //
 // Endpoints:
 //   GET  /                      -> SPA
@@ -28,6 +28,167 @@ const PUBLIC_DIR = new URL("./public/", import.meta.url).pathname;
 const HEAD_BYTES = 64 * 1024;
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+
+// -------------------------------------------------------------------- auth
+//
+// Optional Google OIDC (authorization-code flow) with an email allowlist.
+// Credentials come from the environment only (never the public repo). With
+// OMP_WEB_AUTH=off (default) the service is open — safe only on loopback / a
+// single-user tailnet. The id_token is trusted because it is fetched
+// server-to-server from Google's token endpoint over TLS (no JWKS needed).
+
+const AUTH = (process.env.OMP_WEB_AUTH || "off").toLowerCase();
+const GOOGLE_CLIENT_ID = process.env.OMP_WEB_GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.OMP_WEB_GOOGLE_CLIENT_SECRET || "";
+const ALLOWED_EMAILS = (process.env.OMP_WEB_ALLOWED_EMAILS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+const BASE_URL_OVERRIDE = process.env.OMP_WEB_BASE_URL || "";
+const COOKIE = "omp_session";
+const SESSION_TTL_MS = 30 * 24 * 3600 * 1000;
+
+const authEnabled = AUTH === "google";
+const authConfigured =
+  authEnabled && !!GOOGLE_CLIENT_ID && !!GOOGLE_CLIENT_SECRET && ALLOWED_EMAILS.length > 0;
+
+const sessions = new Map(); // token -> { email, exp }
+const oauthStates = new Map(); // state -> exp (ms)
+const now = () => Date.now();
+const rand = () =>
+  crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+const sweep = (map) => {
+  const t = now();
+  for (const [k, v] of map) if ((typeof v === "number" ? v : v.exp) < t) map.delete(k);
+};
+
+function getCookie(req, name) {
+  for (const part of (req.headers.get("cookie") || "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return null;
+}
+
+function currentEmail(req) {
+  if (!authEnabled) return "anon";
+  const tok = getCookie(req, COOKIE);
+  const s = tok && sessions.get(tok);
+  if (!s || s.exp < now()) {
+    if (s) sessions.delete(tok);
+    return null;
+  }
+  return s.email;
+}
+
+function baseUrl(req) {
+  if (BASE_URL_OVERRIDE) return BASE_URL_OVERRIDE.replace(/\/$/, "");
+  const url = new URL(req.url);
+  const host =
+    req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
+  // tailscale serve always terminates TLS, so *.ts.net is https regardless of
+  // whatever proto header the local nginx hop set.
+  const proto = host.includes(".ts.net")
+    ? "https"
+    : req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
+  return `${proto}://${host}`;
+}
+
+function loginPage(msg) {
+  return new Response(
+    `<!doctype html><meta charset=utf-8>` +
+      `<meta name=viewport content="width=device-width,initial-scale=1">` +
+      `<title>omp chats — entrar</title><style>` +
+      `body{background:#0f1115;color:#e6e8ee;font:16px system-ui;display:grid;place-items:center;height:100dvh;margin:0}` +
+      `.card{background:#161923;border:1px solid #2a2f3d;border-radius:14px;padding:28px 32px;text-align:center;max-width:340px}` +
+      `a.btn{display:inline-block;margin-top:14px;background:#6ea8fe;color:#08111f;font-weight:600;text-decoration:none;padding:10px 18px;border-radius:10px}` +
+      `.err{color:#ff6b6b}</style>` +
+      `<div class=card><h1>omp chats</h1>${msg ? `<p class=err>${msg}</p>` : ""}` +
+      `<a class=btn href="auth/login">Entrar com Google</a></div>`,
+    {
+      status: msg ? 403 : 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    },
+  );
+}
+
+function redirectTo(loc, cookie) {
+  const r = new Response("", { status: 302, headers: { location: loc } });
+  if (cookie) r.headers.set("set-cookie", cookie);
+  return r;
+}
+
+// Handle /auth/* routes. Returns a Response, or null if not an auth route.
+async function handleAuth(req, url, path) {
+  if (!authEnabled) return null;
+  const redirectUri = `${baseUrl(req)}/auth/callback`;
+
+  if (path.endsWith("/auth/login")) {
+    if (!authConfigured) return new Response("auth not configured", { status: 500 });
+    const state = rand();
+    oauthStates.set(state, now() + 10 * 60 * 1000);
+    sweep(oauthStates);
+    const p = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid email",
+      state,
+      prompt: "select_account",
+    });
+    return redirectTo(`https://accounts.google.com/o/oauth2/v2/auth?${p}`);
+  }
+
+  if (path.endsWith("/auth/logout")) {
+    const tok = getCookie(req, COOKIE);
+    if (tok) sessions.delete(tok);
+    return redirectTo(`${baseUrl(req)}/`, `${COOKIE}=; HttpOnly; Path=/; Max-Age=0`);
+  }
+
+  if (path.endsWith("/auth/callback")) {
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    if (!code || !state || !oauthStates.has(state))
+      return loginPage("Sessão de login inválida, tente de novo.");
+    oauthStates.delete(state);
+    let email = null;
+    let verified = false;
+    try {
+      const tr = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
+      const tok = await tr.json();
+      if (tok.id_token) {
+        const payload = JSON.parse(
+          Buffer.from(tok.id_token.split(".")[1], "base64url").toString("utf8"),
+        );
+        email = (payload.email || "").toLowerCase();
+        verified = payload.email_verified === true || payload.email_verified === "true";
+      }
+    } catch (e) {
+      log("oauth token exchange failed", e);
+    }
+    if (!email || !verified || !ALLOWED_EMAILS.includes(email))
+      return loginPage("Esse email não tem acesso.");
+    const token = rand();
+    sessions.set(token, { email, exp: now() + SESSION_TTL_MS });
+    sweep(sessions);
+    const secure = baseUrl(req).startsWith("https") ? "; Secure" : "";
+    return redirectTo(
+      `${baseUrl(req)}/`,
+      `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_MS / 1000}${secure}`,
+    );
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------- parsing
 
@@ -284,7 +445,21 @@ const server = Bun.serve({
   idleTimeout: 255,
   async fetch(req, server) {
     const url = new URL(req.url);
-    let path = url.pathname;
+    const path = url.pathname;
+
+    const authResp = await handleAuth(req, url, path);
+    if (authResp) return authResp;
+    if (authEnabled) {
+      if (!authConfigured)
+        return new Response(
+          "omp-web: OMP_WEB_AUTH=google but Google credentials / allowed emails are not configured",
+          { status: 500 },
+        );
+      if (!currentEmail(req)) {
+        if (path.includes("/api/")) return json({ error: "unauthorized" }, 401);
+        return loginPage();
+      }
+    }
     // Tolerate being mounted under a base path by the proxy: strip a trailing
     // known route regardless of prefix.
     if (path.endsWith("/api/stream")) {
@@ -355,4 +530,7 @@ const server = Bun.serve({
   },
 });
 
-log(`omp-web listening on http://${HOST}:${PORT}  (sessions: ${SESSIONS_DIR})`);
+log(
+  `omp-web listening on http://${HOST}:${PORT}  (sessions: ${SESSIONS_DIR}, ` +
+    `auth: ${authEnabled ? (authConfigured ? "google" : "google[UNCONFIGURED]") : "off"})`,
+);

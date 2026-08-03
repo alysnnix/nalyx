@@ -6,6 +6,10 @@
 # nginx sits in the path purely for reliable WebSocket upgrades (the streaming
 # "continue" channel), mirroring the tailnet-proxy module. The service runs as
 # the user so the spawned `omp --mode rpc` sees ~/.omp auth and the project cwd.
+#
+# Access is gated by Google OIDC (email allowlist). The client id/secret and the
+# allowed email are read from ~/.config/omp-web.env (0600, NOT in git) — see the
+# EnvironmentFile below. Missing file => auth fails closed (nobody gets in).
 {
   lib,
   pkgs,
@@ -27,12 +31,16 @@ in
       OMP_WEB_HOST = "127.0.0.1";
       OMP_WEB_PORT = toString port;
       HOME = "/home/${user}";
+      OMP_WEB_AUTH = "google";
     };
     serviceConfig = {
       ExecStart = lib.getExe ompWeb;
       User = user;
       Restart = "on-failure";
       RestartSec = "5s";
+      # Google OIDC creds + allowed email (0600, private, not in git). Optional
+      # ("-") so the unit still starts if absent; auth then fails closed.
+      EnvironmentFile = "-/home/${user}/.config/omp-web.env";
     };
   };
 
