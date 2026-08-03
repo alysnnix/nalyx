@@ -86,11 +86,10 @@ function baseUrl(req) {
   const url = new URL(req.url);
   const host =
     req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
-  // tailscale serve always terminates TLS, so *.ts.net is https regardless of
-  // whatever proto header the local nginx hop set.
-  const proto = host.includes(".ts.net")
-    ? "https"
-    : req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
+  // Scheme comes from the proxy's X-Forwarded-Proto (tailscale serve sets
+  // https) or the request; set OMP_WEB_BASE_URL to pin it deterministically.
+  const proto =
+    req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
   return `${proto}://${host}`;
 }
 
