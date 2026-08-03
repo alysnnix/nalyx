@@ -15,6 +15,7 @@
     ./neovim
     ./ghostty
     ./herdr
+    ./omp
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
