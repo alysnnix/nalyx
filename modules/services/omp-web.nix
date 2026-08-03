@@ -38,9 +38,10 @@ in
       User = user;
       Restart = "on-failure";
       RestartSec = "5s";
-      # Google OIDC creds + allowed email (0600, private, not in git). Optional
-      # ("-") so the unit still starts if absent; auth then fails closed.
-      EnvironmentFile = "-/home/${user}/.config/omp-web.env";
+      # Google OIDC creds + allowed email come from a SOPS secret in the
+      # private repo, decrypted here at activation. Optional ("-") so the unit
+      # still starts if absent; auth then fails closed (nobody gets in).
+      EnvironmentFile = "-/run/secrets/omp_web_env";
     };
   };
 
