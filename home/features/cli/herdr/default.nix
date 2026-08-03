@@ -67,6 +67,9 @@ let
       show_agent_labels_on_pane_borders = true;
       agent_panel_sort = "spaces";
 
+      # Selecting with the mouse only marks text; copy happens on Ctrl+C.
+      copy_on_select = false;
+
       # Agent panel: show each agent's chat title (terminal title) instead of
       # the workspace folder name, which is identical for every agent in one repo.
       sidebar.agents.rows = [
