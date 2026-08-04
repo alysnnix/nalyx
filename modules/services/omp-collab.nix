@@ -1,13 +1,12 @@
 # omp-collab: self-hosted relay + browser client for omp's `/collab` live
-# session sharing, entirely on the tailnet — never touching the public
+# session sharing, entirely on the tailnet, never touching the public
 # my.omp.sh. Lets you continue a running omp session from your phone WITHOUT
 # closing it on the host: the host keeps running the agent; guests read the
 # live stream and can prompt / interrupt. Every payload is E2E AES-256-GCM
 # sealed by the clients, so the relay (and this whole path) only sees ciphertext.
 #
-# Topology (the WSL's own tailscale node; a distinct HTTPS port so it coexists
-# with omp-web on :443 — neither resets the node-wide serve config):
-#   tailscale serve (:8443 TLS) → nginx (127.0.0.1:18084)
+# Topology (the WSL's own tailscale node, tailnet-only):
+#   tailscale serve (:443 TLS) → nginx (127.0.0.1:18084)
 #       ├── /      → static collab-web guest client
 #       └── /r/…   → collab relay (127.0.0.1:8792), WebSocket
 #
@@ -19,8 +18,8 @@
 }:
 let
   relayPort = 8792; # relay loopback
-  nginxPort = 18084; # nginx loopback (distinct from omp-web's 18082 / tailnet-proxy's 18080)
-  servePort = 8443; # tailnet HTTPS port (omp-web owns :443)
+  nginxPort = 18084; # nginx loopback
+  servePort = 443; # tailnet HTTPS port
   ompCollab = pkgs.callPackage ../../packages/omp-collab { };
 in
 {
@@ -88,8 +87,8 @@ in
       RestartSec = "5s";
     };
 
-    # Additive serve on a distinct HTTPS port so it coexists with omp-web's :443
-    # mount; ExecStop removes only this port, never the whole serve config.
+    # Additive serve (no node-wide `serve reset`); preStop removes only this
+    # port, leaving any other tailscale serve config intact.
     script = ''
       for _ in $(seq 1 60); do
         ${pkgs.tailscale}/bin/tailscale status --json 2>/dev/null \

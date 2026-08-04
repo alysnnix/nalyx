@@ -31,7 +31,7 @@ let
   # On the WSL, point omp's `/collab` at the self-hosted tailnet relay (the
   # omp-collab module), so live session sharing never touches the public
   # my.omp.sh. The relay + guest client live on the WSL's own tailnet node, so
-  # the URL is that node's MagicDNS name on port 8443. Derived at activation
+  # the URL is that node's MagicDNS name. Derived at activation
   # (not hardcoded) to keep the private tailnet name out of this public repo,
   # and written to a file that rides in PI_CONFIG_FILES. If tailscale is down,
   # the file is empty and omp falls back to its default relay.
@@ -47,7 +47,7 @@ in
         | ${pkgs.jq}/bin/jq -r '(.Self.DNSName // "") | rtrimstr(".")' || true)"
       mkdir -p "$(dirname "${collabOverlay}")"
       if [ -n "$name" ]; then
-        printf 'collab:\n  relayUrl: wss://%s:8443\n  webUrl: https://%s:8443\n' \
+        printf 'collab:\n  relayUrl: wss://%s\n  webUrl: https://%s\n' \
           "$name" "$name" > "${collabOverlay}"
       else
         printf '{}\n' > "${collabOverlay}"

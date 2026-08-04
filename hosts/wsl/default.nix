@@ -8,7 +8,6 @@
 {
   imports = [
     ../../modules/services/syncthing.nix
-    ../../modules/services/omp-web.nix
     ../../modules/services/omp-collab.nix
   ];
 
