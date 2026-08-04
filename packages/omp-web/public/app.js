@@ -40,6 +40,11 @@ const fmtTime = (ms) => {
   return d.toLocaleDateString();
 };
 
+let collapsed = new Set(); // directory groups the user has collapsed
+
+const prettyDir = (cwd) =>
+  (cwd || "").replace(/^\/home\/[^/]+/, "~") || "(sem diretório)";
+
 function renderSessions() {
   const q = els.filter.value.trim().toLowerCase();
   const list = q
@@ -50,19 +55,52 @@ function renderSessions() {
           (s.preview || "").toLowerCase().includes(q),
       )
     : all;
-  els.sessions.innerHTML = "";
+
+  // Group sessions by their project directory (cwd). Groups are ordered by
+  // their most-recent chat, sessions within a group by mtime desc. A search
+  // query force-expands every group so matches are never hidden.
+  const groups = new Map();
   for (const s of list) {
-    const li = document.createElement("li");
-    li.dataset.id = s.id;
-    if (s.id === currentId) li.classList.add("active");
-    const cwd = (s.cwd || "").replace(/^\/home\/[^/]+/, "~");
-    li.innerHTML = `<div class="s-title"></div><div class="s-meta"><span>${fmtTime(
-      s.mtime,
-    )}</span><span class="s-cwd"></span></div>`;
-    li.querySelector(".s-title").textContent = s.title;
-    li.querySelector(".s-cwd").textContent = cwd;
-    li.addEventListener("click", () => openSession(s.id));
-    els.sessions.appendChild(li);
+    const key = s.cwd || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  }
+  for (const arr of groups.values()) arr.sort((a, b) => b.mtime - a.mtime);
+  const order = [...groups.keys()].sort(
+    (a, b) => groups.get(b)[0].mtime - groups.get(a)[0].mtime,
+  );
+
+  els.sessions.innerHTML = "";
+  for (const key of order) {
+    const items = groups.get(key);
+    const isCollapsed = !q && collapsed.has(key);
+
+    const head = document.createElement("li");
+    head.className = "s-group" + (isCollapsed ? " collapsed" : "");
+    head.innerHTML =
+      `<span class="s-caret">▾</span><span class="s-dir"></span>` +
+      `<span class="s-count">${items.length}</span>`;
+    head.querySelector(".s-dir").textContent = prettyDir(key);
+    head.addEventListener("click", () => {
+      if (collapsed.has(key)) collapsed.delete(key);
+      else collapsed.add(key);
+      renderSessions();
+    });
+    els.sessions.appendChild(head);
+
+    if (isCollapsed) continue;
+    for (const s of items) {
+      const li = document.createElement("li");
+      li.className = "s-item";
+      li.dataset.id = s.id;
+      if (s.id === currentId) li.classList.add("active");
+      li.innerHTML = `<div class="s-title"></div><div class="s-meta">${fmtTime(
+        s.mtime,
+      )}</div>`;
+      li.querySelector(".s-title").textContent = s.title;
+      li.addEventListener("click", () => openSession(s.id));
+      els.sessions.appendChild(li);
+    }
   }
 }
 

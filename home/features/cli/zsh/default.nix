@@ -1,6 +1,8 @@
 {
   pkgs,
   vars,
+  lib,
+  isWsl,
   ...
 }:
 
@@ -58,6 +60,11 @@ in
       wrk = "cd ~/wrk";
       mount-homelab = "mkdir -p ~/mnt/homelab && sshfs ${vars.user.name}@${vars.homelab.address}:/data/sync ~/mnt/homelab -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3";
       umount-homelab = "fusermount -u ~/mnt/homelab";
+    }
+    // lib.optionalAttrs isWsl {
+      # omp-web (WSL only): start / stop serving your chats on the tailnet
+      omp-web-up = "sudo systemctl start omp-web nginx omp-web-tailscale-serve";
+      omp-web-down = "sudo systemctl stop omp-web-tailscale-serve omp-web nginx && sudo tailscale serve reset";
     };
 
     oh-my-zsh = {
