@@ -62,9 +62,11 @@ in
       umount-homelab = "fusermount -u ~/mnt/homelab";
     }
     // lib.optionalAttrs isWsl {
-      # omp-web (WSL only): start / stop serving your chats on the tailnet
+      # omp-web + omp-collab (WSL only): start / stop serving on the tailnet.
       omp-web-up = "sudo systemctl start omp-web nginx omp-web-tailscale-serve";
-      omp-web-down = "sudo systemctl stop omp-web-tailscale-serve omp-web nginx && sudo tailscale serve reset";
+      omp-web-down = "sudo systemctl stop omp-web-tailscale-serve omp-web";
+      omp-collab-up = "sudo systemctl start omp-collab-relay nginx omp-collab-tailscale-serve";
+      omp-collab-down = "sudo systemctl stop omp-collab-tailscale-serve omp-collab-relay";
     };
 
     oh-my-zsh = {
