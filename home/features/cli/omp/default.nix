@@ -1,5 +1,8 @@
 {
   pkgs,
+  lib,
+  isWsl,
+  config,
   ...
 }:
 let
@@ -24,9 +27,31 @@ let
     # per-image cap that applies once a request carries more than 20 images.
     extensions = [ "${./prune-context-images.js}" ];
   };
+
+  # On the WSL, point omp's `/collab` at the self-hosted tailnet relay (the
+  # omp-collab module), so live session sharing never touches the public
+  # my.omp.sh. The relay + guest client live on the WSL's own tailnet node, so
+  # the URL is that node's MagicDNS name. Derived at activation
+  # (not hardcoded) to keep the private tailnet name out of this public repo,
+  # and written to a file that rides in PI_CONFIG_FILES. If tailscale is down,
+  # the file is empty and omp falls back to its default relay.
+  collabOverlay = "${config.home.homeDirectory}/.config/omp/collab-overlay.yml";
 in
 {
-  home.sessionVariables = {
-    PI_CONFIG_FILES = "${configOverlay}";
+  home.sessionVariables.PI_CONFIG_FILES =
+    "${configOverlay}" + lib.optionalString isWsl ":${collabOverlay}";
+
+  home.activation = lib.mkIf isWsl {
+    ompCollabOverlay = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      name="$(${pkgs.tailscale}/bin/tailscale status --json 2>/dev/null \
+        | ${pkgs.jq}/bin/jq -r '(.Self.DNSName // "") | rtrimstr(".")' || true)"
+      mkdir -p "$(dirname "${collabOverlay}")"
+      if [ -n "$name" ]; then
+        printf 'collab:\n  relayUrl: wss://%s\n  webUrl: https://%s\n' \
+          "$name" "$name" > "${collabOverlay}"
+      else
+        printf '{}\n' > "${collabOverlay}"
+      fi
+    '';
   };
 }
