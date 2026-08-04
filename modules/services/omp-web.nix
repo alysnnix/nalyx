@@ -123,9 +123,11 @@ in
           | grep -q '"BackendState": *"Running"' && break
         sleep 1
       done
-      ${pkgs.tailscale}/bin/tailscale serve reset || true
+      # Additive: overwrite only our :443 mount, leaving other serves
+      # (e.g. omp-collab on :8443) intact; no node-wide `serve reset`.
       echo "Serving omp-web on the tailnet (HTTPS → nginx 127.0.0.1:${toString nginxPort})"
       ${pkgs.tailscale}/bin/tailscale serve --bg http://127.0.0.1:${toString nginxPort}
     '';
+    preStop = "${pkgs.tailscale}/bin/tailscale serve --https=443 off || true";
   };
 }
