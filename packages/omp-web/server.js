@@ -8,8 +8,9 @@
 // Endpoints:
 //   GET  /                      -> SPA
 //   GET  /app.js /style.css     -> static assets
-//   GET  /api/sessions          -> [{ id, title, preview, cwd, mtime, dir }]
+//   GET  /api/sessions          -> [{ id, title, preview, cwd, mtime, dir, active }]
 //   GET  /api/session?id=<id>   -> { id, title, cwd, messages: [...] }
+//   GET  /api/blob?ref=<blob:sha256:..> -> a stored image blob (historical imgs)
 //   WS   /api/stream?id=<id>    -> continue a session over RPC (streams events)
 //
 // Runs the agent by spawning `omp --mode rpc --resume <file>` in the session's
@@ -295,6 +296,40 @@ async function resolveId(id) {
   return indexById.get(id) || null;
 }
 
+// Session files an interactive omp is holding open on THIS host, matched via
+// `--resume <file>` in /proc cmdlines; our own `--mode rpc` spawns are skipped.
+// Cross-host (e.g. the desktop) is not observable here, only synced files are.
+async function activeSessionBasenames() {
+  const set = new Set();
+  let pids;
+  try {
+    pids = await readdir("/proc");
+  } catch {
+    return set;
+  }
+  await Promise.all(
+    pids.map(async (pid) => {
+      if (!/^\d+$/.test(pid)) return;
+      let cmd = "";
+      try {
+        cmd = await Bun.file(`/proc/${pid}/cmdline`).text();
+      } catch {
+        return;
+      }
+      const args = cmd.split("\0").filter(Boolean);
+      const mode = args.indexOf("--mode");
+      if (mode >= 0 && args[mode + 1] === "rpc") return; // our own spawns
+      let file = "";
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--resume" && args[i + 1]) file = args[i + 1];
+        else if (args[i].startsWith("--resume=")) file = args[i].slice(9);
+      }
+      if (file.endsWith(".jsonl")) set.add(basename(file));
+    }),
+  );
+  return set;
+}
+
 // Full transcript, normalized to display blocks.
 async function readTranscript(file) {
   const text = await Bun.file(file).text();
@@ -344,7 +379,11 @@ async function readTranscript(file) {
               });
               break;
             case "image":
-              blocks.push({ t: "image" });
+              blocks.push({
+                t: "image",
+                ref: b.data || "",
+                mime: b.mimeType || "image/png",
+              });
               break;
             default:
               break;
@@ -469,14 +508,19 @@ const server = Bun.serve({
       return new Response("expected websocket", { status: 426 });
     }
     if (path.endsWith("/api/sessions")) {
+      const [infos, active] = await Promise.all([
+        buildIndex(),
+        activeSessionBasenames(),
+      ]);
       return json(
-        (await buildIndex()).map(({ id, title, preview, cwd, mtime, dir }) => ({
+        infos.map(({ id, title, preview, cwd, mtime, dir, file }) => ({
           id,
           title,
           preview,
           cwd,
           mtime,
           dir,
+          active: active.has(basename(file)),
         })),
       );
     }
@@ -484,6 +528,27 @@ const server = Bun.serve({
       const info = await resolveId(url.searchParams.get("id") || "");
       if (!info) return json({ error: "session not found" }, 404);
       return json(await readTranscript(info.file));
+    }
+    if (path.endsWith("/api/blob")) {
+      const m = /^(?:blob:sha256:)?([a-f0-9]{64})$/i.exec(
+        url.searchParams.get("ref") || "",
+      );
+      if (!m) return json({ error: "bad ref" }, 400);
+      const reqMime = url.searchParams.get("mime") || "";
+      const mime = /^image\/[a-z0-9.+-]+$/i.test(reqMime) ? reqMime : "image/png";
+      const hex = m[1].toLowerCase();
+      const dir = join(homedir(), ".omp", "agent", "blobs");
+      for (const cand of [join(dir, hex), join(dir, hex + ".png")]) {
+        const bf = Bun.file(cand);
+        if (await bf.exists())
+          return new Response(bf, {
+            headers: {
+              "content-type": mime,
+              "cache-control": "private, max-age=31536000, immutable",
+            },
+          });
+      }
+      return json({ error: "not found" }, 404);
     }
     // static
     let name = path.replace(/^.*\/(?=[^/]*$)/, ""); // basename
@@ -515,6 +580,9 @@ const server = Bun.serve({
         sendToOmp(ws, {
           type: "prompt",
           message: msg.message,
+          ...(Array.isArray(msg.images) && msg.images.length
+            ? { images: msg.images }
+            : {}),
           ...(ws.data.streaming ? { streamingBehavior: "followUp" } : {}),
         });
       } else if (msg.type === "abort") {
