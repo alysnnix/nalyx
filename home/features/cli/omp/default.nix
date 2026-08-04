@@ -33,8 +33,9 @@ let
   # my.omp.sh. The relay + guest client live on the WSL's own tailnet node, so
   # the URL is that node's MagicDNS name. Derived at activation
   # (not hardcoded) to keep the private tailnet name out of this public repo,
-  # and written to a file that rides in PI_CONFIG_FILES. If tailscale is down,
-  # the file is empty and omp falls back to its default relay.
+  # and written to a file that rides in PI_CONFIG_FILES. Written only when a
+  # tailscale name is available; a previously-good overlay is never clobbered
+  # if tailscale is momentarily down (e.g. at boot), so it survives cold boots.
   collabOverlay = "${config.home.homeDirectory}/.config/omp/collab-overlay.yml";
 in
 {
@@ -49,7 +50,7 @@ in
       if [ -n "$name" ]; then
         printf 'collab:\n  relayUrl: wss://%s\n  webUrl: https://%s\n' \
           "$name" "$name" > "${collabOverlay}"
-      else
+      elif [ ! -e "${collabOverlay}" ]; then
         printf '{}\n' > "${collabOverlay}"
       fi
     '';
