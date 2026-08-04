@@ -23,11 +23,32 @@ let
   port = 8790; # omp-web loopback
   nginxPort = 18082; # nginx loopback (distinct from tailnet-proxy's 18080)
   ompWeb = pkgs.callPackage ../../packages/omp-web { };
+  # Wrap the service so it derives its own public https base URL from this
+  # node's tailnet name at start. Pins the OAuth redirect URI to https
+  # deterministically, with no manual value and without hardcoding the
+  # (private) tailnet name in this public repo. Falls back to the SOPS
+  # OMP_WEB_BASE_URL / proxy headers if tailscale is not up yet.
+  ompWebStart = pkgs.writeShellApplication {
+    name = "omp-web-start";
+    runtimeInputs = [
+      pkgs.tailscale
+      pkgs.jq
+    ];
+    text = ''
+      name="$(tailscale status --json 2>/dev/null | jq -r '(.Self.DNSName // "") | rtrimstr(".")' || true)"
+      if [ -n "$name" ]; then export OMP_WEB_BASE_URL="https://$name"; fi
+      exec ${lib.getExe ompWeb}
+    '';
+  };
 in
 {
   systemd.services.omp-web = {
     description = "omp-web: browse and continue omp sessions";
-    after = [ "network.target" ];
+    after = [
+      "network.target"
+      "tailscaled.service"
+    ];
+    wants = [ "tailscaled.service" ];
     wantedBy = [ "multi-user.target" ];
     environment = {
       OMP_WEB_HOST = "127.0.0.1";
@@ -36,7 +57,7 @@ in
       OMP_WEB_AUTH = "google";
     };
     serviceConfig = {
-      ExecStart = lib.getExe ompWeb;
+      ExecStart = lib.getExe ompWebStart;
       User = user;
       Restart = "on-failure";
       RestartSec = "5s";
