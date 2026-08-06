@@ -9,6 +9,7 @@
   imports = [
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
+    ../../modules/services/ollama.nix
   ];
 
   wsl = {
