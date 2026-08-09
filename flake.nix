@@ -85,6 +85,7 @@
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
+        codex = llm-agents.packages.${system}.codex;
         herdr = inputs.herdr.packages.${system}.default;
         paseo = inputs.paseo.packages.${system}.default;
         paseo-desktop = inputs.paseo.packages.${system}.desktop;
@@ -157,6 +158,7 @@
                   enableClaude = true;
                   enableGemini = true;
                   enableOpencode = true;
+                  enableCodex = true;
                 };
               };
             }
@@ -234,6 +236,7 @@
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
+              enableCodex = false;
             };
             modules = [
               ./home
