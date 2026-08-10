@@ -19,22 +19,6 @@ in
   home = {
     packages = myScripts ++ [ pkgs.sshfs ];
     sessionPath = [ "$HOME/.local/bin" ];
-
-    file."wrk/.stignore".text = ''
-      node_modules
-      .cache
-      .next
-      target
-      dist
-      __pycache__
-      .venv
-      *.tmp
-      .direnv
-      .devenv
-      .terraform
-      .docker
-      vendor
-    '';
   };
 
   programs.zsh = {
