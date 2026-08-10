@@ -82,11 +82,16 @@
     };
   };
 
-  # Create Playwright's expected Chrome path structure
-  # Playwright expects /opt/google/chrome/chrome (directory with chrome symlink inside)
   systemd.tmpfiles.rules = [
+    # Playwright expects /opt/google/chrome/chrome (directory with chrome symlink inside)
     "d /opt/google/chrome 0755 root root -"
     "L+ /opt/google/chrome/chrome - - - - ${pkgs.google-chrome}/bin/google-chrome"
+
+    # Codex Desktop (Windows) launches the CLI with a hardcoded
+    # `/usr/bin/bash -lc` inside the distro. NixOS only guarantees
+    # /usr/bin/env, so the probe fails with "Codex CLI can't run in NixOS
+    # because /usr/bin/bash is missing". Provide just that one FHS path.
+    "L+ /usr/bin/bash - - - - ${pkgs.bashInteractive}/bin/bash"
   ];
 
   users.users.${vars.user.name} = {
