@@ -50,12 +50,6 @@
   services = {
     tailscale.enable = true;
     openssh.enable = true;
-    # Codex (e afins) resolvem o shell via caminhos hardcoded tipo
-    # /usr/bin/bash, que o NixOS-WSL não popula (só /bin). O envfs monta um
-    # FUSE em /usr/bin que resolve qualquer binário do PATH. O NixOS-WSL tem
-    # suporte first-class: desliga o populateBin e injeta os extraBin no
-    # fallback do envfs automaticamente.
-    envfs.enable = true;
   };
 
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
