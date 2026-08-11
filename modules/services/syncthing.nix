@@ -53,7 +53,14 @@ in
       folders.wrk = {
         id = "wrk";
         path = "/home/${vars.user.name}/wrk";
-        type = "sendreceive";
+        # WSL is receive-only until its wrk tree is re-seeded from the laptop.
+        # Its rootfs was reinstalled on 2026-08-10, so ~/wrk is gone while the
+        # local index still lists ~100k files. As sendreceive the first scan
+        # would announce those as deletions and wipe ~17.5 GB on the laptop.
+        # Receive-only never sends local changes, so the seed is safe: create
+        # ~/wrk, then POST /rest/db/revert?folder=wrk to pull the global tree.
+        # Flip back to sendreceive once needFiles hits 0 on WSL.
+        type = if isWsl then "receiveonly" else "sendreceive";
         devices = [
           "laptop"
           "wsl"
