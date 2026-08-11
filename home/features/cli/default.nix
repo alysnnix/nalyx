@@ -17,6 +17,7 @@
     ./ghostty
     ./herdr
     ./omp
+    ./syncthing
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
