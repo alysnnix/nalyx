@@ -40,15 +40,34 @@
   ];
   nixpkgs.config.allowUnfree = true;
 
+  # O hostname do SO NAO pode mudar: modules/services/syncthing.nix usa
+  # `config.networking.hostName == "nixos-wsl"` para decidir o tipo de cada
+  # pasta. Renomear aqui faria a pasta wrk virar sendreceive e anunciar o
+  # ~/wrk local (possivelmente incompleto) como deleção para os peers.
   networking.hostName = "nixos-wsl";
   system.stateVersion = "24.05";
 
   # Tailscale roda dentro do WSL como nó próprio na tailnet (independente do
   # daemon do Windows). Assim dá pra dar SSH direto no WSL sem passar pelo host
-  # Windows. Autenticar uma vez com `sudo tailscale up`. O WSL só fica online
-  # enquanto a distro estiver rodando.
+  # Windows. O WSL só fica online enquanto a distro estiver rodando.
+  #
+  # O nome do nó é fixado em `wsl-nix` (desacoplado do hostname do SO acima),
+  # porque o FQDN resultante `wsl-nix.<tailnet>.ts.net` é o endereço que o
+  # Syncthing dos peers disca. Nome derivado do hostname sobrevive a reinstall,
+  # mas só se o registro antigo não estiver segurando o nome; a identidade do
+  # nó é preservada pelo seed de tailscaled.state (repo privado).
+  #
+  # Os dois flags são necessários e não são redundantes:
+  #   extraUpFlags  -> só roda no registro (tailscaled-autoconnect, quando o
+  #                    backend está em NeedsLogin/NeedsMachineAuth/Stopped)
+  #   extraSetFlags -> unidade tailscaled-set, roda `tailscale set` em todo
+  #                    boot, então reafirma o nome em nó já registrado
   services = {
-    tailscale.enable = true;
+    tailscale = {
+      enable = true;
+      extraUpFlags = [ "--hostname=wsl-nix" ];
+      extraSetFlags = [ "--hostname=wsl-nix" ];
+    };
     openssh.enable = true;
   };
 
