@@ -90,15 +90,38 @@ else
 fi
 
 echo "  pulling repos in parallel..."
-git -C "$FLAKE_DIR" pull --ff-only 2>/dev/null &
+# Keep stderr: a swallowed git error is what makes a stale build look like a
+# successful one.
+git -C "$FLAKE_DIR" pull --ff-only >/dev/null &
 PID_NALYX=$!
 
 EXTRA_ARGS=()
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
-  git -C "$PRIVATE_DIR" pull --ff-only 2>/dev/null &
+  git -C "$PRIVATE_DIR" pull --ff-only >/dev/null &
   PID_PRIVATE=$!
-  wait "$PID_PRIVATE" || echo "  private: pull failed, using local version"
+  PRIVATE_PULL_OK=1
+  wait "$PID_PRIVATE" || PRIVATE_PULL_OK=0
   echo "  private: $PRIVATE_DIR"
+
+  # The private repo carries secrets and peer addresses, and it is injected by
+  # path, so a failed pull silently builds the previous revision. That drift is
+  # invisible until something downstream breaks (a Syncthing peer that no longer
+  # resolves, a rotated secret that never lands). Fail loudly instead, but only
+  # when the local checkout is actually behind: a dirty tree with no incoming
+  # commits is the normal state right after editing secrets locally.
+  if [ "$PRIVATE_PULL_OK" -eq 0 ]; then
+    git -C "$PRIVATE_DIR" fetch --quiet origin 2>/dev/null || true
+    BEHIND="$(git -C "$PRIVATE_DIR" rev-list --count 'HEAD..@{upstream}' 2>/dev/null || echo 0)"
+    if [ "$BEHIND" -gt 0 ]; then
+      echo "  private: ERROR pull failed and the checkout is $BEHIND commit(s) behind"
+      echo "  private: building now would use a stale private config; aborting."
+      echo "  private: resolve it in $PRIVATE_DIR (commit, stash or reset), then rerun"
+      restore_state
+      exit 1
+    fi
+    echo "  private: warning, pull failed but nothing to pull (dirty tree?), using local"
+  fi
+
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
 else
   echo "  private: (not found, using defaults)"
