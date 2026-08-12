@@ -43,50 +43,92 @@ echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
 echo "  host:  $HOST"
 
-ORIGINAL_BRANCH=""
-STASHED=0
+# Per-repo state so both checkouts can be put back exactly as they were.
+NALYX_BRANCH=""
+NALYX_STASHED=0
+PRIVATE_BRANCH=""
+PRIVATE_STASHED=0
 
-restore_state() {
-  if [ -n "$ORIGINAL_BRANCH" ]; then
-    if git -C "$FLAKE_DIR" checkout "$ORIGINAL_BRANCH" 2>/dev/null; then
-      echo "  branch: returned to $ORIGINAL_BRANCH"
+# Restore one repo: branch first, then the stash, so the pop lands on the same
+# tree it was taken from.
+# shellcheck disable=SC2329  # invoked from restore_state, which the EXIT trap calls
+restore_repo() {
+  local dir="$1" label="$2" branch="$3" stashed="$4"
+  [ -d "$dir/.git" ] || return 0
+  if [ -n "$branch" ]; then
+    if git -C "$dir" checkout --quiet "$branch"; then
+      echo "  $label: returned to $branch"
     else
-      echo "  branch: failed to return to $ORIGINAL_BRANCH"
+      echo "  $label: failed to return to $branch"
     fi
   fi
-  if [ "$STASHED" -eq 1 ]; then
-    if git -C "$FLAKE_DIR" stash pop 2>/dev/null; then
-      echo "  stash: restored local changes"
+  if [ "$stashed" -eq 1 ]; then
+    if git -C "$dir" stash pop --quiet; then
+      echo "  $label: restored local changes"
     else
-      echo "  stash: failed to restore, check 'git stash list'"
+      echo "  $label: failed to restore stash, check 'git stash list'"
+    fi
+  fi
+}
+
+# shellcheck disable=SC2329  # invoked indirectly via `trap restore_state EXIT`
+restore_state() {
+  restore_repo "$FLAKE_DIR" nalyx "$NALYX_BRANCH" "$NALYX_STASHED"
+  restore_repo "$PRIVATE_DIR" private "$PRIVATE_BRANCH" "$PRIVATE_STASHED"
+  # Idempotent on purpose: this also runs from the EXIT trap, and a second
+  # `stash pop` would pop an unrelated entry off the stack.
+  NALYX_BRANCH=""
+  NALYX_STASHED=0
+  PRIVATE_BRANCH=""
+  PRIVATE_STASHED=0
+}
+
+# Move a repo to main so the build uses the shared revision, reporting back
+# through namerefs what had to be changed. Both repos need this: the private one
+# is injected by path, so leaving it on a feature branch builds that branch's
+# secrets and peer addresses while the public side builds main.
+enter_main() {
+  local dir="$1" label="$2"
+  local -n branch_out="$3" stashed_out="$4"
+  local current
+  current="$(git -C "$dir" branch --show-current 2>/dev/null)" || return 0
+  # Empty means detached HEAD; do not touch it.
+  [ -n "$current" ] || return 0
+  if [ "$current" = "main" ]; then
+    echo "  $label: already on main"
+    return 0
+  fi
+  if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+    if git -C "$dir" stash push -u -m "switch: auto-stash before main" >/dev/null; then
+      stashed_out=1
+      echo "  $label: stashed local changes from $current"
+    else
+      echo "  $label: stash failed, staying on $current"
+      return 0
+    fi
+  fi
+  if git -C "$dir" checkout --quiet main; then
+    # shellcheck disable=SC2034  # nameref: writes to the caller's variable
+    branch_out="$current"
+    echo "  $label: switched to main (from $current)"
+  else
+    echo "  $label: checkout main failed, staying on $current"
+    if [ "$stashed_out" -eq 1 ]; then
+      git -C "$dir" stash pop --quiet && stashed_out=0
+      echo "  $label: restored local changes"
     fi
   fi
 }
 
 if [ "$NO_MAIN" -eq 0 ]; then
-  CURRENT_BRANCH="$(git -C "$FLAKE_DIR" branch --show-current)"
-  if [ "$CURRENT_BRANCH" = "main" ]; then
-    echo "  branch: already on main"
-  else
-    if [ -n "$(git -C "$FLAKE_DIR" status --porcelain)" ]; then
-      git -C "$FLAKE_DIR" stash push -u -m "switch: auto-stash before main"
-      STASHED=1
-      echo "  stash: saved local changes from $CURRENT_BRANCH"
-    fi
-    if git -C "$FLAKE_DIR" checkout main 2>/dev/null; then
-      ORIGINAL_BRANCH="$CURRENT_BRANCH"
-      trap restore_state EXIT
-      echo "  branch: switched to main (from $CURRENT_BRANCH)"
-    else
-      echo "  branch: checkout main failed, staying on $CURRENT_BRANCH"
-      if [ "$STASHED" -eq 1 ]; then
-        git -C "$FLAKE_DIR" stash pop 2>/dev/null && STASHED=0
-        echo "  stash: restored local changes"
-      fi
-    fi
+  # Armed before touching anything so a failure halfway through still restores.
+  trap restore_state EXIT
+  enter_main "$FLAKE_DIR" nalyx NALYX_BRANCH NALYX_STASHED
+  if [ -d "$PRIVATE_DIR/.git" ]; then
+    enter_main "$PRIVATE_DIR" private PRIVATE_BRANCH PRIVATE_STASHED
   fi
 else
-  echo "  branch: --no-main, staying on $(git -C "$FLAKE_DIR" branch --show-current)"
+  echo "  branch: --no-main, staying on nalyx=$(git -C "$FLAKE_DIR" branch --show-current)$([ -d "$PRIVATE_DIR/.git" ] && echo " private=$(git -C "$PRIVATE_DIR" branch --show-current)")"
 fi
 
 echo "  pulling repos in parallel..."
@@ -116,7 +158,7 @@ if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
       echo "  private: ERROR pull failed and the checkout is $BEHIND commit(s) behind"
       echo "  private: building now would use a stale private config; aborting."
       echo "  private: resolve it in $PRIVATE_DIR (commit, stash or reset), then rerun"
-      restore_state
+      # No explicit restore_state here: exit fires the EXIT trap, which does it.
       exit 1
     fi
     echo "  private: warning, pull failed but nothing to pull (dirty tree?), using local"
