@@ -4,6 +4,7 @@
   enableClaude ? true,
   enableGemini ? true,
   enableOpencode ? true,
+  enableCodex ? true,
   isServer ? false,
   ...
 }:
@@ -16,10 +17,12 @@
     ./ghostty
     ./herdr
     ./omp
+    ./syncthing
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
-  ++ (lib.optional enableOpencode ./opencode);
+  ++ (lib.optional enableOpencode ./opencode)
+  ++ (lib.optional enableCodex ./codex);
 
   home.packages =
     with pkgs;

@@ -53,6 +53,16 @@ in
       folders.wrk = {
         id = "wrk";
         path = "/home/${vars.user.name}/wrk";
+        # Bidirectional again on every host. WSL was pinned to receiveonly on
+        # 2026-08-10 because its rootfs had been reinstalled: ~/wrk was empty
+        # while the local index still listed ~100k files, and as sendreceive the
+        # first scan would have announced those as deletions and wiped ~17.5 GB
+        # on the laptop.
+        #
+        # That reseed is done: ~/wrk was repopulated from the local restore and
+        # the folder reached needFiles = 0 / errors = 0, so there is nothing left
+        # to mistake for a deletion. Keeping it receiveonly now is actively
+        # harmful, since it lets the peer's older copy overwrite work done here.
         type = "sendreceive";
         devices = [
           "laptop"

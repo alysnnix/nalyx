@@ -85,6 +85,7 @@
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
+        codex = llm-agents.packages.${system}.codex;
         herdr = inputs.herdr.packages.${system}.default;
         paseo = inputs.paseo.packages.${system}.default;
         paseo-desktop = inputs.paseo.packages.${system}.desktop;
@@ -123,6 +124,7 @@
           isWsl ? false,
           isServer ? false,
           hostVars ? vars,
+          enableCodex ? true,
         }:
         nixpkgs.lib.nixosSystem {
           inherit system;
@@ -157,6 +159,7 @@
                   enableClaude = true;
                   enableGemini = true;
                   enableOpencode = true;
+                  inherit enableCodex;
                 };
               };
             }
@@ -186,6 +189,10 @@
         desktop = fnMountSystem { hostname = "desktop"; };
         laptop = fnMountSystem {
           hostname = "laptop";
+          # codex (llm-agents) has no binary cache and compiles from source,
+          # which OOMs the laptop during switch. Aly only works on WSL, so
+          # codex on the laptop is dead weight; disable it here.
+          enableCodex = false;
           hostVars = vars // {
             desktop = "gnome";
           };
@@ -234,6 +241,7 @@
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
+              enableCodex = false;
             };
             modules = [
               ./home
