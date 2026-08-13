@@ -40,15 +40,87 @@
   ];
   nixpkgs.config.allowUnfree = true;
 
+  # O hostname do SO NAO pode mudar: modules/services/syncthing.nix usa
+  # `config.networking.hostName == "nixos-wsl"` para decidir o tipo de cada
+  # pasta. Renomear aqui faria a pasta wrk virar sendreceive e anunciar o
+  # ~/wrk local (possivelmente incompleto) como deleção para os peers.
   networking.hostName = "nixos-wsl";
   system.stateVersion = "24.05";
 
+  # O WSL herda o MTU do host Windows e sobe o eth0 com 1280, o mesmo valor que
+  # o Tailscale usa no tailscale0. Sem folga para o overhead do WireGuard (~60
+  # bytes), todo pacote grande morre em silêncio: o handshake SSH trava exato em
+  # `expecting SSH2_MSG_KEX_ECDH_REPLY`, que é o primeiro pacote grande, e o
+  # Syncthing fica reconectando sem nunca transferir. Buraco negro de MTU
+  # clássico, sem ICMP de volta.
+  #
+  # Medido no caminho para o laptop, com as duas interfaces em 1280:
+  # passa até 1208 bytes, bloqueia a partir de 1228.
+  #
+  # 1420 em vez de 1500 de propósito. Os adaptadores do host são:
+  #   vEthernet (WSL) 1500 | Ethernet 1500 | NordLynx 1420 | Tailscale 1280
+  # Parte do tráfego sai pelo NordLynx quando a VPN do Windows está conectada,
+  # então 1420 é o menor MTU real de saída e não depende de PMTU discovery.
+  # Ainda sobra folga: 1280 do tailscale0 + 60 de overhead = 1340 < 1420.
+  #
+  # Feito em unidade explícita, e não com `networking.interfaces.eth0.mtu`:
+  # nesse host essa opção é no-op. Em modo scripted ela vira um `.link` de udev
+  # (`systemd.network.links."40-eth0"`), mas os `.link` só são escritos em
+  # /etc/systemd/network quando networkd está ligado, e aqui
+  # `networking.useNetworkd = false` e o diretório nem existe. Além disso o WSL
+  # cria o eth0 fora do udev, então um `.link` não seria aplicado de qualquer
+  # forma. `ip link set` é determinístico e independe de qual stack de rede está
+  # ativo.
+  systemd.services.wsl-eth0-mtu = {
+    description = "Set eth0 MTU to leave room for WireGuard encapsulation";
+    wantedBy = [ "multi-user.target" ];
+    before = [ "tailscaled.service" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      # O WSL configura o eth0 por conta própria e o timing não é garantido.
+      for _ in $(seq 1 30); do
+        [ -e /sys/class/net/eth0 ] && break
+        sleep 1
+      done
+      if [ ! -e /sys/class/net/eth0 ]; then
+        echo "eth0 never appeared, nothing to do"
+        exit 0
+      fi
+      current="$(cat /sys/class/net/eth0/mtu)"
+      if [ "$current" = "1420" ]; then
+        echo "eth0 already at MTU 1420"
+        exit 0
+      fi
+      ${pkgs.iproute2}/bin/ip link set dev eth0 mtu 1420
+      echo "eth0 MTU $current -> $(cat /sys/class/net/eth0/mtu)"
+    '';
+  };
+
   # Tailscale roda dentro do WSL como nó próprio na tailnet (independente do
   # daemon do Windows). Assim dá pra dar SSH direto no WSL sem passar pelo host
-  # Windows. Autenticar uma vez com `sudo tailscale up`. O WSL só fica online
-  # enquanto a distro estiver rodando.
+  # Windows. O WSL só fica online enquanto a distro estiver rodando.
+  #
+  # O nome do nó é fixado em `wsl-nix` (desacoplado do hostname do SO acima),
+  # porque o FQDN resultante `wsl-nix.<tailnet>.ts.net` é o endereço que o
+  # Syncthing dos peers disca. Nome derivado do hostname sobrevive a reinstall,
+  # mas só se o registro antigo não estiver segurando o nome; a identidade do
+  # nó é preservada pelo seed de tailscaled.state (repo privado).
+  #
+  # Os dois flags são necessários e não são redundantes:
+  #   extraUpFlags  -> só roda no registro (tailscaled-autoconnect, quando o
+  #                    backend está em NeedsLogin/NeedsMachineAuth/Stopped)
+  #   extraSetFlags -> unidade tailscaled-set, roda `tailscale set` em todo
+  #                    boot, então reafirma o nome em nó já registrado
   services = {
-    tailscale.enable = true;
+    tailscale = {
+      enable = true;
+      extraUpFlags = [ "--hostname=wsl-nix" ];
+      extraSetFlags = [ "--hostname=wsl-nix" ];
+    };
     openssh.enable = true;
   };
 
