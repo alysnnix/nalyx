@@ -14,6 +14,18 @@
         "flakes"
       ];
       auto-optimise-store = true;
+
+      # llm-agents.nix builds codex, omp and gemini-cli from source and pushes
+      # them to its own cache daily. Its flake declares this substituter under
+      # `nixConfig`, but a flake's nixConfig only applies while it IS the
+      # top-level flake, never when it is consumed as an input, so every host
+      # recompiled the codex Rust workspace and omp on each pin bump.
+      # Verified: codex and omp resolve on cache.numtide.com and 404 on
+      # cache.nixos.org.
+      extra-substituters = [ "https://cache.numtide.com" ];
+      extra-trusted-public-keys = [
+        "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+      ];
     };
     optimise.automatic = true;
     gc = {
