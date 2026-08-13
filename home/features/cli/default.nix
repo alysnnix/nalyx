@@ -4,7 +4,6 @@
   enableClaude ? true,
   enableGemini ? true,
   enableOpencode ? true,
-  enableCodex ? true,
   isServer ? false,
   ...
 }:
@@ -21,8 +20,7 @@
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
-  ++ (lib.optional enableOpencode ./opencode)
-  ++ (lib.optional enableCodex ./codex);
+  ++ (lib.optional enableOpencode ./opencode);
 
   home.packages =
     with pkgs;
