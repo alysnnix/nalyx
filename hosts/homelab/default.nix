@@ -9,6 +9,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/core/default.nix
+    ../../modules/services/hermes.nix
   ];
 
   networking = {

@@ -42,7 +42,7 @@ Private modules are only referenced in `flake.nix` — no public module knows th
 | Shell | Zsh |
 | Drivers | NVIDIA, Intel |
 | AI Tools | Claude Code, Gemini CLI, OpenCode |
-| Services | Tailscale, Syncthing, NordVPN |
+| Services | Tailscale, Syncthing, NordVPN, Hermes Agent |
 
 ## Hosts
 
@@ -52,7 +52,7 @@ Private modules are only referenced in `flake.nix` — no public module knows th
 | `laptop` | Notebook | Hyprland/GNOME | Intel, KDE Connect |
 | `wsl` | WSL2 | None | Docker, Pritunl, Playwright |
 | `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
-| `homelab` | Server | None | Tailscale, Syncthing |
+| `homelab` | Server | None | Tailscale, Hermes Agent |
 
 There is also a standalone `homeConfigurations.wsl-ubuntu` for Ubuntu WSL without NixOS.
 
@@ -64,7 +64,7 @@ modules/
   core/          # Base system (all hosts)
   desktop/       # Hyprland, GNOME (system-level)
   drivers/       # NVIDIA, Intel
-  services/      # NordVPN, Syncthing
+  services/      # NordVPN, Syncthing, Hermes Agent
   secureboot/    # Lanzaboote (optional)
 home/
   default.nix    # Root HM config
