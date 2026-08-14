@@ -212,7 +212,7 @@
         # Homelab server (headless, no desktop)
         homelab = fnMountSystem {
           hostname = "homelab";
-          extraModules = privateNixosModule "homelab" ++ privateNixosModule "openclaw";
+          extraModules = privateNixosModule "homelab";
           isServer = true;
           hostVars = vars // {
             desktop = null;

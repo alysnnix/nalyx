@@ -9,8 +9,6 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/core/default.nix
-    ../../modules/services/openclaw.nix
-    ../../modules/services/tailnet-proxy.nix
   ];
 
   networking = {
