@@ -54,7 +54,6 @@ let
               enableClaude = true;
               enableGemini = true;
               enableOpencode = true;
-              enableCodex = true;
             };
           };
         }
