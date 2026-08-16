@@ -56,6 +56,13 @@
       url = "github:NousResearch/hermes-agent/v2026.8.13";
     };
 
+    # microvm.nix: runs the hermes agent in a KVM guest with its own kernel.
+    # Follows nixpkgs because the guest is a NixOS system built from it.
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";

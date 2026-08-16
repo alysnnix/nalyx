@@ -1,40 +1,70 @@
-# Hermes Agent - the homelab's 24/7 messaging gateway.
+# Hermes Agent - the homelab's 24/7 messaging gateway, inside a micro-VM.
 #
-# Upstream ships its own NixOS module (`services.hermes-agent`), so this file
-# only covers the four things upstream leaves out:
+# Isolation: the agent runs in its own NixOS guest with its own kernel, booted
+# through KVM. This is the same class of boundary the previous OpenClaw
+# deployment got from Kata Containers, and for the same reason: the agent reads
+# untrusted input and executes shell commands, and upstream is blunt about what
+# that means - "The only security boundary against an adversarial LLM is the
+# operating system. Nothing inside the agent process constitutes containment."
 #
-#   1. Profiles. Upstream models one profile per module instance, but profile
-#      routing serves several personas from a single gateway process, and
-#      `hermes profile create` is interactive. The profile trees are therefore
-#      seeded declaratively here.
-#   2. Egress policy. The agent reads untrusted input (chat, web fetches), so it
-#      may reach the internet but never the LAN, the host or the tailnet. This
-#      replaces the DOCKER-USER rules of the previous container deployment.
-#   3. Its own resolver. NetworkManager points /etc/resolv.conf at the LAN
-#      router, which rule 2 rejects, so the unit gets public resolvers instead.
-#   4. systemd hardening past upstream's baseline.
+# Kata is not reused because it drags Docker back in: the upstream NixOS module's
+# container mode hardcodes `--network=host` before its `extraOptions` escape
+# hatch, and Kata 3.x needs Docker pinned to 25.x (moby/moby#47626). microvm.nix
+# gives the same hardware boundary declaratively, with no container runtime and
+# no root daemon on the host.
 #
-# Persona content, channel credentials and routes live in the private repo.
+# Network policy: internet YES, LAN/host/tailnet NO. The guest's only path out is
+# SLIRP inside the hypervisor process, so `IPAddressDeny` on that one unit is a
+# boundary the guest cannot route around - it has no other interface.
 #
-# Management:
-#   systemctl status hermes-agent      - check status
-#   journalctl -u hermes-agent -f      - follow logs
-#   sudo -u hermes hermes doctor       - diagnose configuration
+# Management (from the host):
+#   systemctl status microvm@hermes        - hypervisor process
+#   journalctl -u microvm@hermes -f        - guest console and kernel log
+#   ssh -p 2222 root@127.0.0.1             - shell inside the guest
+#   systemctl restart microvm@hermes       - reboot the guest
 #
-# Config is Nix-owned: the unit sets HERMES_MANAGED=true, so `hermes config set`
-# and `hermes update` refuse to run and point at `nixos-rebuild` instead.
+# Config is Nix-owned: the guest unit sets HERMES_MANAGED=true, so `hermes config
+# set` and `hermes update` refuse to run and point at `nixos-rebuild` instead.
 {
   config,
   lib,
   pkgs,
   inputs,
+  vars,
   ...
 }:
 let
-  cfg = config.services.hermes-agent;
-  inherit (config.nalyx.hermes) profiles;
+  cfg = config.nalyx.hermes;
 
-  hermesHome = "${cfg.stateDir}/.hermes";
+  # Host paths. The state directory is shared into the guest read-write and holds
+  # everything the agent owns: its SQLite DB, sessions, skills and memories.
+  stateDir = "/var/lib/hermes";
+  secretsDir = "/run/hermes-secrets";
+
+  # The guest's hermes user is pinned so the state directory on the host can be
+  # owned by the matching numeric ids. virtiofs passes uid/gid through untouched,
+  # so a mismatch here means the agent cannot write to its own state.
+  hermesUid = 990;
+  hermesGid = 990;
+
+  # Loopback-only SSH into the guest. Needed for the interactive commands that
+  # refuse to run without a TTY (`hermes claw migrate`, `hermes whatsapp`), which
+  # is what `docker exec -it openclaw` used to cover.
+  sshPort = 2222;
+
+  # Everything the agent must never reach: RFC1918, link-local and the CGNAT
+  # range Tailscale allocates from. Only IPAddressDeny is set, never
+  # IPAddressAllow, because Allow takes precedence over Deny in systemd and
+  # `allow=any` would silently defeat the whole list.
+  blockedRanges = [
+    "10.0.0.0/8"
+    "172.16.0.0/12"
+    "192.168.0.0/16"
+    "169.254.0.0/16"
+    "100.64.0.0/10"
+    "fc00::/7"
+    "fe80::/10"
+  ];
 
   # hermes_cli/profiles.py:_PROFILE_DIRS - a profile is a full parallel
   # HERMES_HOME, so every one of these has to exist before the gateway routes a
@@ -51,34 +81,15 @@ let
     "home"
   ];
 
-  # Everything the agent must never reach: RFC1918, link-local, and the CGNAT
-  # range Tailscale allocates from.
-  blockedV4 = [
-    "10.0.0.0/8"
-    "172.16.0.0/12"
-    "192.168.0.0/16"
-    "169.254.0.0/16"
-    "100.64.0.0/10"
-  ];
-  blockedV6 = [
-    "fc00::/7"
-    "fe80::/10"
-  ];
-
-  resolvConf = pkgs.writeText "hermes-resolv.conf" ''
-    nameserver 1.1.1.1
-    nameserver 9.9.9.9
-  '';
-
   # Files Nix owns inside a profile. Rewritten on every activation: Nix is the
-  # source of truth for identity and model choice, the agent owns everything
-  # else under the profile (memories it curates, skills it writes, sessions).
+  # source of truth for identity and model choice, the agent owns everything else
+  # under the profile (the memories it curates, the skills it writes, sessions).
   seedFiles =
     profile:
     lib.optionalAttrs (profile.soul != null) { "SOUL.md" = profile.soul; }
     // lib.optionalAttrs (profile.settings != { }) {
-      # YAML is a superset of JSON, and hermes reads config.yaml with
-      # yaml.safe_load - same trick upstream's own module uses.
+      # YAML is a superset of JSON and hermes reads config.yaml with
+      # yaml.safe_load - the same trick upstream's own module uses.
       "config.yaml" = builtins.toJSON profile.settings;
     }
     // profile.documents;
@@ -86,171 +97,275 @@ let
   seedProfile =
     name: profile:
     let
-      dir = "${hermesHome}/profiles/${name}";
-      mkDir = sub: "install -d -o ${cfg.user} -g ${cfg.group} -m 2770 ${dir}/${sub}\n";
+      dir = "${stateDir}/.hermes/profiles/${name}";
+      mkDir = sub: "install -d -o hermes -g hermes -m 2770 ${dir}/${sub}\n";
       mkFile =
         rel: content:
         let
           label = lib.replaceStrings [ "/" ] [ "-" ] rel;
           file = pkgs.writeText "hermes-profile-${name}-${label}" content;
         in
-        "install -o ${cfg.user} -g ${cfg.group} -m 0640 ${file} ${dir}/${rel}\n";
+        "install -o hermes -g hermes -m 0640 ${file} ${dir}/${rel}\n";
     in
     lib.concatStrings (
       [ (mkDir "") ] ++ map mkDir profileDirs ++ lib.mapAttrsToList mkFile (seedFiles profile)
     );
-
-  rejectRules =
-    binary: reject: nets:
-    lib.concatMapStrings (
-      net:
-      "${binary} -A OUTPUT -m owner --uid-owner ${cfg.user} -d ${net} -j REJECT --reject-with ${reject}\n"
-    ) nets;
-
-  deleteRules =
-    binary: reject: nets:
-    lib.concatMapStrings (
-      net:
-      "${binary} -D OUTPUT -m owner --uid-owner ${cfg.user} -d ${net} -j REJECT --reject-with ${reject} 2>/dev/null || true\n"
-    ) nets;
 in
 {
-  imports = [ inputs.hermes-agent.nixosModules.default ];
+  imports = [ inputs.microvm.nixosModules.host ];
 
-  options.nalyx.hermes.profiles = lib.mkOption {
-    default = { };
-    description = ''
-      Extra Hermes profiles to seed under `$HERMES_HOME/profiles/<name>`.
+  options.nalyx.hermes = {
+    enable = lib.mkEnableOption "the Hermes Agent gateway, isolated in a micro-VM";
 
-      A profile is an isolated persona: its own system prompt, workspace,
-      model, skills, memories and sessions, all served by the single gateway
-      process. Bind one to a channel with `gateway.profile_routes`; messages
-      that match no route are handled by the root profile instead.
-    '';
-    type = lib.types.attrsOf (
-      lib.types.submodule {
-        options = {
-          soul = lib.mkOption {
-            type = lib.types.nullOr lib.types.lines;
-            default = null;
-            description = "SOUL.md contents - the persona, injected as the identity slot of the system prompt.";
+    vcpu = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 4;
+      description = "vCPUs given to the guest.";
+    };
+
+    mem = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 4096;
+      description = ''
+        Guest RAM in MiB. Unlike the memory limit of the previous container
+        deployment this is a reservation: the host loses it for as long as the
+        guest runs.
+      '';
+    };
+
+    secretsFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "/run/hermes-secrets/hermes.env";
+      description = ''
+        Host path to a rendered dotenv file with the agent's credentials, which
+        must live under `${secretsDir}` so it is the only secret shared into the
+        guest. Point it at a sops-nix template rendered to that directory.
+      '';
+    };
+
+    settings = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "Hermes `config.yaml` for the root profile, merged by the upstream module.";
+    };
+
+    environment = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      description = "Non-secret environment variables written to the agent's `.env`.";
+    };
+
+    profiles = lib.mkOption {
+      default = { };
+      description = ''
+        Extra Hermes profiles to seed under `$HERMES_HOME/profiles/<name>`.
+
+        A profile is an isolated persona: its own system prompt, workspace,
+        model, skills, memories and sessions, all served by the single gateway
+        process. Bind one to a channel with `gateway.profile_routes`; messages
+        that match no route are handled by the root profile instead.
+      '';
+      type = lib.types.attrsOf (
+        lib.types.submodule {
+          options = {
+            soul = lib.mkOption {
+              type = lib.types.nullOr lib.types.lines;
+              default = null;
+              description = "SOUL.md contents - the persona, injected as the identity slot of the system prompt.";
+            };
+
+            settings = lib.mkOption {
+              type = lib.types.attrs;
+              default = { };
+              description = "The profile's own config.yaml, for per-persona overrides such as `model`.";
+            };
+
+            documents = lib.mkOption {
+              type = lib.types.attrsOf lib.types.lines;
+              default = { };
+              example = lib.literalExpression ''{ "workspace/AGENTS.md" = "# Project context"; }'';
+              description = "Extra files to write, keyed by path relative to the profile root.";
+            };
           };
-
-          settings = lib.mkOption {
-            type = lib.types.attrs;
-            default = { };
-            description = "The profile's own config.yaml, for per-persona overrides such as `model`.";
-          };
-
-          documents = lib.mkOption {
-            type = lib.types.attrsOf lib.types.lines;
-            default = { };
-            example = lib.literalExpression ''{ "workspace/AGENTS.md" = "# Project context"; }'';
-            description = "Extra files to write, keyed by path relative to the profile root.";
-          };
-        };
-      }
-    );
+        }
+      );
+    };
   };
 
   config = lib.mkIf cfg.enable {
-    # Non-secret defaults. The private module supplies credentials, routes and
-    # personas on top.
-    services.hermes-agent = {
-      # Tools the agent actually needs on a headless box. The gateway's PATH
-      # already carries bash, coreutils and git from upstream.
-      extraPackages = with pkgs; [
-        gh
-        jq
-        ripgrep
-        openssh
-        ffmpeg
-      ];
+    # Hardware virtualisation for the guest. Carried over from the Kata setup,
+    # which needed the same modules; the microvm host module loads only tap and
+    # vhost_net itself.
+    boot.kernelModules = [
+      "kvm-intel"
+      "kvm-amd"
+    ];
 
-      settings = {
-        # The security boundary is this systemd unit, not a nested sandbox.
-        # `docker` here would need /var/run/docker.sock, which is root on the
-        # host, and it would still leave MCP servers, plugins, hooks and skills
-        # running outside it.
-        terminal.backend = "local";
+    systemd.tmpfiles.rules = [
+      # Owned by the guest's numeric hermes uid/gid, because virtiofs passes ids
+      # through and the microvm host module would otherwise create this as
+      # microvm:kvm, which the agent cannot write to.
+      "d ${stateDir} 2770 ${toString hermesUid} ${toString hermesGid} - -"
+      "d ${secretsDir} 0700 root root - -"
+    ];
 
-        # Voice notes transcribed locally with faster-whisper (already in the
-        # default Nix package, together with ffmpeg above). No cloud STT key.
-        stt = {
-          enabled = true;
-          provider = "local";
-          local.model = "base";
+    microvm.vms.hermes = {
+      # Fully declarative: `nixos-rebuild switch` on the host rebuilds the guest
+      # closure AND restarts the guest. A `flake`-based VM would need a separate
+      # `microvm -u hermes`.
+      config = {
+        imports = [ inputs.hermes-agent.nixosModules.default ];
+
+        microvm = {
+          # The only hypervisor that supports user-mode networking, virtiofs and
+          # credential files at once.
+          hypervisor = "qemu";
+          inherit (cfg) vcpu mem;
+
+          # SLIRP user networking: no tap, no bridge, no systemd-networkd. The
+          # host runs NetworkManager and never sees this interface at all.
+          interfaces = [
+            {
+              type = "user";
+              id = "hermes0";
+              mac = "02:00:00:00:7a:01";
+            }
+          ];
+
+          forwardPorts = [
+            {
+              from = "host";
+              proto = "tcp";
+              host = {
+                address = "127.0.0.1";
+                port = sshPort;
+              };
+              guest.port = 22;
+            }
+          ];
+
+          shares = [
+            {
+              # Declaring the store share is what keeps the guest from building a
+              # whole disk image on every closure change.
+              tag = "ro-store";
+              source = "/nix/store";
+              mountPoint = "/nix/.ro-store";
+              proto = "virtiofs";
+            }
+            {
+              tag = "hermes-state";
+              source = stateDir;
+              mountPoint = stateDir;
+              proto = "virtiofs";
+            }
+            {
+              tag = "hermes-secrets";
+              source = secretsDir;
+              mountPoint = secretsDir;
+              proto = "virtiofs";
+              readOnly = true;
+            }
+          ];
         };
 
-        # `smart` pre-screens destructive shell commands instead of running
-        # everything unattended. cron_mode defaults to `deny`, which would hang
-        # scheduled jobs on an approval nobody sees.
-        approvals = {
-          mode = "smart";
-          cron_mode = "approve";
+        networking = {
+          hostName = "hermes";
+
+          # SLIRP hands out 10.0.2.15 over its built-in DHCP, but its DNS
+          # forwarder at 10.0.2.3 resolves through the host, whose resolver is on
+          # the LAN and therefore blocked. Resolve publicly instead, and stop
+          # dhcpcd from putting the SLIRP forwarder back into resolv.conf.
+          nameservers = [
+            "1.1.1.1"
+            "9.9.9.9"
+          ];
+          dhcpcd.extraConfig = "nohook resolv.conf";
+
+          # Only the loopback-forwarded SSH port is reachable, and only from the
+          # host.
+          firewall.allowedTCPPorts = [ 22 ];
         };
 
-        # Required for `gateway.profile_routes` to be read at all.
-        gateway.multiplex_profiles = true;
+        # Same key source as the host, so the guest is reachable with the keys
+        # Aly already carries.
+        services.openssh = {
+          enable = true;
+          settings = {
+            PermitRootLogin = "prohibit-password";
+            PasswordAuthentication = false;
+          };
+        };
+        users = {
+          users.root.openssh.authorizedKeys.keyFiles =
+            config.users.users.${vars.user.name}.openssh.authorizedKeys.keyFiles;
+
+          # Pinned so the shared state directory's ownership on the host matches.
+          users.hermes.uid = hermesUid;
+          groups.hermes.gid = hermesGid;
+        };
+
+        services.hermes-agent = {
+          enable = true;
+          inherit (cfg) settings environment;
+          environmentFiles = lib.optional (cfg.secretsFile != null) cfg.secretsFile;
+
+          # Tools the agent needs on a headless box. The gateway's PATH already
+          # carries bash, coreutils and git from upstream.
+          extraPackages = with pkgs; [
+            gh
+            jq
+            ripgrep
+            openssh
+            ffmpeg
+          ];
+        };
+
+        # Defence in depth. The micro-VM is the boundary; this bounds what a
+        # compromised agent can do to its own guest before it gets there.
+        systemd.services.hermes-agent.serviceConfig = {
+          # Upstream leaves this off so the local terminal backend can see a real
+          # user's ~/.ssh and ~/.gitconfig. Nothing else lives in this guest.
+          ProtectHome = lib.mkForce true;
+
+          CapabilityBoundingSet = "";
+          AmbientCapabilities = "";
+          LockPersonality = true;
+          PrivateDevices = true;
+          ProtectClock = true;
+          ProtectControlGroups = true;
+          ProtectKernelLogs = true;
+          ProtectKernelModules = true;
+          ProtectKernelTunables = true;
+          ProtectProc = "invisible";
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+            "AF_UNIX"
+          ];
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged"
+          ];
+        };
+
+        system.activationScripts."hermes-agent-profiles" = lib.stringAfter [ "hermes-agent-setup" ] (
+          lib.concatStrings (lib.mapAttrsToList seedProfile cfg.profiles)
+        );
+
+        system.stateVersion = config.system.stateVersion;
       };
     };
 
-    system.activationScripts."hermes-agent-profiles" = lib.stringAfter [ "hermes-agent-setup" ] (
-      lib.concatStrings (lib.mapAttrsToList seedProfile profiles)
-    );
-
-    # Egress policy, matched on the service account rather than an interface, so
-    # nothing else on the host is affected.
-    networking.firewall = {
-      extraCommands = ''
-        ${rejectRules "iptables" "icmp-net-prohibited" blockedV4}
-        ${rejectRules "ip6tables" "icmp6-adm-prohibited" blockedV6}
-      '';
-      extraStopCommands = ''
-        ${deleteRules "iptables" "icmp-net-prohibited" blockedV4}
-        ${deleteRules "ip6tables" "icmp6-adm-prohibited" blockedV6}
-      '';
-    };
-
-    systemd.services.hermes-agent.serviceConfig = {
-      # Upstream leaves this off so the local terminal backend can see a real
-      # user's ~/.ssh and ~/.gitconfig. This is a dedicated service account on
-      # a headless box and has no business reading /home.
-      ProtectHome = lib.mkForce true;
-
-      BindReadOnlyPaths = [ "${resolvConf}:/etc/resolv.conf" ];
-
-      CapabilityBoundingSet = "";
-      AmbientCapabilities = "";
-      LockPersonality = true;
-      PrivateDevices = true;
-      ProtectClock = true;
-      ProtectControlGroups = true;
-      ProtectHostname = true;
-      ProtectKernelLogs = true;
-      ProtectKernelModules = true;
-      ProtectKernelTunables = true;
-      ProtectProc = "invisible";
-      RestrictAddressFamilies = [
-        "AF_INET"
-        "AF_INET6"
-        "AF_UNIX"
-      ];
-      # Blocks unshare(). Browser automation would need this relaxed, but
-      # Chromium is not part of the Nix package anyway.
-      RestrictNamespaces = true;
-      RestrictRealtime = true;
-      RestrictSUIDSGID = true;
-      SystemCallArchitectures = "native";
-      SystemCallFilter = [
-        "@system-service"
-        "~@privileged"
-      ];
-
-      # Bound a runaway agent loop on a small box. Matches the memory ceiling
-      # the previous deployment gave the container.
-      MemoryMax = "8G";
-      TasksMax = 1024;
+    # The guest's only route to the network is SLIRP inside this process, so
+    # filtering its sockets filters the guest, and the guest cannot bypass it.
+    systemd.services."microvm@hermes" = {
+      after = lib.optional (cfg.secretsFile != null) "sops-install-secrets.service";
+      serviceConfig.IPAddressDeny = blockedRanges;
     };
   };
 }
