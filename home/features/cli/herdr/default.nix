@@ -63,6 +63,11 @@ let
   # Declarative herdr config. This file is the source of truth; edit it here,
   # not in ~/.config/herdr/config.toml (that copy is overwritten on switch).
   configToml = tomlFormat.generate "herdr-config.toml" {
+    # Onboarding already ran. Declared because the activation below rewrites
+    # config.toml on every switch: leaving it out would drop the flag herdr
+    # writes itself and reopen the onboarding flow after each rebuild.
+    onboarding = false;
+
     ui = {
       show_agent_labels_on_pane_borders = true;
       agent_panel_sort = "spaces";
@@ -139,5 +144,15 @@ in
     $DRY_RUN_CMD mkdir -p ~/.config/herdr
     $DRY_RUN_CMD install -m 0644 ${configToml} ~/.config/herdr/config.toml
     $DRY_RUN_CMD install -m 0644 ${stignore} ~/.config/herdr/.stignore
+
+    # herdr resumes an omp pane with `omp --resume=<session>`, but it only
+    # learns the session ref through an extension it installs into
+    # ~/.omp/agent/extensions. With that file gone omp reports nothing, panes
+    # are persisted without a session ref, and a restored pane comes back as a
+    # bare shell. herdr repairs it only when a server starts, so a deletion
+    # costs one restore cycle; reinstalling here (idempotent) makes a switch
+    # enough to put it back.
+    $DRY_RUN_CMD ${pkgs.herdr}/bin/herdr integration install omp \
+      || echo "warning: herdr omp integration install failed" >&2
   '';
 }
