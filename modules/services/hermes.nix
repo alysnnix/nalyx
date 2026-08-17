@@ -20,7 +20,7 @@
 # Management (from the host):
 #   systemctl status microvm@hermes        - hypervisor process
 #   journalctl -u microvm@hermes -f        - guest console and kernel log
-#   ssh -p 2222 root@127.0.0.1             - shell inside the guest
+#   microvm -s hermes                      - shell inside the guest, over vsock
 #   systemctl restart microvm@hermes       - reboot the guest
 #
 # Config is Nix-owned: the guest unit sets HERMES_MANAGED=true, so `hermes config
@@ -47,10 +47,11 @@ let
   hermesUid = 990;
   hermesGid = 990;
 
-  # Loopback-only SSH into the guest. Needed for the interactive commands that
-  # refuse to run without a TTY (`hermes claw migrate`, `hermes whatsapp`), which
-  # is what `docker exec -it openclaw` used to cover.
-  sshPort = 2222;
+  # Context id for the guest's AF_VSOCK channel, which carries sshd. Needed for
+  # the interactive commands that refuse to run without a TTY (`hermes claw
+  # migrate`, `hermes whatsapp`), which is what `docker exec -it openclaw` used
+  # to cover. 0, 1 and 2 are reserved by the vsock spec.
+  vsockCid = 42;
 
   # Everything the agent must never reach: RFC1918, link-local and the CGNAT
   # range Tailscale allocates from. Only IPAddressDeny is set, never
@@ -233,27 +234,31 @@ in
             }
           ];
 
-          forwardPorts = [
-            {
-              from = "host";
-              proto = "tcp";
-              host = {
-                address = "127.0.0.1";
-                port = sshPort;
-              };
-              guest.port = 22;
-            }
+          # Host to guest shell without any TCP listener: sshd is reachable only
+          # over the VM's AF_VSOCK channel, so the host binds no port at all.
+          # Connect with `microvm -s hermes`, which resolves the cid itself.
+          vsock = {
+            cid = vsockCid;
+            ssh.enable = true;
+          };
+
+          # QEMU's own seccomp sandbox, the same set libvirt applies. Preferred
+          # over a hand-rolled systemd SystemCallFilter on a process whose
+          # syscall surface cannot be boot-tested from here. nixpkgs builds qemu
+          # with libseccomp, so this is not a no-op.
+          qemu.extraArgs = [
+            "-sandbox"
+            "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"
           ];
 
+          # No /nix/store share on purpose. Sharing the host store is the cheap
+          # option and what microvm.nix recommends, but it would let the agent
+          # read every derivation on the host (73 GB measured) when its own
+          # closure is 5.9 GB. Omitting the share flips storeOnDisk on, so the
+          # guest boots an erofs image carrying only its own closure.
+          # Measured cost of that trade: a 2.4 GB image, rebuilt whenever the
+          # guest closure changes, ~55 s on a 13600K and longer on the homelab.
           shares = [
-            {
-              # Declaring the store share is what keeps the guest from building a
-              # whole disk image on every closure change.
-              tag = "ro-store";
-              source = "/nix/store";
-              mountPoint = "/nix/.ro-store";
-              proto = "virtiofs";
-            }
             {
               tag = "hermes-state";
               source = stateDir;
@@ -283,15 +288,18 @@ in
           ];
           dhcpcd.extraConfig = "nohook resolv.conf";
 
-          # Only the loopback-forwarded SSH port is reachable, and only from the
-          # host.
-          firewall.allowedTCPPorts = [ 22 ];
+          # Nothing inbound over IP: sshd is reached over vsock, and the guest
+          # serves nothing else.
+          firewall.allowedTCPPorts = [ ];
         };
 
         # Same key source as the host, so the guest is reachable with the keys
         # Aly already carries.
         services.openssh = {
           enable = true;
+          # Reached over vsock, so it needs no IP port. Left at its default this
+          # would add 22 back to allowedTCPPorts by itself.
+          openFirewall = false;
           settings = {
             PermitRootLogin = "prohibit-password";
             PasswordAuthentication = false;
@@ -378,6 +386,38 @@ in
         # otherwise let it fall back to software emulation, which is no boundary
         # at all. Runs as the unit's own user, so it checks the kvm group too.
         ExecStartPre = [ "${pkgs.coreutils}/bin/test -w /dev/kvm" ];
+
+        # SLIRP means the guest's packets are parsed by libslirp inside THIS
+        # process rather than by the host kernel, so the process itself is part
+        # of the attack surface. It already runs unprivileged as microvm:kvm
+        # (which is more than Kata gave: its own config ships "By default QEMU
+        # VMM run as root"). Shrink what a VMM escape would reach.
+        NoNewPrivileges = true;
+        CapabilityBoundingSet = "";
+        AmbientCapabilities = "";
+        ProtectSystem = "strict";
+        ReadWritePaths = [ "/var/lib/microvms/hermes" ];
+        ProtectHome = true;
+        PrivateTmp = true;
+        ProtectClock = true;
+        ProtectControlGroups = true;
+        ProtectKernelLogs = true;
+        ProtectKernelModules = true;
+        ProtectKernelTunables = true;
+        ProtectProc = "invisible";
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        SystemCallArchitectures = "native";
+        # AF_VSOCK carries the guest's sshd; AF_INET/AF_INET6 are SLIRP's
+        # outbound sockets; AF_UNIX reaches virtiofsd and the QMP socket.
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+          "AF_VSOCK"
+        ];
       };
     };
   };
