@@ -111,6 +111,36 @@ let
     lib.concatStrings (
       [ (mkDir "") ] ++ map mkDir profileDirs ++ lib.mapAttrsToList mkFile (seedFiles profile)
     );
+
+  # Non-secret defaults, deep-merged under whatever the private module sets, so
+  # dropping one of these cannot happen by forgetting to repeat it there.
+  baseSettings = {
+    # Required, and silent when missing: without it `gateway.profile_routes` is
+    # ignored outright and every message lands on the root profile instead of
+    # its persona.
+    gateway.multiplex_profiles = true;
+
+    # The security boundary is the micro-VM, not a nested sandbox. `docker` here
+    # would need /var/run/docker.sock, root on the host, and would still leave
+    # MCP servers, plugins, hooks and skills running outside it.
+    terminal.backend = "local";
+
+    # Voice notes transcribed locally with faster-whisper, which is already in
+    # the default Nix package together with ffmpeg. No cloud STT key.
+    stt = {
+      enabled = true;
+      provider = "local";
+      local.model = "base";
+    };
+
+    # `smart` pre-screens destructive shell commands instead of running
+    # everything unattended. cron_mode defaults to `deny` upstream, which would
+    # hang a scheduled job on an approval nobody is there to see.
+    approvals = {
+      mode = "smart";
+      cron_mode = "approve";
+    };
+  };
 in
 {
   imports = [ inputs.microvm.nixosModules.host ];
@@ -316,7 +346,8 @@ in
 
         services.hermes-agent = {
           enable = true;
-          inherit (cfg) settings environment;
+          inherit (cfg) environment;
+          settings = lib.recursiveUpdate baseSettings cfg.settings;
           environmentFiles = lib.optional (cfg.secretsFile != null) cfg.secretsFile;
 
           # Tools the agent needs on a headless box. The gateway's PATH already
