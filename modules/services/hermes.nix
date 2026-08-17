@@ -361,11 +361,24 @@ in
       };
     };
 
-    # The guest's only route to the network is SLIRP inside this process, so
-    # filtering its sockets filters the guest, and the guest cannot bypass it.
+    # microvm.nix defines this instance with overrideStrategy = "asDropin", so
+    # these merge into the template unit rather than replacing its ExecStart.
     systemd.services."microvm@hermes" = {
       after = lib.optional (cfg.secretsFile != null) "sops-install-secrets.service";
-      serviceConfig.IPAddressDeny = blockedRanges;
+
+      serviceConfig = {
+        # The guest's only route to the network is SLIRP inside this process, so
+        # filtering its sockets filters the guest, and the guest has no second
+        # interface to route around it.
+        IPAddressDeny = blockedRanges;
+
+        # Refuse to start without hardware isolation, the same guard the OpenClaw
+        # unit had for the kata runtime. qemu is only handed `-enable-kvm` while
+        # `microvm.cpu` is null; the machine's own `accel=kvm:tcg` would
+        # otherwise let it fall back to software emulation, which is no boundary
+        # at all. Runs as the unit's own user, so it checks the kvm group too.
+        ExecStartPre = [ "${pkgs.coreutils}/bin/test -w /dev/kvm" ];
+      };
     };
   };
 }
