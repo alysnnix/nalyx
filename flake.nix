@@ -49,6 +49,20 @@
       url = "github:getpaseo/paseo";
     };
 
+    # hermes-agent: self-hosted AI agent gateway (Discord, Slack, WhatsApp).
+    # Not following nixpkgs: it builds its venv with uv2nix against its own
+    # pinned nixpkgs, and repinning that breaks dependency resolution.
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent/v2026.8.13";
+    };
+
+    # microvm.nix: runs the hermes agent in a KVM guest with its own kernel.
+    # Follows nixpkgs because the guest is a NixOS system built from it.
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -205,7 +219,7 @@
         # Homelab server (headless, no desktop)
         homelab = fnMountSystem {
           hostname = "homelab";
-          extraModules = privateNixosModule "homelab" ++ privateNixosModule "openclaw";
+          extraModules = privateNixosModule "homelab" ++ privateNixosModule "hermes";
           isServer = true;
           hostVars = vars // {
             desktop = null;
