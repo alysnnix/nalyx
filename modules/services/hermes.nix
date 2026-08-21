@@ -408,14 +408,19 @@ in
             "AF_INET"
             "AF_INET6"
             "AF_UNIX"
+            # getaddrinfo asks the kernel for interface state over netlink, so
+            # denying it breaks DNS for the Discord websocket.
+            "AF_NETLINK"
           ];
           RestrictRealtime = true;
           RestrictSUIDSGID = true;
           SystemCallArchitectures = "native";
-          SystemCallFilter = [
-            "@system-service"
-            "~@privileged"
-          ];
+          # `@system-service` and nothing tighter. Adding `~@privileged` also
+          # denies `@chown`, and the agent chowns files under its own state dir
+          # on startup: seccomp answered with SIGSYS and the gateway core-dumped
+          # in a restart loop (audit type=1326, syscall=92). The real bound on
+          # chown here is CapabilityBoundingSet being empty, not the filter.
+          SystemCallFilter = [ "@system-service" ];
         };
 
         system.activationScripts."hermes-agent-profiles" = lib.stringAfter [ "hermes-agent-setup" ] (
