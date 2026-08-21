@@ -189,7 +189,7 @@ in
             environmentFile = cfg.acmeCredentialsFile;
             # nginx reads the key directly, so it owns the group rather than
             # the default `acme`.
-            group = config.services.nginx.group;
+            inherit (config.services.nginx) group;
           };
         };
 
