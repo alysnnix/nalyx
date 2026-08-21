@@ -183,6 +183,29 @@ elif [ -d "$NOTES_DIR" ]; then
   echo "  notes: $NOTES_DIR"
 fi
 
+# nixos-rebuild spawns `nix build`, which opens a descriptor per store path it
+# touches. The session soft limit is 1024 (systemd DefaultLimitNOFILE), so on a
+# large closure the client dies with `opening directory "/nix/store": Too many
+# open files`. modules/core raises it via pam_limits, but only for sessions
+# opened after that generation is active, so raise it here too: this makes the
+# first switch on a fresh host work and keeps already-open sessions building.
+SOFT_NOFILE=$(ulimit -Sn)
+HARD_NOFILE=$(ulimit -Hn)
+# Both are either an integer or "unlimited"; anything non-numeric is treated as
+# "already big enough" so a surprising ulimit output can never abort the switch.
+if [[ $SOFT_NOFILE =~ ^[0-9]+$ ]] && [ "$SOFT_NOFILE" -lt 65536 ]; then
+  if [[ $HARD_NOFILE =~ ^[0-9]+$ ]] && [ "$HARD_NOFILE" -lt 65536 ]; then
+    WANT_NOFILE=$HARD_NOFILE
+  else
+    WANT_NOFILE=65536
+  fi
+  if ulimit -Sn "$WANT_NOFILE" 2>/dev/null; then
+    echo "  nofile: raised soft limit to $WANT_NOFILE"
+  else
+    echo "  nofile: warning, could not raise soft limit from $SOFT_NOFILE"
+  fi
+fi
+
 # Do not abort on rebuild failure (e.g. exit 4 = switched with failed units):
 # the prune below must always run, and the exit code is propagated at the end.
 REBUILD_RC=0

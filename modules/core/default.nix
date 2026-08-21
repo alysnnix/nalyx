@@ -124,6 +124,26 @@
     '';
   };
 
+  # NixOS ships a 1024 soft nofile limit (systemd DefaultLimitNOFILE=1024:524288).
+  # `switch` runs `sudo nixos-rebuild`, which inherits that soft limit and spawns
+  # `nix build`; on a closure this size the client exhausts its descriptors and
+  # dies with `error: opening directory "/nix/store": Too many open files`.
+  # Raise the soft limit and leave the hard limit at the systemd default.
+  security.pam.loginLimits = [
+    {
+      domain = "*";
+      item = "nofile";
+      type = "soft";
+      value = "65536";
+    }
+    {
+      domain = "*";
+      item = "nofile";
+      type = "hard";
+      value = "524288";
+    }
+  ];
+
   programs = {
     zsh.enable = true;
 

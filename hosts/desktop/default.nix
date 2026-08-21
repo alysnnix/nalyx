@@ -36,21 +36,6 @@
     };
   };
 
-  security.pam.loginLimits = [
-    {
-      domain = "*";
-      item = "nofile";
-      type = "soft";
-      value = "65535";
-    }
-    {
-      domain = "*";
-      item = "nofile";
-      type = "hard";
-      value = "65535";
-    }
-  ];
-
   programs = {
     steam = {
       enable = true;
