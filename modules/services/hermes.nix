@@ -39,7 +39,18 @@ let
   # Host paths. The state directory is shared into the guest read-write and holds
   # everything the agent owns: its SQLite DB, sessions, skills and memories.
   stateDir = "/var/lib/hermes";
+
+  # Where the agent's credentials are staged on the host for sharing. sops-nix
+  # renders a template as a SYMLINK into /run/secrets/rendered, and that target
+  # does not exist inside the guest, so the real bytes are copied here before
+  # the VM starts (see ExecStartPre below).
   secretsDir = "/run/hermes-secrets";
+  secretsFileName = "hermes.env";
+
+  # The guest mounts the secrets share here, deliberately NOT under /run:
+  # systemd mounts /run as a fresh tmpfs in stage 2, which would shadow a
+  # stage-1 mount underneath it.
+  guestSecretsDir = "/var/lib/hermes-secrets";
 
   # The guest's hermes user is pinned so the state directory on the host can be
   # owned by the matching numeric ids. virtiofs passes uid/gid through untouched,
@@ -167,11 +178,12 @@ in
     secretsFile = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      example = "/run/hermes-secrets/hermes.env";
+      example = "/run/secrets/rendered/hermes-env";
       description = ''
-        Host path to a rendered dotenv file with the agent's credentials, which
-        must live under `${secretsDir}` so it is the only secret shared into the
-        guest. Point it at a sops-nix template rendered to that directory.
+        Host path to a rendered dotenv file with the agent's credentials, for
+        example a sops-nix template's `path`. It is copied into the one
+        directory shared into the guest right before the VM starts, so it may
+        be a symlink and may live anywhere on the host.
       '';
     };
 
@@ -298,11 +310,25 @@ in
             {
               tag = "hermes-secrets";
               source = secretsDir;
-              mountPoint = secretsDir;
+              mountPoint = guestSecretsDir;
               proto = "virtiofs";
               readOnly = true;
             }
           ];
+        };
+
+        # microvm.nix only marks the store share neededForBoot (mounts.nix:128),
+        # so every other share is mounted by systemd in stage 2, AFTER NixOS
+        # activation has already run. Anything activation writes under a share
+        # then lands on the guest's tmpfs root and is shadowed the moment the
+        # share mounts. That silently swallowed config.yaml, .env and the seeded
+        # profiles: the agent booted with no config and no Discord token.
+        # Marking them neededForBoot moves both mounts into stage 1, and NixOS
+        # pulls virtiofs into the initrd from these fsTypes on its own
+        # (nixos/modules/system/boot/stage-1.nix: boot.initrd.supportedFilesystems).
+        fileSystems = {
+          ${stateDir}.neededForBoot = true;
+          ${guestSecretsDir}.neededForBoot = true;
         };
 
         networking = {
@@ -348,7 +374,7 @@ in
           enable = true;
           inherit (cfg) environment;
           settings = lib.recursiveUpdate baseSettings cfg.settings;
-          environmentFiles = lib.optional (cfg.secretsFile != null) cfg.secretsFile;
+          environmentFiles = lib.optional (cfg.secretsFile != null) "${guestSecretsDir}/${secretsFileName}";
 
           # Tools the agent needs on a headless box. The gateway's PATH already
           # carries bash, coreutils and git from upstream.
@@ -416,7 +442,23 @@ in
         # `microvm.cpu` is null; the machine's own `accel=kvm:tcg` would
         # otherwise let it fall back to software emulation, which is no boundary
         # at all. Runs as the unit's own user, so it checks the kvm group too.
-        ExecStartPre = [ "${pkgs.coreutils}/bin/test -w /dev/kvm" ];
+        ExecStartPre = [
+          "${pkgs.coreutils}/bin/test -w /dev/kvm"
+        ]
+        ++ lib.optional (cfg.secretsFile != null) (
+          # sops-nix renders a template's `path` as a symlink into
+          # /run/secrets/rendered, which does not exist inside the guest, so
+          # sharing the symlink hands the guest a dangling one and upstream's
+          # `[ -f ]` guard silently skips it, leaving the agent with no token.
+          # Copy the real bytes in. `+` runs it as root even though the unit
+          # itself is User=microvm.
+          "+${pkgs.writeShellScript "hermes-stage-secret" ''
+            set -eu
+            ${pkgs.coreutils}/bin/install -m 0400 -o root -g root \
+              ${lib.escapeShellArg cfg.secretsFile} \
+              ${lib.escapeShellArg "${secretsDir}/${secretsFileName}"}
+          ''}"
+        );
 
         # SLIRP means the guest's packets are parsed by libslirp inside THIS
         # process rather than by the host kernel, so the process itself is part
