@@ -34,3 +34,5 @@ No worktree needed when:
 - The work is read-only: questions, code reading, investigation, review.
 - The user explicitly says to work in the current checkout.
 - The directory is not a git repository.
+
+A small diff is **not** on that list. `wt <branch>` is one command, and a one-line fix corrupts a sibling agent's checkout exactly as thoroughly as a refactor does. Size tiers the review, never the isolation. See the Proportionality rule.

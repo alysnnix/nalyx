@@ -44,7 +44,7 @@ Keep these in your context for the whole loop. They are what stops it from spinn
 | Variable | Meaning |
 |---|---|
 | `ROUND` | current round, starts at 1 |
-| `MAX_ROUNDS` | hard cap, **3** |
+| `MAX_ROUNDS` | hard cap, set by the tier in step 2: Tier 1 = 0, Tier 2 = 1, Tier 3 = 3 |
 | `REVIEWED_SHA` | last commit already reviewed; round 1 = the merge base |
 | `ADJUDICATED` | every finding already accepted-and-fixed or rejected-with-reason, as `path:line - one line claim` |
 
@@ -65,9 +65,23 @@ Also collect, once:
 - Lint and format config (`eslint.config.*`, `ruff.toml`, `.editorconfig`, `treefmt.toml`). Whatever the linter already enforces is **not** a review finding.
 - The project's test and build commands (`package.json` scripts, `Makefile`, `justfile`, `flake.nix` checks).
 
-### 2. Spawn the reviewers in parallel
+### 2. Tier the diff, then spawn only what it earns
 
-One batch, one subagent per lens. Fan out only the lenses that the diff actually touches.
+Six subagents on a comment typo is how a process gets abandoned. Classify first, following the Proportionality rule in `CLAUDE.md`. Blast radius decides, never line count.
+
+| Tier | The diff | Reviewers | Rounds |
+|---|---|---|---|
+| 1 | cannot change behavior: docs, comments, formatting, lockfile bump, purely local rename | **none** | 0 |
+| 2 | contained: behavior changes, no exported signature moved, no Tier 3 trigger | the one matching lens | 1 |
+| 3 | load-bearing | full fan-out below | up to 3 |
+
+Any one of these forces Tier 3 no matter how small the diff is: a public or exported signature changed (confirm with `lsp references`, do not eyeball it), auth or permissions, a migration or schema change, secrets or crypto, money or quota, concurrency or ordering, a request or job error path, a deleted code path, or a history rewrite.
+
+State the tier and its evidence (paths touched, whether an exported symbol moved) before spawning. A tier claimed without evidence is Tier 3. Uncertain between two? Take the higher. The user can override in either direction.
+
+**Tier 1 exits here:** no reviewer, no review posted. Jump straight to step 7, run the project's real checks, and mark ready if they pass. Tier 1 is not a shortcut around verification, only around opinion.
+
+For Tier 2 and 3, one batch, one subagent per lens. Fan out only the lenses the diff actually touches.
 
 | Lens | Looks for | Agent |
 |---|---|---|
@@ -165,7 +179,7 @@ Set `REVIEWED_SHA` to the SHA that was just reviewed, refresh `head_sha`, and de
 
 - Open `blocker` or `major` remaining, and `ROUND < MAX_ROUNDS`: `ROUND++`, go to step 1. The next round reviews only the delta plus a re-check of what was just fixed.
 - Nothing open above `minor`: go to step 7.
-- `ROUND == MAX_ROUNDS` with something still open: **stop**. Do not mark ready. Report what is still open and hand it to the user. Three rounds that cannot converge means the disagreement needs a human, not a fourth round.
+- `ROUND == MAX_ROUNDS` with something still open: **stop**. Do not mark ready. Report what is still open and hand it to the user. Hitting the tier's cap without converging means the disagreement needs a human, not one more round. If the sticking point turns out to be a Tier 3 trigger you classified as Tier 2, say so and re-tier upward rather than forcing it through.
 
 ### 7. Verify, then mark ready
 
@@ -210,7 +224,8 @@ Status: marked ready for review
 - **ALWAYS** post one merged review per round, never one per reviewer subagent.
 - **ALWAYS** carry `ADJUDICATED` forward and forbid re-raising settled findings.
 - **ALWAYS** run the project's verification before `gh pr ready`.
-- **NEVER** exceed `MAX_ROUNDS` (3). Hand unconverged disagreement to the user.
+- **NEVER** exceed the `MAX_ROUNDS` your tier allows. Hand unconverged disagreement to the user.
+- **ALWAYS** state the tier and the evidence for it before spawning any reviewer. Never drop a tier to save effort, and never spawn the full fan-out on a diff that cannot change behavior. Both failures kill the process, one by being useless and one by being unbearable.
 - **NEVER** use `event: APPROVE` or `REQUEST_CHANGES` on your own PR. GitHub returns 422.
 - **NEVER** mark a PR ready with an open `blocker` or `major`, or with a failing check.
 - **NEVER** let a reviewer invent findings to justify itself. Zero findings is a valid round.
