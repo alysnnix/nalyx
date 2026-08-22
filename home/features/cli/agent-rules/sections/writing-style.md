@@ -1,0 +1,3 @@
+- NEVER write em-dashes (the long dash, U+2014) or en-dashes (U+2013) in any output you produce. They are a strong signal of AI-generated text.
+- Use commas, periods, parentheses, or rephrase the sentence instead. A regular hyphen-minus (`-`) is fine.
+- Applies to every channel: chat responses, code comments, documentation, commit messages, PR descriptions, and any file you write.

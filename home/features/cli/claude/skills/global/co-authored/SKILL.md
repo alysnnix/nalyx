@@ -20,14 +20,24 @@ gh pr view --json number,baseRefName,headRefName,commits
 
 If no PR is found, inform the user and stop.
 
-### 2. Identify the current user
+### 2. Verify the working tree is safe to rewrite
+
+```bash
+git status --porcelain
+git symbolic-ref -q HEAD
+test -e "$(git rev-parse --git-dir)/rebase-merge" -o -e "$(git rev-parse --git-dir)/rebase-apply" -o -e "$(git rev-parse --git-dir)/MERGE_HEAD"
+```
+
+If the first command prints output, the working tree is dirty. If the second command fails, HEAD is detached. If the third command succeeds, a rebase or merge is already in progress. In any of these cases, inform the user and stop; do not attempt automatic recovery.
+
+### 3. Identify the current user
 
 ```bash
 MY_EMAIL=$(git config user.email)
 MY_LOGIN=$(gh api user --jq '.login')
 ```
 
-### 3. List commits in the PR (only mine)
+### 4. List commits in the PR (only mine)
 
 Get all commits between the base branch and HEAD:
 
@@ -37,7 +47,7 @@ git log origin/<base>..HEAD --format="%H %ae %s"
 
 **Only process commits authored by the current user.** Match by email (`$MY_EMAIL`) or by GitHub username (`$MY_LOGIN`). Skip all other commits — they belong to other contributors and must not be touched.
 
-### 4. Check each of my commits for Co-Authored-By
+### 5. Check each of my commits for Co-Authored-By
 
 For each of my commits, inspect the full message:
 
@@ -53,7 +63,7 @@ Build two lists:
 
 If all my commits are OK, inform the user and stop.
 
-### 5. Show the user what will be rewritten
+### 6. Show the user what will be rewritten
 
 ```
 ## Commits missing Co-Authored-By
@@ -69,7 +79,7 @@ Proceed?
 
 Wait for user confirmation before proceeding.
 
-### 6. Rewrite commits
+### 7. Rewrite commits
 
 Use `git rebase` with `GIT_SEQUENCE_EDITOR` to automate the rebase. For each commit that needs the trailer, change `pick` to `reword`:
 
@@ -98,13 +108,13 @@ GIT_SEQUENCE_EDITOR="sed -i -E 's/^pick (SHORT_SHAS_PIPE_SEPARATED)/reword \1/'"
 
 Replace `SHORT_SHAS_PIPE_SEPARATED` with the short SHAs of missing commits joined by `|` for the sed regex.
 
-### 7. Force push
+### 8. Force push
 
 ```bash
 git push --force-with-lease
 ```
 
-### 8. Verify
+### 9. Verify
 
 ```bash
 git log origin/<base>..HEAD --format="%H %s" 
@@ -122,6 +132,7 @@ Force pushed to origin/<branch>.
 ## Rules
 
 - **ALWAYS** ask for user confirmation before rewriting history
+- **NEVER** rebase when the working tree is dirty, HEAD is detached, or a rebase/merge is already in progress; stop and tell the user
 - **ALWAYS** use `--force-with-lease` instead of `--force`
 - **NEVER** touch commits from other authors — only rewrite the current user's commits
 - **NEVER** rewrite commits that already have the trailer

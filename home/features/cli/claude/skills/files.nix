@@ -5,7 +5,8 @@
 let
   skillFiles = {
     "gb-open-pr/SKILL.md" = ./global/open-pr/SKILL.md;
-    "gb-check-alfred-review/SKILL.md" = ./global/check-review/SKILL.md;
+    "gb-check-review/SKILL.md" = ./global/check-review/SKILL.md;
+    "gb-review-loop/SKILL.md" = ./global/review-loop/SKILL.md;
     "gb-merge-dev/SKILL.md" = ./global/merge-dev/SKILL.md;
     "gb-co-authored/SKILL.md" = ./global/co-authored/SKILL.md;
     "gb-pipefy/SKILL.md" = ./global/pipefy/SKILL.md;
@@ -14,13 +15,17 @@ let
     "excalidraw/SKILL.md" = ./global/excalidraw/SKILL.md;
   };
 
-  # Build a derivation with all skill files collected in one directory tree
+  # Build a derivation with all skill files collected in one directory tree.
+  # Every top-level skill directory also gets a `.nix-managed` marker file so
+  # the activation script can safely tell managed skills apart from ones the
+  # user keeps by hand, without restating their names anywhere.
   claudeSkillsSrc = pkgs.runCommandLocal "claude-skills" { } (
     "mkdir -p $out\n"
     + lib.concatStringsSep "\n" (
       lib.mapAttrsToList (dest: src: ''
         mkdir -p "$out/$(dirname '${dest}')"
         cp '${src}' "$out/${dest}"
+        touch "$out/${lib.head (lib.splitString "/" dest)}/.nix-managed"
       '') skillFiles
     )
   );
