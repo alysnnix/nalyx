@@ -30,5 +30,7 @@ jobs:
       - name: Evaluate all configurations
         run: nix flake check --no-build --override-input private path:./ci/empty-private
 
+      # `--ci` is treefmt's CI mode (implies --no-cache --fail-on-change).
+      # nixfmt's old `--check` flag does not exist on the treefmt wrapper.
       - name: Check Nix formatting
-        run: nix fmt -- --check .
+        run: nix fmt -- --ci
