@@ -15,10 +15,14 @@ user-invocable: true
 Detect the PR from the current branch:
 
 ```bash
-gh pr view --json number,url,title,body,headRefName,baseRefName,state,commits
+gh pr view --json number,url,title,body,headRefName,baseRefName,state,isDraft,commits
 ```
 
 If no PR is found or PR is not open, inform the user and stop.
+
+**If `isDraft` is true, stop.** Every PR opens as a draft (see `/open-pr`) and only leaves draft when the review cycle passes. A draft here means the review never ran or never converged.
+
+Tell the user to run `/review-loop`, which marks the PR ready itself once the review is clean and the project's checks pass. Do **not** run `gh pr ready` to unblock the merge: that skips the entire review, which is the one thing the draft state exists to prevent. `gh pr merge` would also just fail on a draft, so forcing it here buys nothing.
 
 Verify the base branch is `develop`. If not, warn the user and ask for confirmation before proceeding.
 
@@ -78,7 +82,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Rules for the body:
 - Each bullet starts with lowercase
 - Imperative mood
-- No fluff — describe what was done, not why
+- No fluff, describe what was done, not why
 - Group related changes into a single bullet
 - Max ~5 bullets (consolidate if more)
 
@@ -106,5 +110,6 @@ Report the merge commit SHA and confirm success.
 - **ALWAYS** add `Co-Authored-By: Claude <noreply@anthropic.com>` as the last line of the body
 - **ALWAYS** use conventional commit format for the title
 - **NEVER** merge without checking for failing checks first
-- **NEVER** merge if the PR has conflicts — inform the user instead
-- **NEVER** force merge — always use standard squash merge
+- **NEVER** merge if the PR has conflicts, inform the user instead
+- **NEVER** force merge, always use standard squash merge
+- **NEVER** merge a draft PR, and **NEVER** run `gh pr ready` to get around one. Send the user to `/review-loop`.

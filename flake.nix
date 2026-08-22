@@ -302,6 +302,9 @@
         packages = [ pkgs.sops ];
       };
 
-      formatter.${system} = pkgs.nixfmt;
+      # nixfmt-tree (treefmt wrapper), not bare nixfmt: `nix fmt` with no
+      # arguments passes none through, and bare nixfmt then reads empty stdin
+      # and dies with "unexpected end of input". The wrapper walks the tree.
+      formatter.${system} = pkgs.nixfmt-tree;
     };
 }

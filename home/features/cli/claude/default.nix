@@ -10,7 +10,6 @@ let
   scripts = import ./scripts { inherit pkgs lib profiles; };
 
   skills = import ./skills/files.nix { inherit pkgs lib; };
-
   settings = import ./settings {
     inherit (scripts) claude-statusline claude-notify claude-validate-pr;
   };
@@ -40,7 +39,6 @@ in
 
     activation = {
       inherit (activation)
-        claudeGlobalMd
         claudeSkills
         claudeSettings
         claudeProfiles

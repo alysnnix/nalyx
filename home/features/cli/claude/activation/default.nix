@@ -7,7 +7,6 @@
 }:
 
 {
-  claudeGlobalMd = import ./global-claude-md.nix { inherit lib; };
 
   claudeSkills = import ./skills.nix {
     inherit pkgs lib claudeSkillsSrc;

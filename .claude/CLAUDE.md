@@ -17,7 +17,7 @@ nix develop      # Enter devShell (installs pre-commit hooks)
 ## Critical Rules
 
 - NEVER edit `hardware-configuration.nix` files manually — they are auto-generated
-- NEVER edit `~/.claude/CLAUDE.md` directly — it is managed via Nix at `home/features/cli/claude/global-claude-md.md`
+- NEVER edit the global agent rules at their deployed paths (`~/.claude/CLAUDE.md`, `~/.omp/agent/AGENTS.md`, `~/.omp/agent/RULES.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.config/opencode/AGENTS.md`). They are all generated from `home/features/cli/agent-rules/`. Session-local notes go in `~/.claude/CLAUDE.local.md`, which Nix never overwrites
 - ALWAYS validate with `nix flake check --no-build` before commit
 - NEVER put personal data in the public repo — use nalyx-private for secrets and real values
 
