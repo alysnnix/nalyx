@@ -1,6 +1,6 @@
 ---
 name: gb-review-loop
-description: "Closed-loop self review on a draft PR. Spawns independent reviewer subagents that never saw the implementation, posts their findings as a real GitHub review with inline comments, triages and fixes them, then repeats until clean and marks the PR ready. Project-agnostic: works with no bot at all, and folds in any reviewer bot present (alfred-reviewer, coderabbit, copilot). Triggers: '/review-loop', 'roda o loop de review', 'revisa a PR', 'fecha o ciclo de review'."
+description: "Closed-loop self review on a draft PR. Spawns independent reviewer subagents that never saw the implementation, posts their findings as a real GitHub review with inline comments, triages and fixes them, then repeats until clean and marks the PR ready. Project-agnostic: works with no bot at all, and folds in any reviewer bot present (coderabbit, copilot, or an in-house bot). Triggers: '/review-loop', 'roda o loop de review', 'revisa a PR', 'fecha o ciclo de review'."
 user-invocable: true
 ---
 
@@ -190,7 +190,7 @@ gh pr ready {pr_number}
 ```
 ## Review loop complete - PR #123
 
-Rounds: 2 | Reviewers: correctness, tests | Bots: alfred-reviewer
+Rounds: 2 | Reviewers: correctness, tests | Bots: coderabbitai
 
 | Round | Finding | Severity | Decision | Applied |
 |---|---|---|---|---|

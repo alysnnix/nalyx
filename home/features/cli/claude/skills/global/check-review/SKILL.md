@@ -1,6 +1,6 @@
 ---
 name: gb-check-review
-description: "Process review comments on a PR from any reviewer: judge each suggestion, reply in its thread, react thumbs up/down, apply accepted fixes via parallel subagents, and resolve the conversations. Actor-agnostic, works with a review bot (alfred-reviewer, coderabbit, copilot), a human reviewer, or the self review posted by /review-loop. Triggers: '/check-review', 'responde os comentarios da PR', 'processa a review'."
+description: "Process review comments on a PR from any reviewer: judge each suggestion, reply in its thread, react thumbs up/down, apply accepted fixes via parallel subagents, and resolve the conversations. Actor-agnostic, works with a review bot (coderabbit, copilot, or any in-house bot), a human reviewer, or the self review posted by /review-loop. Triggers: '/check-review', 'responde os comentarios da PR', 'processa a review'."
 user-invocable: true
 ---
 
@@ -8,7 +8,7 @@ user-invocable: true
 
 > Use `/check-review` to process the open review comments on a PR.
 > Optional PR: `/check-review 123` or `/check-review https://github.com/org/repo/pull/123`
-> Optional narrowing: `/check-review --from alfred-reviewer` or `--from coderabbitai,alysnnix`
+> Optional narrowing: `/check-review --from coderabbitai` or `--from coderabbitai,teammate`
 
 This skill is the triage half of the review cycle. `/review-loop` calls it once per round; you can also call it standalone when a human or a bot left comments.
 
@@ -68,7 +68,7 @@ gh api repos/{owner}/{repo}/issues/{pr_number}/comments --paginate
 
 Keep the ones with no reply from you yet.
 
-**Actor scope.** Default is every author in that set except your own replies. Narrow it when the caller asked: `--from <login>` keeps only those logins, matching on substring so `alfred-reviewer` also matches `alfred-reviewer[bot]`. Bot comments are recognisable by `user.type == "Bot"` (REST) or a `[bot]` suffix on `author.login` (GraphQL).
+**Actor scope.** Default is every author in that set except your own replies. Narrow it when the caller asked: `--from <login>` keeps only those logins, matching on substring so `coderabbitai` also matches `coderabbitai[bot]`. Bot comments are recognisable by `user.type == "Bot"` (REST) or a `[bot]` suffix on `author.login` (GraphQL).
 
 **Exclude automation bots.** dependabot, renovate, github-actions, codecov, netlify, vercel and friends comment but review nothing. Their output is status chatter, not a finding, and pulling it into triage means replying and resolving against a bot that is not asking for anything. Since they only post issue comments on the PR body and never inline, diff-anchored ones, the unresolved-thread rule in step 2 already drops them; keep it that way and do not widen the net to "any bot that commented". Read a failing-check comment for signal, then leave it alone.
 
@@ -169,8 +169,8 @@ General issue comments have no resolve. The reply and the reaction are enough.
 
 | # | Location | Suggestion | Author | Decision | Applied |
 |---|---|---|---|---|---|
-| 1 | src/auth.ts:42 | nil user on expired session | alfred-reviewer[bot] | accepted | yes |
-| 2 | src/api.ts:15 | add null check | alysnnix | rejected, caller guarantees non-nil | - |
+| 1 | src/auth.ts:42 | nil user on expired session | coderabbitai[bot] | accepted | yes |
+| 2 | src/api.ts:15 | add null check | teammate | rejected, caller guarantees non-nil | - |
 | 3 | src/util.ts:8 | rename variable | coderabbitai[bot] | accepted | yes |
 
 Accepted: 2 | Rejected: 1 | Applied: 2 | Threads resolved: 3
