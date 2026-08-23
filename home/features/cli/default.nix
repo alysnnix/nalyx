@@ -18,6 +18,7 @@
     ./omp
     ./syncthing
     ./agent-rules
+    ./agent-skills
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
