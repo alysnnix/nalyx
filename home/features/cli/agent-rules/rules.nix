@@ -11,15 +11,21 @@
 # always-apply rule and re-attaches it near the current turn, so a sticky rule
 # keeps its hold deep into a long session instead of scrolling out of attention
 # along with the opening context. Only rules whose violation is irreversible
-# (touching main, corrupting a sibling worktree, merging unreviewed) or that
-# apply to every single output (writing style, commit format) earn a sticky
-# line. Posture and advice stay in the long form only, since RULES.md pays its
+# (touching main, corrupting a sibling worktree, merging unreviewed, burning the
+# orchestrator's context on work a subagent should have read) or that apply to
+# every single output (writing style, commit format) earn a sticky line.
+# Posture and advice stay in the long form only, since RULES.md pays its
 # context cost on every turn rather than once.
 let
   sections = [
     {
       title = "Think Before Coding";
       body = ./sections/think-before-coding.md;
+    }
+    {
+      title = "Decompose, Then Fan Out";
+      body = ./sections/decompose-and-fan-out.md;
+      sticky = "Before the first edit, split the task into slices and dispatch every independent slice in ONE batch of subagents. Keep the decomposition and anything shared between slices yourself, give each slice a self-contained brief plus how to verify itself, and never spawn a single subagent just to wait on it.";
     }
     {
       title = "Simplicity First";
