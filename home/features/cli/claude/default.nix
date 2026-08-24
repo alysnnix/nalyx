@@ -10,8 +10,14 @@ let
   scripts = import ./scripts { inherit pkgs lib profiles; };
 
   skills = import ./skills/files.nix { inherit pkgs lib; };
+
+  # The rules are the user's, not Claude Code's, so the source lives in the
+  # agent-rules feature and this is one of its consumers.
+  agent-sticky-rules = import ../agent-rules/sticky-hook.nix { inherit pkgs lib; };
+
   settings = import ./settings {
     inherit (scripts) claude-statusline claude-notify claude-validate-pr;
+    inherit agent-sticky-rules;
   };
 
   activation = import ./activation {

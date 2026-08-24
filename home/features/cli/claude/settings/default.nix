@@ -2,12 +2,15 @@
   claude-statusline,
   claude-notify,
   claude-validate-pr,
+  agent-sticky-rules,
 }:
 let
   plugins = import ./plugins.nix;
   mcp-servers = import ./mcp-servers.nix;
   statusline = import ./statusline.nix { inherit claude-statusline; };
-  hooks = import ./hooks.nix { inherit claude-notify claude-validate-pr; };
+  hooks = import ./hooks.nix {
+    inherit claude-notify claude-validate-pr agent-sticky-rules;
+  };
 in
 {
   claudeSettingsBase = builtins.toJSON {
