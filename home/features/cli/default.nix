@@ -53,6 +53,9 @@
     ]
     ++ lib.optionals (!isServer) [
       paseo-desktop
+      # Browser automation CLI for the agents (Claude Code, omp, Codex). Skipped
+      # on servers: it drives a real Chrome, and the package pins one in.
+      (pkgs.callPackage ../../../packages/agent-browser.nix { })
     ];
 
   # The `paseo` CLI's `paseo .` launcher only probes a few hardcoded paths for
