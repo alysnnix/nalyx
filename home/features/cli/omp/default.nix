@@ -15,10 +15,17 @@ let
   # runtime (and which syncthing syncs across machines).
   configOverlay = yamlFormat.generate "omp-nix-overlay.yml" {
     tools = {
-      # Expose every enabled tool top-level (callable by name, e.g.
-      # inspect_image) instead of mounting discoverable tools under xd://
-      # device URLs. Trade-off: all tool schemas ship on every request.
-      xdev = false;
+      # Mount rarely-used (discoverable) tools (MCP, LSP, inspect_image,
+      # generate_image) under xd:// device URLs, driven on demand via
+      # read/write, instead of shipping every schema on every request. This
+      # is omp's own default (tools.xdev defaults to true); we set it
+      # explicitly to document the choice. With many MCP servers connected,
+      # top-level exposure (xdev = false) added ~90k tokens of tool schemas
+      # to the base of every request, even a bare greeting. Essential coding
+      # tools (read/write/edit/bash/glob/grep) stay top-level regardless; the
+      # trade-off is a one-hop discovery when an MCP or image tool is
+      # actually needed, paid only then rather than on every message.
+      xdev = true;
     };
 
     # Load the context image-pruner extension in every session. It keeps only
