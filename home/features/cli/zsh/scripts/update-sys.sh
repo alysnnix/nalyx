@@ -137,7 +137,17 @@ echo "  pulling repos in parallel..."
 git -C "$FLAKE_DIR" pull --ff-only >/dev/null &
 PID_NALYX=$!
 
-EXTRA_ARGS=()
+# llm-agents packages (claude-code, codex, omp, gemini-cli) are prebuilt on
+# cache.numtide.com. modules/core declares this substituter, but nixos-rebuild
+# builds against the ACTIVE /etc/nix/nix.conf, so a host whose running config
+# predates that line (or a fresh install) compiles the codex and omp Rust
+# workspaces from source on this very switch. root is a trusted user, so passing
+# the substituter on the CLI makes the cache reachable regardless of nix.conf
+# state, closing that bootstrap gap.
+EXTRA_ARGS=(
+  --option extra-substituters "https://cache.numtide.com"
+  --option extra-trusted-public-keys "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+)
 if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
   git -C "$PRIVATE_DIR" pull --ff-only >/dev/null &
   PID_PRIVATE=$!
