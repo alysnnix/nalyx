@@ -6,7 +6,7 @@
 
 {
   imports = [
-    # ../../modules/secureboot
+    ../../modules/secureboot
     ./hardware-configuration.nix
     ../../modules/core/default.nix
     ../../modules/drivers/nvidia.nix
@@ -16,25 +16,11 @@
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
 
-  boot.loader = {
-    timeout = lib.mkForce 30;
-    systemd-boot.enable = lib.mkForce false;
-    efi.canTouchEfiVariables = true;
-    limine.secureBoot.enable = true;
-
-    grub = {
-      enable = true;
-      device = "nodev";
-      efiSupport = true;
-      useOSProber = true;
-      configurationLimit = 10;
-      extraEntries = ''
-        menuentry "UEFI Firmware Settings" {
-          fwsetup
-        }
-      '';
-    };
-  };
+  # Secure Boot: modules/secureboot forces systemd-boot and grub off and hands
+  # the ESP to lanzaboote, which installs its own signed systemd-boot. The
+  # bootloader basics (systemd-boot, canTouchEfiVariables) come from
+  # modules/core, so only the longer menu timeout is host specific.
+  boot.loader.timeout = lib.mkForce 30;
 
   programs = {
     steam = {
