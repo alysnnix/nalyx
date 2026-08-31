@@ -84,6 +84,15 @@ let
       longForm = false;
     }
     {
+      title = "Nothing Leaves This Machine";
+      body = ./sections/no-cloud-publishing.md;
+      sticky = "NEVER publish, upload, or run anything on claude.ai or another cloud environment: no artifacts, no remote agents, no cloud sessions. The account is shared. Deliver pages as local files and hand over the path.";
+      # Sticky-only: the settings.json keys do the enforcing, so the body is
+      # background. The imperative has to keep re-attaching because the failure
+      # is irreversible, someone else has already seen it.
+      longForm = false;
+    }
+    {
       title = "Writing Style";
       body = ./sections/writing-style.md;
       sticky = "NEVER write em-dashes or en-dashes in any output, including code, docs, commits, and chat. Use commas, periods, parentheses, or rephrase.";
