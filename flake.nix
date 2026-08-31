@@ -53,7 +53,7 @@
     # Not following nixpkgs: it builds its venv with uv2nix against its own
     # pinned nixpkgs, and repinning that breaks dependency resolution.
     hermes-agent = {
-      url = "github:NousResearch/hermes-agent/v2026.8.13";
+      url = "github:NousResearch/hermes-agent/v2026.8.18";
     };
 
     # microvm.nix: runs the hermes agent in a KVM guest with its own kernel.
