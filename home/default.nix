@@ -4,6 +4,15 @@
   lib,
   isWsl,
   isServer ? false,
+  # True only for the installer images. A live installer partitions, mounts and
+  # runs nixos-install, so the language toolchains are pure payload there, and
+  # features/languages carries texlive scheme-medium and a JDK.
+  #
+  # Deliberately has no default. It is read from `imports`, which is evaluated
+  # before `config`, so a missing value would be looked up in `_module.args` and
+  # blow up as infinite recursion. Required instead, so a call site that forgets
+  # it fails with "called without required argument" and says so.
+  isInstaller,
   ...
 }:
 let
@@ -12,11 +21,13 @@ in
 {
   imports = [
     ./features/cli
-    ./features/languages
   ]
+  ++ lib.optional (!isInstaller) ./features/languages
   ++ (lib.optional (hasDesktop && vars.desktop == "gnome") ./features/desktop/gnome)
   ++ (lib.optional (hasDesktop && vars.desktop == "hyprland") ./features/desktop/hyprland)
-  ++ lib.optionals hasDesktop [
+  # features/programs is docker, obs, games, vscode and zed. The installer gets
+  # the desktop shell so partitioning has a GUI, not a workstation.
+  ++ lib.optionals (hasDesktop && !isInstaller) [
     ./features/programs
   ];
 
@@ -32,7 +43,7 @@ in
         nerd-fonts.jetbrains-mono
         obsidian
       ]
-      ++ lib.optionals hasDesktop [
+      ++ lib.optionals (hasDesktop && !isInstaller) [
         spotify
         slack
         (google-chrome.override {

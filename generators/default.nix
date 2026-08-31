@@ -12,6 +12,12 @@
 }:
 
 let
+  # Mirroring the host wholesale produced a 9.6GB desktop image, which stopped
+  # fitting on an 8GB stick. The image still ships the desktop, because
+  # partitioning a disk by hand is where a typo destroys the other OS and
+  # GParted needs a session to run in. What it drops is everything that has
+  # nothing to do with installing: the day-job cloud CLIs, the editors, the
+  # games and the AI tooling, via isInstaller.
   fnMountISO =
     {
       hostname,
@@ -52,15 +58,42 @@ let
                 ;
               vars = hostVars;
               isWsl = false;
-              enableClaude = true;
-              enableGemini = true;
-              enableOpencode = true;
+              isInstaller = true;
+              enableClaude = false;
+              enableGemini = false;
+              enableOpencode = false;
             };
           };
         }
 
         {
           services.getty.autologinUser = pkgs.lib.mkForce hostVars.user.name;
+
+          # Set directly by hosts/desktop, so they survive isInstaller.
+          # Nothing here is worth carrying on an installer.
+          programs.steam.enable = pkgs.lib.mkForce false;
+          programs.gamescope.enable = pkgs.lib.mkForce false;
+          programs.gamemode.enable = pkgs.lib.mkForce false;
+
+          # The point of keeping a desktop on the image: partition with a mouse
+          # instead of typing a device path. firefox comes along because the
+          # app payload is gone and looking something up mid-install is normal.
+          environment.systemPackages = with pkgs; [
+            gparted
+            firefox
+          ];
+
+          # GParted asks polkit for root, and no session here runs an agent, so
+          # the dialog would never appear and it would just fail to start. The
+          # live user is physically at the machine in a throwaway environment,
+          # so wheel is trusted outright rather than prompting for a password
+          # that only exists as the public "changeme" default.
+          security.polkit.extraConfig = ''
+            polkit.addRule(function(action, subject) {
+              if (subject.isInGroup("wheel")) { return polkit.Result.YES; }
+            });
+          '';
+          security.sudo.wheelNeedsPassword = pkgs.lib.mkForce false;
         }
 
         # Carry the private flake source on the installer image. Without it

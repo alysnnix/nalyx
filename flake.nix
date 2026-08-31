@@ -168,6 +168,7 @@
                     isServer
                     ;
                   vars = hostVars;
+                  isInstaller = false;
                   enableClaude = true;
                   enableGemini = true;
                   enableOpencode = true;
@@ -250,6 +251,7 @@
               vars = wslVars;
               isWsl = true;
               isServer = false;
+              isInstaller = false;
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
