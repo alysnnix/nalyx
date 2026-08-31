@@ -27,10 +27,22 @@ in
     enableArtifact = false;
     autoUploadSessions = false;
     disableRemoteControl = true;
-    permissions.deny = [
-      "Artifact"
-      "ShareOnboardingGuide"
-    ];
+
+    # Every session starts in bypass mode, so the prompts never show up.
+    # skipDangerousModePermissionPrompt pre-accepts the disclaimer: without it
+    # the mode is silently downgraded back to default until it is accepted once
+    # in an interactive session, which also blocks `claude --bg`.
+    #
+    # deny rules are resolved in the same permission flow as bypass and still
+    # win, so the claude.ai blocks keep applying.
+    permissions = {
+      defaultMode = "bypassPermissions";
+      deny = [
+        "Artifact"
+        "ShareOnboardingGuide"
+      ];
+    };
+    skipDangerousModePermissionPrompt = true;
 
     # /schedule creates cron routines that run as cloud agents.
     skillOverrides.schedule = "off";
