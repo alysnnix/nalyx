@@ -10,6 +10,7 @@
     ./hardware-configuration.nix
     ../../modules/core/default.nix
     ../../modules/services/hermes.nix
+    ../../modules/services/home-assistant.nix
   ];
 
   networking = {
@@ -64,6 +65,11 @@
     };
     openFirewall = true;
   };
+
+  # Published on the tailnet by `tailscale serve`, which supplies the TLS
+  # certificate for the node's MagicDNS name. Switch `mode` to "nginx" once a
+  # custom domain and its Cloudflare token are in place.
+  nalyx.homeAssistant.enable = true;
 
   users.users.${vars.user.name}.openssh.authorizedKeys.keyFiles = [
     (builtins.fetchurl {
