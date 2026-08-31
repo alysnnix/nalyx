@@ -8,6 +8,7 @@
   caelestia,
   claudeOverlay,
   privateHmModules,
+  privateSrc,
 }:
 
 let
@@ -61,6 +62,27 @@ let
         {
           services.getty.autologinUser = pkgs.lib.mkForce hostVars.user.name;
         }
+
+        # Carry the private flake source on the installer image. Without it
+        # `nixos-install --flake` resolves the private input from its locked
+        # ssh:// URL, which the live environment has no key for, and the eval
+        # dies before anything is written. On the ISO it can be passed by path:
+        #
+        #   nixos-install --flake /mnt/etc/nixos#<host> \
+        #     --override-input private path:/iso/nalyx-private
+        #
+        # The secrets inside stay sops-encrypted. The age key that opens them is
+        # deliberately NOT on the image: it would sit world-readable in the store
+        # and on the USB stick, and the first-boot password hash in the private
+        # repo already covers logging in without it.
+        (pkgs.lib.optionalAttrs (privateSrc != null) {
+          isoImage.contents = [
+            {
+              source = privateSrc;
+              target = "/nalyx-private";
+            }
+          ];
+        })
       ]
       ++ extraModules;
     };

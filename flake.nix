@@ -179,6 +179,10 @@
           ++ extraModules;
         };
 
+      # Source tree of the private flake, or null without it. The ISO carries
+      # this so `nixos-install` can resolve the private input from disk.
+      privateSrc = if private != null then private.outPath else null;
+
       isos = import ./generators {
         inherit
           inputs
@@ -190,6 +194,7 @@
           caelestia
           claudeOverlay
           privateHmModules
+          privateSrc
           ;
       };
 
