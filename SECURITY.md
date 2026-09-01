@@ -6,7 +6,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 **Do NOT open a public issue.**
 
-Instead, email: aly@alysnnix.dev
+Instead, email: aly@alysson.dev
 
 Include:
 - Description of the vulnerability
