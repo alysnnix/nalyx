@@ -25,3 +25,6 @@ keys.txt
 # Private configurations - ignore everything except the placeholder
 private/*
 !private/default.nix
+
+# worktrees created by the wt() helper, not part of the repo
+.worktrees/

@@ -56,8 +56,10 @@ let
     {
       title = "Commit Messages";
       body = ./sections/commit-messages.md;
-      sticky = "Commit messages are in English, title at most 50 characters, always with a bullet-point body.";
-      longForm = false;
+      sticky = "Commit messages are in English: title `type(scope): description`, whole line at most 50 characters, lowercase imperative with no period; ALWAYS a `- ` bullet body; last line exactly `Co-Authored-By: Claude <noreply@anthropic.com>`, that literal name whichever model is running, never a model specific variant.";
+      # Both channels: the sticky line carries the full shape because it is
+      # violated on every commit otherwise, and the body spells out the type
+      # list and the trailer rationale, which do not fit on one line.
     }
     {
       title = "Proportionality";
