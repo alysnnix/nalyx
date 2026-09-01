@@ -303,7 +303,18 @@
 
       # Enter with `nix develop` to auto-install the pre-commit hooks
       devShells.${system}.default = pkgs.mkShell {
-        inherit (self.checks.${system}.pre-commit) shellHook;
+        # The upstream git-hooks.nix shellHook ends by pinning a LOCAL
+        # core.hooksPath at this repo's own .git/hooks, and a local value
+        # shadows the global one set in home/features/cli/git. Left as it is,
+        # a single `nix develop` would quietly disable the commit format hooks
+        # in this repo, of all places.
+        #
+        # Dropping the local override is safe precisely because the global
+        # dispatchers delegate to .git/hooks first, which is exactly where
+        # git-hooks.nix installs its own hook. Both sets keep running.
+        shellHook = self.checks.${system}.pre-commit.shellHook + ''
+          git config --local --unset core.hooksPath 2>/dev/null || true
+        '';
         packages = [ pkgs.sops ];
       };
 
