@@ -78,9 +78,30 @@ let
           # The point of keeping a desktop on the image: partition with a mouse
           # instead of typing a device path. firefox comes along because the
           # app payload is gone and looking something up mid-install is normal.
-          environment.systemPackages = with pkgs; [
-            gparted
-            firefox
+          #
+          # nalyx-install is the guided path, and the reason Calamares is not
+          # here: calamares-nixos-extensions builds a vanilla configuration.nix
+          # from Python templates, so it cannot install a flake host. It would
+          # hand over a NixOS with no lanzaboote, no private modules and none
+          # of this repo. The script drives the real flake instead.
+          #
+          # Which host it installs is read from a file rather than interpolated
+          # into the script, so bash ${...} in there stays bash.
+          environment.etc."nalyx-install-host".text = hostname;
+
+          environment.systemPackages = [
+            pkgs.gparted
+            pkgs.firefox
+            (pkgs.writeShellScriptBin "nalyx-install" (builtins.readFile ../scripts/nalyx-install.sh))
+            (pkgs.makeDesktopItem {
+              name = "nalyx-install";
+              desktopName = "Install nalyx (${hostname})";
+              comment = "Partition a disk and install this host from the flake";
+              icon = "drive-harddisk";
+              # sudo needs no password on the image, see the polkit block above.
+              exec = "${hostVars.terminal} sudo nalyx-install";
+              categories = [ "System" ];
+            })
           ];
 
           # GParted asks polkit for root, and no session here runs an agent, so
