@@ -37,23 +37,6 @@ let
   };
 in
 {
-  options.modules.wrk.pritunl.enable = lib.mkOption {
-    type = lib.types.bool;
-    default = true;
-    description = ''
-      Install the Pritunl VPN client and the helper that registers its daemon.
-
-      Default true because a managed work machine almost always sits behind a
-      corporate VPN, and this profile exists for exactly that machine. A job
-      that uses something else turns it off from its private module.
-
-      Note the nixpkgs derivation bundles the CLI, an electron app and its
-      .desktop entry, and they cannot be separated without an override that
-      would drift from upstream. It is the one entry in this profile that puts
-      a window on screen.
-    '';
-  };
-
   # Languages are listed one by one rather than pulling ../../features/languages,
   # so this file stays the single place that says what the work machine gets.
   # `latex` is the one left out: it is an academic toolchain, and it drags in

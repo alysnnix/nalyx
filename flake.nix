@@ -183,7 +183,13 @@
                 sharedModules = [
                   caelestia.homeManagerModules.default
                 ]
-                ++ privateHmModules;
+                ++ privateHmModules
+                # A NixOS host is not exempt from having a job: the WSL box and
+                # the desktop do employer work too, and the layer that carries
+                # it has to reach them or a `switch` there silently drops every
+                # project skill, agent and script. Empty unless the machine has
+                # a .private/wrk checkout, so this costs nothing on the others.
+                ++ wrkHmModules;
                 extraSpecialArgs = {
                   inherit
                     inputs
