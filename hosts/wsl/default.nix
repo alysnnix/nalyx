@@ -228,22 +228,17 @@
       DISPLAY = ":0";
     };
 
-    # O Orca registra um launcher próprio em ~/.local/bin quando conecta neste
-    # host: um wrapper que atravessa a interop e chama o orca.exe do lado
-    # Windows. Ele avisa que o diretório não está no PATH em NixOS, e está certo.
+    # Repetido de modules/core, que este host não importa (o NixOS-WSL traz base
+    # própria, então aqui se declara usuário, pacotes e stateVersion na mão).
+    # Ligar lá cobre desktop, laptop, vm e homelab, e não alcança este. Nenhuma
+    # das duas cópias é redundante.
     #
-    # `home.sessionPath` em home/features/cli/zsh já põe o diretório no PATH,
-    # mas só através do hm-session-vars.sh, que quem carrega é o ~/.zshenv.
-    # Então hoje ele está no PATH por acidente do login shell ser zsh, e não
-    # porque o sistema conhece o diretório: qualquer coisa que não passe por uma
-    # zsh não o vê. Esta option escreve em /etc/set-environment, que o
-    # /etc/zshenv lê para toda shell (inclusive não interativa) e o /etc/profile
-    # para as de login.
-    #
-    # Aqui e não em modules/core porque a ponte em ~/.local/bin é específica do
-    # WSL, e aquela linha do home-manager continua necessária de todo modo: esta
-    # option não existe fora do NixOS, que é onde o perfil wrk e o wsl-ubuntu
-    # dependem dela.
+    # O motivo está em modules/core; aqui o gatilho concreto é o Orca, que
+    # registra um launcher em ~/.local/bin quando conecta neste host (wrapper
+    # que atravessa a interop até o orca.exe do Windows) e avisa que o diretório
+    # não está no PATH em NixOS. Está certo: quem o põe lá hoje é o
+    # `home.sessionPath` do home-manager, que só chega via hm-session-vars.sh,
+    # carregado apenas pelo ~/.zshenv.
     localBinInPath = true;
   };
 

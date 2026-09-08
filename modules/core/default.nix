@@ -84,21 +84,48 @@
     };
   };
 
-  environment.systemPackages = with pkgs; [
-    vim
-    wget
-    git
-    curl
-    sbctl
-    sops
-    v4l-utils
-  ];
+  environment = {
+    systemPackages = with pkgs; [
+      vim
+      wget
+      git
+      curl
+      sbctl
+      sops
+      v4l-utils
+    ];
 
-  environment.pathsToLink = [
-    "/share/zsh"
-    "/share/applications"
-    "/share/xdg-desktop-portal"
-  ];
+    pathsToLink = [
+      "/share/zsh"
+      "/share/applications"
+      "/share/xdg-desktop-portal"
+    ];
+
+    # ~/.local/bin is where tools that install per-user binaries land, and this
+    # config ships one that does: `uv tool install` symlinks its shims there,
+    # and Orca registers a launcher there on the WSL host.
+    #
+    # home/features/cli/zsh already puts the directory on PATH through
+    # `home.sessionPath`, but that only reaches shells via hm-session-vars.sh,
+    # which nothing but ~/.zshenv sources here. So without this the directory is
+    # on PATH by accident of the login shell being zsh, and anything that does
+    # not go through one never sees it, which is what makes a program that
+    # registered a binary there report it as missing.
+    #
+    # This writes /etc/set-environment instead, read by /etc/zshenv for every
+    # shell, interactive or not, and by /etc/profile for login shells.
+    #
+    # The home-manager line stays regardless: this option is NixOS-only, and off
+    # NixOS (the wrk profile, wsl-ubuntu) it is the only thing adding the
+    # directory, since home-manager owns ~/.profile there and the distro's own
+    # entry for it is gone.
+    #
+    # Stated again in hosts/wsl, which does not import this module: NixOS-WSL
+    # brings its own base, so that host declares its own users, packages and
+    # stateVersion. Do not delete either copy as a duplicate; setting it here
+    # covers desktop, laptop, vm and homelab, and nothing else covers WSL.
+    localBinInPath = true;
+  };
 
   virtualisation.docker.enable = true;
 
