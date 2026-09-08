@@ -57,5 +57,10 @@ in
     };
   };
 
-  home.file.".ssh/allowed_signers".text = "${vars.user.email} ${vars.user.publicKey}";
+  # Every identity in vars, not just this host's. A host that cannot verify the
+  # other identity's signatures reports every commit from the other machine as
+  # untrusted, which trains you to ignore the field. Principals may be patterns
+  # (`*@domain`), which is how the work address stays out of this public repo.
+  home.file.".ssh/allowed_signers".text =
+    lib.concatMapStringsSep "\n" (s: "${s.principal} ${s.key}") vars.user.signers + "\n";
 }

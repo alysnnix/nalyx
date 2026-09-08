@@ -2,6 +2,7 @@
   pkgs,
   vars,
   lib,
+  config,
   ...
 }:
 let
@@ -93,6 +94,38 @@ in
 
     stateVersion = "25.11";
   };
+
+  # Work committer identity.
+  #
+  # It cannot live in vars: nalyx is a public repo, and the address is a
+  # @seazone.com.br one, so putting it there publishes an employee address to
+  # every fork, mirror and scraper, permanently. It also cannot be read from
+  # sops at eval time, because programs.git renders user.email into a store
+  # file while a sops secret is a runtime path, and this profile carries no
+  # sops module at all.
+  #
+  # So git reads it from a file home-manager deliberately does not own.
+  # Verified that the include lands after the [user] block in the generated
+  # config, and git takes the last value, so this wins over vars.user.email.
+  #
+  # Write it once on the machine:
+  #   printf '[user]\n\temail = %s\n' 'you@seazone.com.br' > ~/.config/git/identity
+  #
+  # Signing needs no override: the key path is the same ~/.ssh/id_ed25519 on
+  # that host, it is simply the Seazone key material sitting at that path.
+  programs.git.includes = [
+    { path = "${config.home.homeDirectory}/.config/git/identity"; }
+  ];
+
+  # The include silently falling back to the personal address is the failure
+  # mode worth shouting about: commits would be attributed to the wrong
+  # identity in the company's repos and nobody notices for weeks.
+  home.activation.checkGitIdentity = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -s "$HOME/.config/git/identity" ]; then
+      echo "warning: ~/.config/git/identity is missing, so commits will use ${vars.user.email}"
+      echo "         write the work address there, see home/profiles/szn/default.nix"
+    fi
+  '';
 
   # No Syncthing peer here. The whole point of moving to a managed laptop is
   # that it stops being a node in the personal fleet, so it must not even carry
