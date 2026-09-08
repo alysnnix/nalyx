@@ -2,6 +2,7 @@
   pkgs,
   vars,
   lib,
+  config,
   isWsl,
   ...
 }:
@@ -151,5 +152,70 @@ in
         "docker"
       ];
     };
+  };
+
+  # Make zsh the login shell off NixOS.
+  #
+  # On NixOS `users.users.<name>.shell = pkgs.zsh` in modules/core writes the
+  # passwd entry and there is nothing to do. Off it, that entry belongs to the
+  # distro: on a managed work laptop /etc/passwd is the employer's file, and
+  # `chsh` refuses a shell that is not in /etc/shells, which only root can add.
+  # So the handoff happens one level up instead, in the one shell the passwd
+  # entry does point at, and stays inside the userland nix actually owns.
+  #
+  # Gated on targets.genericLinux, which is this config's "not NixOS" marker
+  # (see home/profiles/wrk), so NixOS hosts get no bash config at all.
+  programs.bash = lib.mkIf config.targets.genericLinux.enable {
+    enable = true;
+
+    # No point loading the completion tree only to exec past it. zsh brings its
+    # own, and the bash escape hatch below does not need it.
+    enableCompletion = false;
+
+    # bashrcExtra, not initExtra, so the handoff is the first thing .bashrc
+    # does. Everything home-manager appends after it (nix.sh, hm-session-vars,
+    # the direnv hook, command-not-found) would otherwise be set up and then
+    # thrown away on every terminal launch, and zsh does not need any of it
+    # second hand: .zshenv sources hm-session-vars.sh itself, and that file is
+    # where targets.genericLinux puts nix.sh. So `zsh -l` stands up the full
+    # environment on its own.
+    #
+    # It sits above home-manager's own `[[ $- == *i* ]] || return`, so the
+    # interactive test is repeated here rather than inherited. Without it
+    # `ssh host cmd` and every script that reads .bashrc would exec into an
+    # interactive zsh and hang.
+    #
+    # BASH_EXECUTION_STRING is the second half of that test: it holds the
+    # argument of `bash -c`, and `bash -ic cmd` is interactive but still just
+    # running one command, so exec'ing would drop the command on the floor.
+    # Empty means there is a real session to hand over.
+    #
+    # `-i` is passed alongside `-l` because zsh only reads .zshrc when it
+    # decides it is interactive, and it decides by looking at stdin. A terminal
+    # gives it a tty and it gets there on its own, but `bash -i` fed from a pipe
+    # does not, and the whole point of this branch is that bash already
+    # concluded the session is interactive.
+    #
+    # SHELL is exported before the exec because that variable is what tmux, the
+    # VS Code terminal and git's `!` helpers read to spawn a shell, and bash
+    # inherited it from the passwd entry, so leaving it alone would start a
+    # fresh bash inside every zsh session.
+    #
+    # Falling through is the escape hatch: NALYX_NO_ZSH=1 gives back a bash
+    # with the whole rest of this file applied, which is what makes it useful
+    # for debugging a broken zsh config.
+    bashrcExtra =
+      let
+        zsh = lib.getExe config.programs.zsh.package;
+      in
+      ''
+        if [[ $- == *i* ]] &&
+          [[ -z "$BASH_EXECUTION_STRING" ]] &&
+          [[ -z "$NALYX_NO_ZSH" ]] &&
+          [[ -x "${zsh}" ]]; then
+          export SHELL="${zsh}"
+          exec "$SHELL" -l -i
+        fi
+      '';
   };
 }
