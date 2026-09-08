@@ -42,10 +42,36 @@ for arg in "$@"; do
 done
 
 FLAKE_DIR="$HOME/nalyx"
+# Personal layer: a fixed name, because there is only ever one of it.
 PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
-# Generic on purpose: a symlink or checkout named after no company, so this
-# public script never has to know which employer it is serving.
-WRK_DIR="$FLAKE_DIR/.private/wrk"
+
+# Project layer: discovered rather than named, because its name is an
+# employer's and this script lives in a public repo. Any flake under .private/
+# that is not the personal one qualifies, so plugging a job in means cloning
+# its repo and nothing else, and unplugging means deleting the clone. Which
+# layers a machine gets is therefore a property of the machine, which is the
+# point: the work laptop simply never clones the personal one.
+#
+# The .private/notes vault is skipped for free, since it carries no flake.nix.
+WRK_DIR=""
+wrk_found=()
+for candidate in "$FLAKE_DIR"/.private/*/; do
+  candidate="${candidate%/}"
+  [ -f "$candidate/flake.nix" ] || continue
+  [ "$candidate" = "$PRIVATE_DIR" ] && continue
+  wrk_found+=("$candidate")
+done
+# Refuse rather than guess. A flake takes one `wrk` input, so with two project
+# repos present there is no correct pick, and silently choosing would build the
+# wrong job's secrets and identity into the generation.
+if [ "${#wrk_found[@]}" -gt 1 ]; then
+  echo "  wrk:     ERROR more than one project layer found:" >&2
+  for candidate in "${wrk_found[@]}"; do echo "             $candidate" >&2; done
+  echo "  wrk:     only one can be active; move or remove the others" >&2
+  exit 1
+elif [ "${#wrk_found[@]}" -eq 1 ]; then
+  WRK_DIR="${wrk_found[0]}"
+fi
 
 echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
@@ -194,19 +220,17 @@ else
   EXTRA_ARGS+=(--override-input private "path:$FLAKE_DIR/ci/empty-private")
 fi
 
-# Per-project private layer, pointed at whichever job this machine belongs to.
-# The public flake defaults this input to the empty placeholder and never names
-# a company, so the override is the only place the real repo is mentioned, and
-# it lives on the machine rather than in the repo. Switching jobs means
-# repointing this checkout, not editing anything public.
-if [ -d "$WRK_DIR" ] && [ -f "$WRK_DIR/flake.nix" ]; then
+# The override is the only place the project repo is ever mentioned, and it is
+# computed on the machine, so the public flake keeps its placeholder default and
+# never records a company name in flake.nix or flake.lock.
+if [ -n "$WRK_DIR" ]; then
   echo "  wrk:     $WRK_DIR"
   if ! git -C "$WRK_DIR" diff --quiet 2>/dev/null; then
     echo "  wrk:     warning, uncommitted changes are being built"
   fi
   EXTRA_ARGS+=(--override-input wrk "path:$WRK_DIR")
 else
-  echo "  wrk:     (not found, no project layer)"
+  echo "  wrk:     (none cloned, no project layer)"
 fi
 
 wait "$PID_NALYX" || echo "  nalyx: pull failed, using local version"
