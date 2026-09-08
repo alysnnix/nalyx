@@ -33,6 +33,10 @@ let
   # field codes like %U are not allowed inside a quoted argument at all. A
   # store path plus a bare %U sidesteps all three, and shellcheck gets to run
   # on the script at build time.
+  #
+  # /opt/Orca/orca-ide, absolute, is what upstream's own entry execs. Going
+  # through PATH instead would depend on the symlink the postinst drops in
+  # /usr/bin, which is not part of the package's file list.
   orcaSession = pkgs.writeShellApplication {
     name = "orca-ide-session";
     text = ''
@@ -40,6 +44,28 @@ let
       exec ${lib.getExe config.programs.zsh.package} -l -c \
         'exec /opt/Orca/orca-ide "$@"' orca-ide "$@"
     '';
+  };
+
+  # Built with makeDesktopItem rather than written by hand so
+  # desktop-file-validate runs at build time. Fields are copied from the file
+  # upstream ships, so the launcher entry stays the one they designed, with
+  # Exec as the single difference. startupWMClass is among them because without
+  # it the window never associates with the icon that launched it. Their
+  # MimeType lists x-scheme-handler/orca twice; not reproduced.
+  orcaEntry = pkgs.makeDesktopItem {
+    name = "orca-ide";
+    desktopName = "Orca";
+    comment = "Next-gen IDE for parallel agentic development";
+    exec = "${lib.getExe orcaSession} %U";
+    icon = "orca-ide";
+    terminal = false;
+    type = "Application";
+    categories = [ "Utility" ];
+    mimeTypes = [
+      "text/markdown"
+      "x-scheme-handler/orca"
+    ];
+    startupWMClass = "orca";
   };
 in
 {
@@ -61,28 +87,14 @@ in
     '';
   };
 
-  # `orca-ide`, matching the file upstream ships. The name is the whole
-  # mechanism: XDG_DATA_DIRS puts ~/.local/share/applications ahead of
-  # /usr/share, and only an identical basename shadows the original instead of
+  # Into xdg.dataFile, not xdg.desktopEntries. That option installs the entry as
+  # a package, so it lands in ~/.nix-profile/share/applications, which a desktop
+  # session only scans if its own XDG_DATA_DIRS names it, and the session
+  # environment is precisely the one that knows nothing about nix here. The
+  # basename has to match upstream's exactly: $XDG_DATA_HOME/applications is
+  # searched first by spec, so an identical name shadows /usr/share instead of
   # adding a second Orca to the grid.
-  #
-  # Fields are copied from that file, so the launcher entry stays the one
-  # upstream designed, with Exec as the single difference. StartupWMClass is
-  # among them because without it the window never associates with the icon
-  # that launched it. The upstream MimeType lists x-scheme-handler/orca twice;
-  # not reproduced.
-  config.xdg.desktopEntries.orca-ide = lib.mkIf config.modules.cli.orca.enable {
-    name = "Orca";
-    comment = "Next-gen IDE for parallel agentic development";
-    exec = "${lib.getExe orcaSession} %U";
-    icon = "orca-ide";
-    terminal = false;
-    type = "Application";
-    categories = [ "Utility" ];
-    mimeType = [
-      "text/markdown"
-      "x-scheme-handler/orca"
-    ];
-    settings.StartupWMClass = "orca";
+  config.xdg.dataFile."applications/orca-ide.desktop" = lib.mkIf config.modules.cli.orca.enable {
+    source = "${orcaEntry}/share/applications/orca-ide.desktop";
   };
 }

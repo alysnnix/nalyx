@@ -27,6 +27,10 @@
     ./herdr
     ./omp
     ./syncthing
+    # Imported unconditionally like ./syncthing: it declares an option and
+    # gates its own config on it, so a host that does not want it pays nothing
+    # and no `imports` position ever reads a specialArg.
+    ./orca
     # Option surface for the per-project private layer. Imported here because
     # this is the one module every profile pulls in, including NixOS hosts.
     ./wrk.nix
