@@ -3,13 +3,17 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-switch - build the NixOS system from the nalyx flake
+switch - build the system from the nalyx flake
+
+On NixOS this rebuilds the whole system. Anywhere else it activates the
+homeConfiguration of the same name, since the system layer belongs to the
+distro (Seazone's managed Ubuntu, Ubuntu WSL) and nix owns the userland only.
 
 Usage:
-  switch [host] [--no-main]
+  switch [target] [--no-main]
 
 Arguments:
-  host         host to build (default: current hostname)
+  target       host or home profile to build (default: current hostname)
 
 Options:
   --no-main    pull the current branch instead of switching to main
@@ -18,6 +22,7 @@ Options:
 Examples:
   switch                 # switch to main, pull, rebuild current host
   switch wsl             # switch to main, pull, rebuild the wsl host
+  switch szn             # activate the Seazone terminal-only home profile
   switch --no-main       # stay on current branch, pull, rebuild
   switch wsl --no-main
 EOF
@@ -176,7 +181,14 @@ if [ -d "$PRIVATE_DIR" ] && [ -f "$PRIVATE_DIR/flake.nix" ]; then
 
   EXTRA_ARGS+=(--override-input private "path:$PRIVATE_DIR")
 else
-  echo "  private: (not found, using defaults)"
+  # Override with the placeholder rather than leaving the input alone. The
+  # input is declared as git+ssh to the personal private repo, so without an
+  # override nix tries to fetch it, and on a host that has no business holding
+  # that key (the Seazone laptop) the build dies on "Permission denied
+  # (publickey)" instead of falling back to public defaults. Same placeholder
+  # CI uses, and it outputs {} so privateHmModules resolves to an empty list.
+  echo "  private: (not found, using ci/empty-private placeholder)"
+  EXTRA_ARGS+=(--override-input private "path:$FLAKE_DIR/ci/empty-private")
 fi
 
 wait "$PID_NALYX" || echo "  nalyx: pull failed, using local version"
@@ -219,10 +231,41 @@ fi
 # Do not abort on rebuild failure (e.g. exit 4 = switched with failed units):
 # the prune below must always run, and the exit code is propagated at the end.
 REBUILD_RC=0
-sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUILD_RC=$?
 
-echo "  pruning old generations (keeping last 5)..."
-sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
+# Only NixOS has a system to rebuild. Everywhere else (the Seazone Ubuntu
+# laptop, Ubuntu WSL) the system layer belongs to the distro and nix owns the
+# userland only, so the target is the homeConfiguration of the same name.
+if [ -e /etc/NIXOS ]; then
+  sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUILD_RC=$?
+
+  echo "  pruning old generations (keeping last 5)..."
+  sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5
+else
+  echo "  mode:  home-manager (not NixOS)"
+
+  # home-manager only lands on PATH after the first activation, since it is the
+  # profile itself that installs it. Bootstrap through the flake's own input so
+  # the version never drifts from the one that built the config.
+  HM=(home-manager)
+  if ! command -v home-manager >/dev/null 2>&1; then
+    echo "  bootstrap: home-manager not on PATH yet, running it from the flake input"
+    HM=(nix run --inputs-from "$FLAKE_DIR" home-manager --)
+  fi
+
+  # -b: a standalone activation aborts when a real file already sits where a
+  # symlink should go, which is the normal state on a distro that shipped its
+  # own .zshrc. Renaming it is what makes the first switch survive.
+  "${HM[@]}" switch --flake "$FLAKE_DIR#$HOST" -b "backup-$HOST" "${EXTRA_ARGS[@]}" ||
+    REBUILD_RC=$?
+
+  # expire-generations takes a timestamp, not a count, so this is by age rather
+  # than by the last 5 the NixOS branch keeps. Guarded on PATH again because the
+  # very first switch is what puts home-manager there.
+  if command -v home-manager >/dev/null 2>&1; then
+    echo "  pruning generations older than 5 days..."
+    home-manager expire-generations "-5 days" || echo "  warning: expire-generations failed"
+  fi
+fi
 
 # Refresh runtime-secret MCP tokens in ~/.claude.json. The
 # home-manager activation only re-runs when its derivation changes, so a pure

@@ -52,6 +52,8 @@ let
                 ;
               vars = hostVars;
               isWsl = false;
+              # Installer images build a full host, never a terminal-only one.
+              terminalOnly = false;
               enableClaude = true;
               enableGemini = true;
               enableOpencode = true;
