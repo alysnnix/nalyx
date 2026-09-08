@@ -65,7 +65,11 @@ The work laptop simply never clones `nalyx-private`, and that absence is the who
 
 Each private repo owns its own SOPS file and its own recipients, and a project layer must set `sopsFile` explicitly on every secret, because `sops.defaultSopsFile` is a single value already claimed by the personal layer.
 
-The recipient lists are deliberately asymmetric: a project file lists the personal age key **and** the machine key for that job, so every personal machine reads it; the personal file lists only the personal key, so an employer-managed machine cannot read it even if it somehow got the repo. Recipients are derived from SSH keys with `ssh-to-age`, and each key decrypts independently, so no private key is ever copied between machines.
+The recipient lists are deliberately asymmetric: a project file lists the personal age key **and** the machine key for that job, so every personal machine reads it; the personal file lists only the personal key, so an employer-managed machine cannot read it even if it somehow got the repo. Recipients are derived from SSH keys with `ssh-to-age`.
+
+The personal layer is split the same way, and for a sharper reason: the homelab stores an encrypted copy of `~/wrk`, so it must not be able to read the passwords that open it. `secrets/machines.yaml` (personal key plus the homelab's **host** key) holds only what a machine needs to finish booting and reach the tailnet; `secrets/secrets.yaml` (personal key alone) holds everything else, including the two backup passwords. A host key rather than a user key, because it exists before `/home` is mounted, which `neededForUsers` secrets require, and because it is worth far less if that machine is taken.
+
+The homelab still carries the personal key as a decryption fallback, so it can currently read both files. That is a deliberate transition step, not the end state: it is headless, on WiFi, and takes its WiFi password from SOPS, so a wrong recipient with no fallback would strand it. Phase 2 removes the fallback and the key from that machine. Until then, do not describe the homelab as unable to read a personal secret. See `SECURITY.md` in the private repo.
 
 ## Stack
 

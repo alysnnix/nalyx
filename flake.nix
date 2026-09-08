@@ -235,7 +235,14 @@
             }
           ]
           ++ privateNixosModules
-          ++ wrkNixosModules
+          # Same exemption as the home-manager list above, and it matters more
+          # here: this layer DECLARES sops secrets, and a declared secret that
+          # cannot be decrypted fails activation outright. Once the homelab
+          # holds only its own age key, every employer secret declared on it
+          # would be undecryptable and the host would stop rebuilding. Keeping
+          # employer secrets off a personal storage server is the right call on
+          # its own terms anyway.
+          ++ nixpkgs.lib.optionals (!isServer) wrkNixosModules
           ++ extraModules;
         };
 
@@ -262,9 +269,19 @@
     {
       nixosConfigurations = {
         # Standard desktop/laptop configurations (isWsl defaults to false)
-        desktop = fnMountSystem { hostname = "desktop"; };
+        #
+        # `backup` carries the Syncthing folder password for `wrk`, so it goes
+        # to the three hosts that hold that folder in plaintext and to nothing
+        # else. The homelab's absence from this list is the mechanism that
+        # keeps it an untrusted device, and `vm` is left out because it does
+        # not import the syncthing module that declares the option.
+        desktop = fnMountSystem {
+          hostname = "desktop";
+          extraModules = privateNixosModule "backup";
+        };
         laptop = fnMountSystem {
           hostname = "laptop";
+          extraModules = privateNixosModule "backup";
           hostVars = vars // {
             desktop = "gnome";
           };
@@ -277,7 +294,8 @@
           extraModules = [
             nixos-wsl.nixosModules.default
           ]
-          ++ privateNixosModule "sops-wsl";
+          ++ privateNixosModule "sops-wsl"
+          ++ privateNixosModule "backup";
           isWsl = true;
         };
 
