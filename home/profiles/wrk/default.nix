@@ -154,8 +154,16 @@ in
     # Same guard as ../default.nix: a leftover backup file aborts activation,
     # and standalone home-manager hits this more often since it is invoked by
     # hand rather than by a system rebuild.
+    #
+    # The home root is swept too, unlike ../default.nix, because the login
+    # shell handoff in ../../features/cli/zsh puts home-manager in charge of
+    # .bashrc, .bash_profile and .profile, and the distro shipped its own three.
+    # The originals land in ~/.bashrc.backup-wrk and friends on the first
+    # switch; /etc/skel still holds the pristine copies. Depth is capped at 1 so
+    # this never walks the whole home directory.
     home.activation.cleanBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
       find ~/.config -name "*.backup-*" -delete 2>/dev/null || true
+      find ~ -maxdepth 1 -name "*.backup-*" -delete 2>/dev/null || true
     '';
 
     programs.home-manager.enable = true;
