@@ -9,7 +9,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/core/default.nix
-    ../../modules/services/hermes.nix
+    ../../modules/services/syncthing.nix
   ];
 
   networking = {
@@ -85,6 +85,22 @@
     wakeonlan
   ];
 
+  # Backing dir for the encrypted `wrk` Syncthing folder and for the restic
+  # repository WSL pushes over SFTP. Both live on the data disk, not $HOME.
+  # The paths themselves are set in modules/services/syncthing.nix and on the
+  # WSL side, so this host only has to own the directories.
+  systemd.tmpfiles.rules = [
+    "d /data/sync 0755 ${vars.user.name} users -"
+    "d /data/sync/wrk-enc 0700 ${vars.user.name} users -"
+    "d /data/backup 0755 ${vars.user.name} users -"
+    "d /data/backup/wrk 0700 ${vars.user.name} users -"
+  ];
+
+  # No duperemove here, unlike the pre-#104 config. It deduplicated
+  # /data/sync weekly, which is pointless once the contents are encrypted:
+  # identical plaintext blocks encrypt to different ciphertext, so the scan
+  # finds nothing and only burns CPU on a machine that is meant to idle.
+
   # WoWLAN: allow waking the homelab via WiFi magic packet
   systemd.services.wowlan = {
     description = "Enable Wake-on-WLAN";
@@ -97,6 +113,14 @@
     };
   };
 
-  home-manager.users.${vars.user.name} = import ../../home;
+  home-manager.users.${vars.user.name} = {
+    imports = [ ../../home ];
+
+    # This host holds the `wrk` folder encrypted, under /data/sync, and has no
+    # plaintext ~/wrk at all. Writing an ignore list into a home directory that
+    # never holds the folder would be pure noise, and ignores are honoured by
+    # the sending side anyway.
+    modules.cli.syncthing.enable = false;
+  };
   home-manager.backupFileExtension = "backup-homelab";
 }

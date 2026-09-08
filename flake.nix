@@ -166,6 +166,12 @@
           isWsl ? false,
           isServer ? false,
           hostVars ? vars,
+          # On by default because every interactive host wants the agents. A
+          # host opts out, rather than in, so adding a machine never silently
+          # loses its tooling.
+          enableClaude ? true,
+          enableGemini ? true,
+          enableOpencode ? true,
         }:
         nixpkgs.lib.nixosSystem {
           inherit system;
@@ -195,7 +201,18 @@
                 # it has to reach them or a `switch` there silently drops every
                 # project skill, agent and script. Empty unless the machine has
                 # a .private/wrk checkout, so this costs nothing on the others.
-                ++ wrkHmModules;
+                #
+                # A server is exempt, though, and `enableClaude = false` alone
+                # was not enough to make that true: the project layer installs
+                # its own agent tooling (a claude switcher, an MCP sync, a user
+                # timer) through this list, so the homelab kept getting it after
+                # the public agent features were switched off. Employer tooling
+                # on a personal server is backwards on its own terms, and it is
+                # worse on this host in particular, which now stores an opaque
+                # copy of ~/wrk and has no interactive session to justify any of
+                # it. Gated here rather than inside each layer, so a future
+                # project repo cannot forget.
+                ++ nixpkgs.lib.optionals (!isServer) wrkHmModules;
                 extraSpecialArgs = {
                   inherit
                     inputs
@@ -208,9 +225,11 @@
                   # module default because a specialArg that is not passed at
                   # all resolves through `_module.args` and fails.
                   terminalOnly = false;
-                  enableClaude = true;
-                  enableGemini = true;
-                  enableOpencode = true;
+                  inherit
+                    enableClaude
+                    enableGemini
+                    enableOpencode
+                    ;
                 };
               };
             }
@@ -265,8 +284,18 @@
         # Homelab server (headless, no desktop)
         homelab = fnMountSystem {
           hostname = "homelab";
-          extraModules = privateNixosModule "homelab" ++ privateNixosModule "hermes";
+          # No `privateNixosModule "hermes"` here on purpose: the host now
+          # stores an opaque copy of ~/wrk, so it must not run an agent that
+          # could be talked into reading it. The hermes module stays in the
+          # repo, evaluated by no host, so rewiring it is a one-line revert.
+          extraModules = privateNixosModule "homelab";
           isServer = true;
+          # A storage host has no interactive session to run an agent in, and
+          # the whole point of the encrypted setup is that whatever lands here
+          # cannot read the data.
+          enableClaude = false;
+          enableGemini = false;
+          enableOpencode = false;
           hostVars = vars // {
             desktop = null;
           };

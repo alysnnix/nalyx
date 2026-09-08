@@ -79,7 +79,7 @@ The recipient lists are deliberately asymmetric: a project file lists the person
 | Shell | Zsh |
 | Drivers | NVIDIA, Intel |
 | AI Tools | Claude Code, Gemini CLI, OpenCode |
-| Services | Tailscale, Syncthing, NordVPN, Hermes Agent |
+| Services | Tailscale, Syncthing, NordVPN, restic |
 
 ## Hosts
 
@@ -89,7 +89,7 @@ The recipient lists are deliberately asymmetric: a project file lists the person
 | `laptop` | Notebook | Hyprland/GNOME | Intel, KDE Connect |
 | `wsl` | WSL2 | None | Docker, Pritunl, Playwright |
 | `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
-| `homelab` | Server | None | Tailscale, Hermes Agent |
+| `homelab` | Server | None | Tailscale, Syncthing (encrypted), restic |
 
 ### Home profiles (no NixOS)
 

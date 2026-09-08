@@ -30,9 +30,11 @@ in
         gh
         gnumake
         nerd-fonts.jetbrains-mono
-        obsidian
       ]
       ++ lib.optionals hasDesktop [
+        # Electron GUI app: it was in the unconditional list, so it pulled a
+        # full browser runtime into the headless homelab and WSL closures.
+        obsidian
         spotify
         slack
         (google-chrome.override {
