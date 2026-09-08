@@ -7,7 +7,7 @@ switch - build the system from the nalyx flake
 
 On NixOS this rebuilds the whole system. Anywhere else it activates the
 homeConfiguration of the same name, since the system layer belongs to the
-distro (Seazone's managed Ubuntu, Ubuntu WSL) and nix owns the userland only.
+distro (a managed work laptop, Ubuntu WSL) and nix owns the userland only.
 
 Usage:
   switch [target] [--no-main]
@@ -22,7 +22,7 @@ Options:
 Examples:
   switch                 # switch to main, pull, rebuild current host
   switch wsl             # switch to main, pull, rebuild the wsl host
-  switch szn             # activate the Seazone terminal-only home profile
+  switch wrk             # activate the terminal-only work home profile
   switch --no-main       # stay on current branch, pull, rebuild
   switch wsl --no-main
 EOF
@@ -43,6 +43,9 @@ done
 
 FLAKE_DIR="$HOME/nalyx"
 PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
+# Generic on purpose: a symlink or checkout named after no company, so this
+# public script never has to know which employer it is serving.
+WRK_DIR="$FLAKE_DIR/.private/wrk"
 
 echo "Rodando update do sistema..."
 echo "  flake: $FLAKE_DIR"
@@ -184,11 +187,26 @@ else
   # Override with the placeholder rather than leaving the input alone. The
   # input is declared as git+ssh to the personal private repo, so without an
   # override nix tries to fetch it, and on a host that has no business holding
-  # that key (the Seazone laptop) the build dies on "Permission denied
+  # that key (a managed work laptop) the build dies on "Permission denied
   # (publickey)" instead of falling back to public defaults. Same placeholder
   # CI uses, and it outputs {} so privateHmModules resolves to an empty list.
   echo "  private: (not found, using ci/empty-private placeholder)"
   EXTRA_ARGS+=(--override-input private "path:$FLAKE_DIR/ci/empty-private")
+fi
+
+# Per-project private layer, pointed at whichever job this machine belongs to.
+# The public flake defaults this input to the empty placeholder and never names
+# a company, so the override is the only place the real repo is mentioned, and
+# it lives on the machine rather than in the repo. Switching jobs means
+# repointing this checkout, not editing anything public.
+if [ -d "$WRK_DIR" ] && [ -f "$WRK_DIR/flake.nix" ]; then
+  echo "  wrk:     $WRK_DIR"
+  if ! git -C "$WRK_DIR" diff --quiet 2>/dev/null; then
+    echo "  wrk:     warning, uncommitted changes are being built"
+  fi
+  EXTRA_ARGS+=(--override-input wrk "path:$WRK_DIR")
+else
+  echo "  wrk:     (not found, no project layer)"
 fi
 
 wait "$PID_NALYX" || echo "  nalyx: pull failed, using local version"
@@ -232,7 +250,7 @@ fi
 # the prune below must always run, and the exit code is propagated at the end.
 REBUILD_RC=0
 
-# Only NixOS has a system to rebuild. Everywhere else (the Seazone Ubuntu
+# Only NixOS has a system to rebuild. Everywhere else (a managed Ubuntu work
 # laptop, Ubuntu WSL) the system layer belongs to the distro and nix owns the
 # userland only, so the target is the homeConfiguration of the same name.
 if [ -e /etc/NIXOS ]; then

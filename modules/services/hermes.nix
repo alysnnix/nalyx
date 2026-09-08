@@ -362,8 +362,11 @@ in
           };
         };
         users = {
-          users.root.openssh.authorizedKeys.keyFiles =
-            config.users.users.${vars.user.name}.openssh.authorizedKeys.keyFiles;
+          # Follows the host's list, which is now explicit keys rather than a
+          # fetched key file. Root in the guest therefore trusts exactly the
+          # personal key, not every key the GitHub account publishes.
+          users.root.openssh.authorizedKeys.keys =
+            config.users.users.${vars.user.name}.openssh.authorizedKeys.keys;
 
           # Pinned so the shared state directory's ownership on the host matches.
           users.hermes.uid = hermesUid;

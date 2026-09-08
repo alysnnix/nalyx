@@ -27,6 +27,9 @@
     ./herdr
     ./omp
     ./syncthing
+    # Option surface for the per-project private layer. Imported here because
+    # this is the one module every profile pulls in, including NixOS hosts.
+    ./wrk.nix
     ./agent-rules
     ./agent-skills
   ]

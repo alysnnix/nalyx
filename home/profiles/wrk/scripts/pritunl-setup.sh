@@ -18,7 +18,7 @@ UNIT_DST="/etc/systemd/system/pritunl-client.service"
 
 if [ ! -e "$UNIT_SRC" ]; then
   echo "error: $UNIT_SRC not found" >&2
-  echo "  the pritunl-client package is not in the profile yet; run 'switch szn'" >&2
+  echo "  the pritunl-client package is not in the profile yet; run 'switch wrk'" >&2
   exit 1
 fi
 
@@ -29,7 +29,7 @@ fi
 if [ -e "$UNIT_DST" ] && [ ! -L "$UNIT_DST" ]; then
   echo "error: $UNIT_DST already exists and is a real file, not our symlink" >&2
   echo "  something else (most likely an apt-installed pritunl) owns this unit." >&2
-  echo "  pick one: remove that package, or drop pritunl-client from the szn profile." >&2
+  echo "  pick one: remove that package, or drop pritunl-client from the work profile." >&2
   exit 1
 fi
 

@@ -65,12 +65,19 @@
     openFirewall = true;
   };
 
-  users.users.${vars.user.name}.openssh.authorizedKeys.keyFiles = [
-    (builtins.fetchurl {
-      url = "https://github.com/${vars.user.social.github}.keys";
-      sha256 = "134sxqhxsiphqz82l33vmalfabhi121404jg6ljs0n55c4svlq9l";
-    })
-  ];
+  # One explicit key, matching every other host, instead of whatever the GitHub
+  # account happens to publish.
+  #
+  # This used to fetch https://github.com/<user>.keys, which authorized EVERY
+  # key on the account. That is fine while the account has one key and quietly
+  # dangerous the moment it has two: adding a key for an employer-managed
+  # laptop handed that laptop SSH into this box, and modules/services/hermes.nix
+  # forwarded the same list to root inside the hermes guest. The pinned hash
+  # breaking on the second key is what surfaced it.
+  #
+  # It was also an impure eval-time fetch, so a network hiccup or an upstream
+  # change failed the build of a host that has nothing to do with GitHub.
+  users.users.${vars.user.name}.openssh.authorizedKeys.keys = [ vars.user.publicKey ];
 
   environment.systemPackages = with pkgs; [
     btop

@@ -518,6 +518,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_6": {
+      "locked": {
+        "lastModified": 1788752844,
+        "narHash": "sha256-VaWGJ6+cIYN2erfSecbRV+4ljI185Ty2wUrXyvQbgOw=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "dc5d91f840324650bac8c379428c7037a416959a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "npm-lockfile-fix": {
       "inputs": {
         "nixpkgs": [
@@ -686,7 +702,8 @@
         "nixpkgs": "nixpkgs_4",
         "paseo": "paseo",
         "private": "private",
-        "sops-nix": "sops-nix"
+        "sops-nix": "sops-nix",
+        "wrk": "wrk"
       }
     },
     "rust-overlay": {
@@ -827,6 +844,20 @@
         "repo": "uv2nix",
         "type": "github"
       }
+    },
+    "wrk": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_6"
+      },
+      "locked": {
+        "path": "./ci/empty-private",
+        "type": "path"
+      },
+      "original": {
+        "path": "./ci/empty-private",
+        "type": "path"
+      },
+      "parent": []
     }
   },
   "root": "root",
