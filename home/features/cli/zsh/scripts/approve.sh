@@ -8,8 +8,8 @@ db="${XDG_DATA_HOME:-$HOME/.local/share}/approve/repos"
 
 if [ "$#" -lt 2 ]; then
   echo "usage: approve <pr-number> <owner/repo | repo> [message]" >&2
-  echo "example: approve 23 seazone-team/sapron-backend" >&2
-  echo "         approve 23 sapron-backend   (after the repo is known)" >&2
+  echo "example: approve 23 some-org/some-repo" >&2
+  echo "         approve 23 some-repo         (after the owner is known)" >&2
   exit 1
 fi
 

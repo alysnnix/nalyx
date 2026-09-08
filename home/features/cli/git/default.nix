@@ -10,6 +10,8 @@ let
   gitHooks = import ./hooks { inherit pkgs lib; };
 in
 {
+  imports = [ ./options.nix ];
+
   # The hook logic is on PATH as well as behind core.hooksPath. A repo that
   # sets its own core.hooksPath (husky points it at .husky/_) shadows ours,
   # and there the fix is one line in that repo's own hook calling these:
@@ -57,5 +59,22 @@ in
     };
   };
 
-  home.file.".ssh/allowed_signers".text = "${vars.user.email} ${vars.user.publicKey}";
+  # Verification is not symmetric with signing. A host signs with the one key it
+  # holds, but it has to verify every identity you have ever used, or it reports
+  # commits from your other machines as untrusted and trains you to ignore the
+  # field entirely.
+  #
+  # Principals are matched as patterns by ssh-keygen, so a per-project module can
+  # add `*@employer.example` and keep the address itself out of this public repo.
+  home.file.".ssh/allowed_signers".text =
+    lib.concatMapStringsSep "\n" (e: "${e.principal} ${e.key}") (
+      [
+        {
+          principal = vars.user.email;
+          key = vars.user.publicKey;
+        }
+      ]
+      ++ config.modules.cli.git.extraSigners
+    )
+    + "\n";
 }

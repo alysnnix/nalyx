@@ -77,6 +77,23 @@
       url = "git+ssh://git@github.com/alysnnix/nalyx-private";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Per-project private layer (optional, one at a time)
+    #
+    # Everything belonging to one employer or client: their committer identity,
+    # their secrets, their skills, the tools only that job needs. Kept out of
+    # this repo entirely, because a public config that names who you work for
+    # is a liability you cannot take back once it is pushed.
+    #
+    # The default is the local placeholder, never a URL, and that is the whole
+    # trick: a flake input is static and lives in this file, so any real URL
+    # here would publish the name it exists to hide. `switch` overrides it with
+    # .private/wrk when that checkout is present, so the name only ever lives
+    # on the machine that needs it. Point .private/wrk at a different project's
+    # repo and the same profile serves the next job.
+    wrk = {
+      url = "path:./ci/empty-private";
+    };
   };
 
   outputs =
@@ -91,6 +108,7 @@
       llm-agents,
       caelestia,
       private ? null,
+      wrk ? null,
       ...
     }@inputs:
     let
@@ -121,6 +139,11 @@
           [ private.homeManagerModules.default ]
         else
           [ ];
+
+      # Same shape as the personal one, so a project repo is plugged in by
+      # exporting homeManagerModules.default and nothing else.
+      wrkHmModules =
+        if wrk != null && (wrk ? homeManagerModules) then [ wrk.homeManagerModules.default ] else [ ];
 
       privateNixosModule =
         name:
@@ -268,19 +291,18 @@
             ++ privateHmModules;
           };
 
-        # Seazone work laptop: standalone home-manager over their own Ubuntu
-        # image, which carries the Fleet agent. NixOS is not on Fleet's
-        # supported distro list, so the system layer stays theirs and Nix owns
-        # the userland only. See home/profiles/szn for the reasoning.
+        # Work laptop: standalone home-manager over an employer's own image,
+        # which carries their device management agent. Their system layer stays
+        # theirs and nix owns the userland only. See home/profiles/wrk.
         #
-        # No privateHmModules here, unlike every other output: the private
-        # module clones personal repos and reads every secret from
-        # /run/secrets, a path only the sops-nix NixOS module creates. Adding
-        # the Seazone layer means splitting the secrets file into a work-only
-        # set first, and then this becomes a one-line change.
-        szn =
+        # `private` is deliberately absent, unlike every other output: that
+        # module is the personal fleet (personal secrets, personal repos, the
+        # syncthing peers) and none of it belongs on a machine someone else
+        # administers. The employer layer arrives through `wrk` instead, which
+        # is empty until `switch` points it at a project checkout.
+        wrk =
           let
-            sznVars = vars // {
+            wrkVars = vars // {
               desktop = null;
             };
           in
@@ -292,7 +314,7 @@
             };
             extraSpecialArgs = {
               inherit inputs;
-              vars = sznVars;
+              vars = wrkVars;
               isWsl = false;
               isServer = false;
               terminalOnly = true;
@@ -301,8 +323,9 @@
               enableOpencode = true;
             };
             modules = [
-              ./home/profiles/szn
-            ];
+              ./home/profiles/wrk
+            ]
+            ++ wrkHmModules;
           };
       };
 
@@ -321,7 +344,7 @@
         wsl = self.nixosConfigurations.wsl.config.system.build.toplevel;
         homelab = self.nixosConfigurations.homelab.config.system.build.toplevel;
         wsl-ubuntu = self.homeConfigurations.wsl-ubuntu.activationPackage;
-        szn = self.homeConfigurations.szn.activationPackage;
+        wrk = self.homeConfigurations.wrk.activationPackage;
 
         # Pre-commit hooks check (also used to install hooks via devShell)
         pre-commit = git-hooks.lib.${system}.run {
