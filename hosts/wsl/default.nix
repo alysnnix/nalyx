@@ -223,8 +223,28 @@
   # /run/opengl-driver so nvidia-smi, CUDA and OpenGL-over-D3D12 work
   wsl.useWindowsDriver = true;
 
-  environment.sessionVariables = {
-    DISPLAY = ":0";
+  environment = {
+    sessionVariables = {
+      DISPLAY = ":0";
+    };
+
+    # O Orca registra um launcher próprio em ~/.local/bin quando conecta neste
+    # host: um wrapper que atravessa a interop e chama o orca.exe do lado
+    # Windows. Ele avisa que o diretório não está no PATH em NixOS, e está certo.
+    #
+    # `home.sessionPath` em home/features/cli/zsh já põe o diretório no PATH,
+    # mas só através do hm-session-vars.sh, que quem carrega é o ~/.zshenv.
+    # Então hoje ele está no PATH por acidente do login shell ser zsh, e não
+    # porque o sistema conhece o diretório: qualquer coisa que não passe por uma
+    # zsh não o vê. Esta option escreve em /etc/set-environment, que o
+    # /etc/zshenv lê para toda shell (inclusive não interativa) e o /etc/profile
+    # para as de login.
+    #
+    # Aqui e não em modules/core porque a ponte em ~/.local/bin é específica do
+    # WSL, e aquela linha do home-manager continua necessária de todo modo: esta
+    # option não existe fora do NixOS, que é onde o perfil wrk e o wsl-ubuntu
+    # dependem dela.
+    localBinInPath = true;
   };
 
   programs = {
