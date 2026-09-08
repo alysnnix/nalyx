@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
   # Ignore list for the shared `wrk` Syncthing folder. Patterns without a
   # leading slash match at any depth, so a bare `node_modules` covers every
@@ -35,6 +40,19 @@ let
   '';
 in
 {
+  options.modules.cli.syncthing.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = ''
+      Write the ignore list for the shared `wrk` Syncthing folder.
+
+      Default true because every host in the personal fleet is a peer. Set it
+      false on a machine that must not bridge into that fleet at all, such as a
+      managed work laptop, where the folder would otherwise be seeded with an
+      ignore list for a sync that is never supposed to happen.
+    '';
+  };
+
   # Copied, not symlinked. `home.file."wrk/.stignore"` was lost the moment
   # Syncthing recreated ~/wrk after the 2026-08-10 WSL reinstall: the symlink
   # went away and the folder synced with no ignore list at all, pulling
@@ -43,8 +61,10 @@ in
   #
   # `install` recreates the destination, which plain `cp` cannot do once the
   # previous copy exists as a read-only store copy.
-  home.activation.wrkStignore = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD mkdir -p ~/wrk
-    $DRY_RUN_CMD install -m 0644 ${stignore} ~/wrk/.stignore
-  '';
+  config.home.activation.wrkStignore = lib.mkIf config.modules.cli.syncthing.enable (
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      $DRY_RUN_CMD mkdir -p ~/wrk
+      $DRY_RUN_CMD install -m 0644 ${stignore} ~/wrk/.stignore
+    ''
+  );
 }

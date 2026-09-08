@@ -168,6 +168,11 @@
                     isServer
                     ;
                   vars = hostVars;
+                  # Every NixOS host owns its own graphical layer, so nothing
+                  # here is terminal-only. Provided rather than left to the
+                  # module default because a specialArg that is not passed at
+                  # all resolves through `_module.args` and fails.
+                  terminalOnly = false;
                   enableClaude = true;
                   enableGemini = true;
                   enableOpencode = true;
@@ -250,6 +255,9 @@
               vars = wslVars;
               isWsl = true;
               isServer = false;
+              # `isWsl` already drops the graphical tree in home/default.nix;
+              # this only has to be defined, not true.
+              terminalOnly = false;
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
@@ -258,6 +266,43 @@
               ./home
             ]
             ++ privateHmModules;
+          };
+
+        # Seazone work laptop: standalone home-manager over their own Ubuntu
+        # image, which carries the Fleet agent. NixOS is not on Fleet's
+        # supported distro list, so the system layer stays theirs and Nix owns
+        # the userland only. See home/profiles/szn for the reasoning.
+        #
+        # No privateHmModules here, unlike every other output: the private
+        # module clones personal repos and reads every secret from
+        # /run/secrets, a path only the sops-nix NixOS module creates. Adding
+        # the Seazone layer means splitting the secrets file into a work-only
+        # set first, and then this becomes a one-line change.
+        szn =
+          let
+            sznVars = vars // {
+              desktop = null;
+            };
+          in
+          home-manager.lib.homeManagerConfiguration {
+            pkgs = import nixpkgs {
+              inherit system;
+              config.allowUnfree = true;
+              overlays = [ claudeOverlay ];
+            };
+            extraSpecialArgs = {
+              inherit inputs;
+              vars = sznVars;
+              isWsl = false;
+              isServer = false;
+              terminalOnly = true;
+              enableClaude = true;
+              enableGemini = true;
+              enableOpencode = true;
+            };
+            modules = [
+              ./home/profiles/szn
+            ];
           };
       };
 
@@ -276,6 +321,7 @@
         wsl = self.nixosConfigurations.wsl.config.system.build.toplevel;
         homelab = self.nixosConfigurations.homelab.config.system.build.toplevel;
         wsl-ubuntu = self.homeConfigurations.wsl-ubuntu.activationPackage;
+        szn = self.homeConfigurations.szn.activationPackage;
 
         # Pre-commit hooks check (also used to install hooks via devShell)
         pre-commit = git-hooks.lib.${system}.run {
