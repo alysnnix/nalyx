@@ -1,12 +1,14 @@
 # Nalyx
 
-Personal NixOS configuration with public/private split for multi-host support.
+Personal NixOS configuration. Public, employer-neutral, with pluggable private layers.
 
 ## Quick Start
 
 ```bash
 switch           # Build system (switches to main, auto-detects hostname)
 switch wsl       # Specify a host
+switch szn       # The wrk profile with the .private/szn-private layer
+switch wsl szn   # A host, naming which project layer to use
 switch --no-main # Build from current branch instead of main
 switch --help    # Show all switch options
 nix flake check --no-build  # Validate
@@ -19,16 +21,51 @@ nix develop      # Enter devShell (installs pre-commit hooks)
 - NEVER edit `hardware-configuration.nix` files manually — they are auto-generated
 - NEVER edit the global agent rules at their deployed paths (`~/.claude/CLAUDE.md`, `~/.omp/agent/AGENTS.md`, `~/.omp/agent/RULES.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.config/opencode/AGENTS.md`). They are all generated from `home/features/cli/agent-rules/`. Session-local notes go in `~/.claude/CLAUDE.local.md`, which Nix never overwrites
 - ALWAYS validate with `nix flake check --no-build` before commit
-- NEVER put personal data in the public repo — use nalyx-private for secrets and real values
+- NEVER put personal data in the public repo, use nalyx-private for secrets and real values
+- NEVER name an employer, client or their infrastructure anywhere in this repo, not in code, comments, filenames or `flake.lock`. That belongs in a project layer. A public config that says who you work for is a liability you cannot take back once pushed
+- NEVER read a specialArg with a default (`terminalOnly`, `isServer`) from an `imports` position. The module system then resolves it through `_module.args`, which needs `config`, and that recurses. Gate conditional imports on a real option instead (see `modules.cli.syncthing.enable`)
 
-## Public / Private Architecture
+## Layer Architecture
 
-The repo has an optional private companion (`nalyx-private`) cloned into `.private/` (gitignored). Detection uses `private ? null` in `flake.nix`:
+Three kinds of repo. This one is public and names nobody; the others are private and fill in what it deliberately leaves blank.
 
-- **Without private repo**: safe defaults, `initialPassword = "changeme"`, SOPS disabled
-- **With private repo**: conditionally includes `privateNixosModules` and `privateHmModules`
+| Repo | Holds | Flake input |
+|---|---|---|
+| `nalyx` (here) | everything publishable: hosts, features, options | |
+| `nalyx-private` | the person: personal secrets, personal repos, the syncthing fleet | `private` |
+| `<project>-private` | one employer or client: their identity, secrets, skills, tools | `wrk` |
 
-Private modules are only referenced in `flake.nix` — no public module knows the private repo exists.
+Both inputs are optional and detected with `private ? null` / `wrk ? null`, so a clone with neither still builds: safe defaults, `initialPassword = "changeme"`, SOPS disabled.
+
+### The rule
+
+**The public repo offers options; a private layer turns them on.** Anything employer-specific is an option here and a value there. Current examples:
+
+- `modules.cli.git.extraSigners` (`home/features/cli/git/options.nix`)
+- `modules.wrk.pritunl.enable` (`home/features/cli/wrk.nix`)
+- `modules.cli.syncthing.enable` (`home/features/cli/syncthing`)
+
+A layer plugs in by exporting `homeManagerModules.default`, and `nixosModules.default` when it has secrets to declare. The helpers in `flake.nix` are `privateHmModules`, `privateNixosModules`, `privateNixosModule <name>`, `wrkHmModules`, `wrkNixosModules`.
+
+### Why the `wrk` input defaults to a local path
+
+A flake input is static and lives in `flake.nix`, so any real URL there would publish the name it exists to hide. `wrk` therefore defaults to `path:./ci/empty-private` and `switch` overrides it per machine. The project layer's own `flake.lock` carries the employer's URLs, so they never reach a public lock file.
+
+`private` still defaults to a URL, because `nalyx-private` names nobody.
+
+### How `switch` picks the layers
+
+Which layers a machine gets is decided by **what is cloned into `.private/`**, nothing else. `switch` discovers any directory there with a `flake.nix`: `nalyx-private` is the personal layer, anything else is a project layer (`.private/notes` is skipped for having no flake). It addresses a project by its directory name minus the `-private` suffix, so `.private/szn-private` is `switch szn`.
+
+With one project layer cloned the name is optional. With several it is required, because a flake takes one `wrk` input and NixOS hosts carry the layer too: `switch wsl szn`.
+
+The work laptop simply never clones `nalyx-private`, and that absence is the whole isolation mechanism.
+
+### Secrets
+
+Each private repo owns its own SOPS file and its own recipients, and a project layer must set `sopsFile` explicitly on every secret, because `sops.defaultSopsFile` is a single value already claimed by the personal layer.
+
+The recipient lists are deliberately asymmetric: a project file lists the personal age key **and** the machine key for that job, so every personal machine reads it; the personal file lists only the personal key, so an employer-managed machine cannot read it even if it somehow got the repo. Recipients are derived from SSH keys with `ssh-to-age`, and each key decrypts independently, so no private key is ever copied between machines.
 
 ## Stack
 
@@ -54,7 +91,14 @@ Private modules are only referenced in `flake.nix` — no public module knows th
 | `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
 | `homelab` | Server | None | Tailscale, Hermes Agent |
 
-There is also a standalone `homeConfigurations.wsl-ubuntu` for Ubuntu WSL without NixOS.
+### Home profiles (no NixOS)
+
+| Profile | For |
+|---|---|
+| `wrk` | an employer-managed machine: terminal only, no graphical packages, no syncthing peer. `home/profiles/wrk/` |
+| `wsl-ubuntu` | Ubuntu WSL without NixOS |
+
+On these, `switch` activates home-manager instead of `nixos-rebuild`, since the system layer belongs to the distro. Graphical apps there come from the distro's package manager on purpose: an osquery-based management agent inventories `deb_packages`, never `/nix/store`, so a browser pinned in a flake both lags behind CVEs and stays invisible to the dashboard watching for them.
 
 ## Project Structure
 
@@ -67,7 +111,9 @@ modules/
   services/      # NordVPN, Syncthing, Hermes Agent
   secureboot/    # Lanzaboote (optional)
 home/
-  default.nix    # Root HM config
+  default.nix    # Root HM config, imported by every NixOS host
+  profiles/      # Standalone HM profiles (no NixOS)
+    wrk/         # Employer-managed machine: terminal only
   features/
     cli/         # zsh, git, ssh, neovim, claude, gemini, opencode
     desktop/     # hyprland (caelestia/waybar/rofi/matugen), gnome
@@ -75,7 +121,8 @@ home/
     programs/    # docker, firefox, games, obs, vscode, zed
 generators/      # ISO generation for installation
 packages/        # Custom Nix packages
-ci/              # CI scaffolding (empty-private placeholder)
+ci/              # empty-private placeholder: the `wrk` input default, and CI's
+                 # stand-in for `private` when it has no repo access
 scripts/         # Utility scripts (homelab-install)
 ```
 
