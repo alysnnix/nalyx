@@ -56,8 +56,17 @@ in
   ];
 
   home = {
-    username = vars.user.name;
-    homeDirectory = "/home/${vars.user.name}";
+    # Literal, and the one place in the tree that does not read vars.user.name.
+    # That value is the personal login name; the account on the work laptop is
+    # a different one, and this has to match the account that runs the
+    # activation. A standalone home-manager generation bakes these paths in
+    # verbatim, so taking the personal name here would build a generation
+    # rooted at a home directory this user cannot even create.
+    #
+    # The git identity is untouched: features/cli/git reads vars.user, so
+    # commits stay attributed to the personal name and email.
+    username = "szn";
+    homeDirectory = "/home/szn";
 
     # Short by design. `gh` and `gnumake` are terminal tools; the nerd font is
     # not optional because features/cli/ghostty pins `JetBrainsMono Nerd Font`
