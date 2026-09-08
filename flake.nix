@@ -271,7 +271,7 @@
         # Seazone work laptop: standalone home-manager over their own Ubuntu
         # image, which carries the Fleet agent. NixOS is not on Fleet's
         # supported distro list, so the system layer stays theirs and Nix owns
-        # the userland only. See home/profiles/szn.nix for the reasoning.
+        # the userland only. See home/profiles/szn for the reasoning.
         #
         # No privateHmModules here, unlike every other output: the private
         # module clones personal repos and reads every secret from
@@ -301,7 +301,7 @@
               enableOpencode = true;
             };
             modules = [
-              ./home/profiles/szn.nix
+              ./home/profiles/szn
             ];
           };
       };

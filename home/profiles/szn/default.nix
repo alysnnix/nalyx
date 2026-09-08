@@ -4,6 +4,14 @@
   lib,
   ...
 }:
+let
+  # Wrapped rather than inlined so shellcheck runs on it at build time.
+  pritunlSetup = pkgs.writeShellApplication {
+    name = "szn-pritunl-setup";
+    runtimeInputs = [ pkgs.systemd ];
+    text = builtins.readFile ./scripts/pritunl-setup.sh;
+  };
+in
 # Seazone work laptop: terminal only, standalone home-manager.
 #
 # That machine runs Seazone's own Ubuntu image with the Fleet agent, so the
@@ -26,24 +34,24 @@
 # needs the secrets file split into a work-only set first; until then the
 # agents run on the public generic config.
 {
-  # Languages are listed one by one rather than pulling ../features/languages,
+  # Languages are listed one by one rather than pulling ../../features/languages,
   # so this file stays the single place that says what the work machine gets.
   # `latex` is the one left out: it is the university toolchain, not a Seazone
   # one, and it drags in texlive-combined-medium plus a graphical PDF viewer
   # (zathura) and an X-linked ghostscript.
   imports = [
-    ../features/cli
-    ../features/languages/go
-    ../features/languages/nix
-    ../features/languages/node
-    ../features/languages/java
-    ../features/languages/python
+    ../../features/cli
+    ../../features/languages/go
+    ../../features/languages/nix
+    ../../features/languages/node
+    ../../features/languages/java
+    ../../features/languages/python
 
-    # Reached into ../features/programs on purpose. That tree is gated on
+    # Reached into ../../features/programs on purpose. That tree is gated on
     # hasDesktop, but this one holds nothing graphical: docker-client,
     # docker-compose, lazydocker, hadolint and trivy are all CLI. The daemon
     # itself has always come from the system, so apt provides it here.
-    ../features/programs/docker
+    ../../features/programs/docker
   ];
 
   home = {
@@ -59,12 +67,24 @@
       gnumake
       nerd-fonts.jetbrains-mono
 
-      # Terminal tools that only ever lived inside ../features/programs, which
+      # Terminal tools that only ever lived inside ../../features/programs, which
       # is gated on hasDesktop, so dropping that tree stranded them. Listed
       # here rather than moved, to keep every other host's closure identical.
       k6
       vegeta
       postgresql # the psql client, not a server
+
+      # Seazone's VPN. The one package here that also carries a window: the
+      # nixpkgs derivation bundles pritunl-client (CLI), the electron app and
+      # its .desktop entry, and they cannot be separated without an override
+      # that would drift from upstream. Kept whole because the VPN is not
+      # optional for work, and the extra launcher icon is a fair price.
+      #
+      # The CLI alone does not connect: it talks to pritunl-client-service,
+      # which needs root. `szn-pritunl-setup` installs that system unit, and
+      # has to be run once by hand (see scripts/pritunl-setup.sh).
+      pritunl-client
+      pritunlSetup
     ];
 
     sessionVariables = {
