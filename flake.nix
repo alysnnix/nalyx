@@ -145,6 +145,12 @@
       wrkHmModules =
         if wrk != null && (wrk ? homeManagerModules) then [ wrk.homeManagerModules.default ] else [ ];
 
+      # And the system half, which exists for one reason: secrets. A project's
+      # sops secrets have to be declared somewhere, and on a NixOS host that is
+      # a NixOS module. Optional, so a layer that only carries user-level
+      # config exports nothing here and still works.
+      wrkNixosModules = if wrk != null && (wrk ? nixosModules) then [ wrk.nixosModules.default ] else [ ];
+
       privateNixosModule =
         name:
         if private != null && (private ? nixosModules) && (private.nixosModules ? ${name}) then
@@ -210,6 +216,7 @@
             }
           ]
           ++ privateNixosModules
+          ++ wrkNixosModules
           ++ extraModules;
         };
 
