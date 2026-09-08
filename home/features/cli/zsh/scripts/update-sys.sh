@@ -13,7 +13,17 @@ Usage:
   switch [target] [--no-main]
 
 Arguments:
-  target       host or home profile to build (default: current hostname)
+  target       a host, a home profile, or a project name (default: hostname)
+
+               A project name is the directory under .private/ with the
+               `-private` suffix dropped, so a checkout at
+               .private/szn-private is addressed as `szn`. Naming one selects
+               the `wrk` profile with that layer plugged in, which is how one
+               generic profile serves several jobs without this repo ever
+               naming any of them.
+
+               With exactly one project layer cloned the name is optional;
+               with several it is required, because a flake takes one layer.
 
 Options:
   --no-main    pull the current branch instead of switching to main
@@ -22,14 +32,20 @@ Options:
 Examples:
   switch                 # switch to main, pull, rebuild current host
   switch wsl             # switch to main, pull, rebuild the wsl host
-  switch wrk             # activate the terminal-only work home profile
+  switch szn             # the wrk profile with the szn layer
+  switch wrk             # the wrk profile with whatever single layer is cloned
   switch --no-main       # stay on current branch, pull, rebuild
   switch wsl --no-main
 EOF
 }
 
-HOST="$(hostname)"
+# TARGET is what the user actually typed, kept apart from HOST so the project
+# layer resolution below can tell "no argument" from "argument that happens to
+# equal the hostname".
+TARGET=""
+PROJECT=""
 NO_MAIN=0
+positional=()
 for arg in "$@"; do
   case "$arg" in
     --no-main) NO_MAIN=1 ;;
@@ -37,9 +53,15 @@ for arg in "$@"; do
       usage
       exit 0
       ;;
-    *) HOST="$arg" ;;
+    *) positional+=("$arg") ;;
   esac
 done
+# Two positionals mean "this target, with that project layer", which is the
+# only way to be unambiguous when several layers are cloned and the target is
+# a NixOS host: those hosts carry the layer too, so the pick matters there.
+TARGET="${positional[0]:-}"
+PROJECT="${positional[1]:-}"
+HOST="${TARGET:-$(hostname)}"
 
 FLAKE_DIR="$HOME/nalyx"
 # Personal layer: a fixed name, because there is only ever one of it.
@@ -55,22 +77,73 @@ PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
 # The .private/notes vault is skipped for free, since it carries no flake.nix.
 WRK_DIR=""
 wrk_found=()
+wrk_names=()
 for candidate in "$FLAKE_DIR"/.private/*/; do
   candidate="${candidate%/}"
   [ -f "$candidate/flake.nix" ] || continue
   [ "$candidate" = "$PRIVATE_DIR" ] && continue
   wrk_found+=("$candidate")
+  # `szn-private` is addressed as `szn`, so the target you type is the job, not
+  # the repo. The suffix is a naming convention, not something this has to know.
+  wrk_names+=("$(basename "${candidate%-private}")")
 done
-# Refuse rather than guess. A flake takes one `wrk` input, so with two project
-# repos present there is no correct pick, and silently choosing would build the
-# wrong job's secrets and identity into the generation.
-if [ "${#wrk_found[@]}" -gt 1 ]; then
-  echo "  wrk:     ERROR more than one project layer found:" >&2
-  for candidate in "${wrk_found[@]}"; do echo "             $candidate" >&2; done
-  echo "  wrk:     only one can be active; move or remove the others" >&2
+
+# Resolve the target the user asked for against those names, so `switch szn`
+# means "the wrk profile, with the szn layer plugged in".
+#
+# The name is matched here rather than being a flake output on purpose. An
+# output called `szn` would put an employer's name back into the public flake,
+# which is the one thing this whole layout exists to avoid. A string the user
+# types and a directory on their own disk carry no such cost, so the naming
+# lives entirely on the machine.
+# Look up a project name among the cloned layers. Prints the path, or nothing.
+find_layer() {
+  local want="$1" i
+  for i in "${!wrk_names[@]}"; do
+    if [ "${wrk_names[$i]}" = "$want" ]; then
+      printf '%s' "${wrk_found[$i]}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+layer_list() {
+  local i
+  for i in "${!wrk_found[@]}"; do
+    echo "             ${wrk_names[$i]}  (${wrk_found[$i]})" >&2
+  done
+}
+
+if [ -n "$PROJECT" ]; then
+  # `switch <target> <project>`: explicit on both axes.
+  if ! WRK_DIR="$(find_layer "$PROJECT")"; then
+    echo "  wrk:     ERROR no project layer named '$PROJECT' under .private/" >&2
+    if [ "${#wrk_found[@]}" -gt 0 ]; then
+      echo "  wrk:     cloned layers are:" >&2
+      layer_list
+    else
+      echo "  wrk:     nothing is cloned there yet" >&2
+    fi
+    exit 1
+  fi
+elif [ -n "$TARGET" ] && WRK_DIR="$(find_layer "$TARGET")"; then
+  # `switch <project>`: the target names a layer, so it means the generic work
+  # profile with that layer. The flake only ever has the one such profile.
+  HOST="wrk"
+elif [ "${#wrk_found[@]}" -gt 1 ]; then
+  # Refuse rather than guess. A flake takes one `wrk` input, and a NixOS host
+  # carries the layer as well, so with several cloned there is no correct pick
+  # and choosing silently would build the wrong job's secrets and identity.
+  WRK_DIR=""
+  echo "  wrk:     ERROR more than one project layer is cloned:" >&2
+  layer_list
+  echo "  wrk:     name it, e.g. switch ${wrk_names[0]}, or switch $HOST ${wrk_names[0]}" >&2
   exit 1
 elif [ "${#wrk_found[@]}" -eq 1 ]; then
   WRK_DIR="${wrk_found[0]}"
+else
+  WRK_DIR=""
 fi
 
 echo "Rodando update do sistema..."
