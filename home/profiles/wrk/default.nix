@@ -140,6 +140,13 @@ in
     # list for a folder it is never going to sync.
     modules.cli.syncthing.enable = false;
 
+    # Orca itself comes from the distro (`apt install ./orca-ide_*.deb`), like
+    # every other window on this machine. This only fixes the launcher, so the
+    # app finds the agents in the nix profile. The one graphical exception in a
+    # terminal-only profile, and it earns it by shipping no window of its own:
+    # it is a desktop entry and a two-line wrapper.
+    modules.cli.orca.enable = true;
+
     # Not NixOS, so nothing sets up the session for a nix profile. This exports
     # XDG_DATA_DIRS and friends via hm-session-vars.sh, which is what makes
     # completions, man pages and desktop entries from the profile resolvable.

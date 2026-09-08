@@ -125,7 +125,19 @@
       extraUpFlags = [ "--hostname=wsl-nix" ];
       extraSetFlags = [ "--hostname=wsl-nix" ];
     };
-    openssh.enable = true;
+    # Só chave, sem senha. O login aqui nasce com o `initialPassword` de
+    # bootstrap (ver users.users abaixo), e o firewall do NixOS não roda dentro
+    # do WSL: quem filtra o tráfego de entrada é o do Windows. Então a chave é
+    # a única tranca que este repo controla de fato, e `openFirewall = false`
+    # (o que laptop e desktop usam) aqui não faria nada.
+    openssh = {
+      enable = true;
+      settings = {
+        PermitRootLogin = "no";
+        PasswordAuthentication = false;
+        KbdInteractiveAuthentication = false;
+      };
+    };
   };
 
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
@@ -177,6 +189,21 @@
     # mkForce (priority 50).
     hashedPasswordFile = lib.mkOverride 49 null;
     initialPassword = lib.mkOverride 49 "changeme";
+
+    # Este era o único host pessoal sem authorizedKeys, ou seja, só entrava por
+    # senha. A chave pessoal não é acessório: sem ela, o PasswordAuthentication
+    # desligado acima trancaria o SSH no `wsl-nix` via Tailscale a partir do
+    # desktop e do laptop.
+    openssh.authorizedKeys.keys = [
+      vars.user.publicKey
+
+      # Cliente do Orca. A GUI roda no Windows e disca em localhost:22 (modo
+      # espelhado), então a chave privada tem que morar do lado NTFS e não pode
+      # ser a de ~/.ssh daqui de dentro. Chave da máquina cliente, não uma
+      # segunda identidade, e por isso fora de vars.user.publicKey, que é a
+      # identidade pessoal sozinha.
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUOLPiN4yf7aJVczDZwLdWm3jz/QJHspofbuewxL4/5 orca-windows"
+    ];
     extraGroups = [
       "wheel"
       "networkmanager"
@@ -200,8 +227,23 @@
   # /run/opengl-driver so nvidia-smi, CUDA and OpenGL-over-D3D12 work
   wsl.useWindowsDriver = true;
 
-  environment.sessionVariables = {
-    DISPLAY = ":0";
+  environment = {
+    sessionVariables = {
+      DISPLAY = ":0";
+    };
+
+    # Repetido de modules/core, que este host não importa (o NixOS-WSL traz base
+    # própria, então aqui se declara usuário, pacotes e stateVersion na mão).
+    # Ligar lá cobre desktop, laptop, vm e homelab, e não alcança este. Nenhuma
+    # das duas cópias é redundante.
+    #
+    # O motivo está em modules/core; aqui o gatilho concreto é o Orca, que
+    # registra um launcher em ~/.local/bin quando conecta neste host (wrapper
+    # que atravessa a interop até o orca.exe do Windows) e avisa que o diretório
+    # não está no PATH em NixOS. Está certo: quem o põe lá hoje é o
+    # `home.sessionPath` do home-manager, que só chega via hm-session-vars.sh,
+    # carregado apenas pelo ~/.zshenv.
+    localBinInPath = true;
   };
 
   programs = {
