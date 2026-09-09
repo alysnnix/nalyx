@@ -435,6 +435,15 @@ if command -v wrk-bwrap-apparmor-setup >/dev/null 2>&1; then
   wrk-bwrap-apparmor-setup || echo "  warning: wrk-bwrap-apparmor-setup failed"
 fi
 
+# Point /run/opengl-driver at the drivers home-manager built, without which no
+# nix-built GL app can open a window off NixOS. Same reasoning as the grant
+# above: root-only, so activation can only warn about it, and this returns
+# without sudo unless the link is missing or stale. Never fatal, a generation
+# with no GL is still a good generation for everything headless.
+if command -v wrk-gpu-setup >/dev/null 2>&1; then
+  wrk-gpu-setup || echo "  warning: wrk-gpu-setup failed"
+fi
+
 if [ "$REBUILD_RC" -ne 0 ]; then
   echo "  warning: nixos-rebuild exited with status $REBUILD_RC (check failed units above)"
 fi

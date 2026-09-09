@@ -47,6 +47,22 @@ let
     name = "wrk-bwrap-apparmor-setup";
     text = builtins.readFile ./scripts/bwrap-apparmor-setup.sh;
   };
+
+  # Third of the same kind, and the drivers path is substituted in rather than
+  # read at run time: the script has to compare against the generation being
+  # activated, not against whatever the profile happens to hold. `drivers` is
+  # marked internal upstream, so this is the one line to revisit if a
+  # home-manager bump renames it.
+  gpuSetup = pkgs.writeShellApplication {
+    name = "wrk-gpu-setup";
+    text =
+      builtins.replaceStrings
+        [ "@drivers@" ]
+        [
+          "${config.targets.genericLinux.gpu.drivers}"
+        ]
+        (builtins.readFile ./scripts/gpu-setup.sh);
+  };
 in
 {
   # Languages are listed one by one rather than pulling ../../features/languages,
@@ -110,6 +126,12 @@ in
           # updater, which is a second package manager on a machine that
           # already has two.
           inputs.fastpotify.packages.${pkgs.stdenv.hostPlatform.system}.default
+
+          # Makes /run/opengl-driver exist, which is the only place the nix
+          # libglvnd looks for a driver. Without it every nix package that
+          # opens a GL window fails, fastpotify above included. Run by
+          # `switch`, see scripts/gpu-setup.sh.
+          gpuSetup
 
           # ../../features/cli pulls in composio-cli, a pkgs.buildFHSEnv
           # package, which needs the AppArmor grant `wrk-bwrap-apparmor-setup`
