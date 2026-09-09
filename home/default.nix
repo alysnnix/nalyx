@@ -1,4 +1,5 @@
 {
+  inputs,
   pkgs,
   vars,
   lib,
@@ -36,6 +37,10 @@ in
         # full browser runtime into the headless homelab and WSL closures.
         obsidian
         spotify
+        # Native Spotify client, kept alongside the official app rather than
+        # replacing it: playback needs Premium and Spotify Connect, so the
+        # Electron one stays as the fallback until this proves itself.
+        inputs.fastpotify.packages.${pkgs.stdenv.hostPlatform.system}.default
         slack
         (google-chrome.override {
           commandLineArgs = [
