@@ -420,6 +420,21 @@ if command -v sync-claude-mcps >/dev/null 2>&1; then
   sync-claude-mcps || echo "  warning: sync-claude-mcps failed"
 fi
 
+# Grant the nix-built bwrap the AppArmor permission to unshare a user namespace,
+# without which every buildFHSEnv package (composio) dies on "setting up uid
+# map: Permission denied". It writes to /etc/apparmor.d, so home-manager cannot
+# do it from an activation script: that runs unprivileged, and a sudo prompt
+# mid-activation would hang a non-interactive rebuild.
+#
+# Here instead, where a prompt is expected anyway, and only ever on the hosts
+# that carry the helper (the work profile). It returns early without touching
+# sudo unless the profile is actually missing or stale, so the usual switch
+# stays silent. Never fatal: the grant only gates the FHS packages, so a switch
+# that could not install it is still a good generation.
+if command -v wrk-bwrap-apparmor-setup >/dev/null 2>&1; then
+  wrk-bwrap-apparmor-setup || echo "  warning: wrk-bwrap-apparmor-setup failed"
+fi
+
 if [ "$REBUILD_RC" -ne 0 ]; then
   echo "  warning: nixos-rebuild exited with status $REBUILD_RC (check failed units above)"
 fi
