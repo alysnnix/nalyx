@@ -1,4 +1,5 @@
 {
+  inputs,
   pkgs,
   vars,
   lib,
@@ -28,6 +29,10 @@
 # osquery agent inventories deb_packages and never /nix/store, so a browser
 # pinned in a flake both lags behind CVEs and stays invisible to the compliance
 # dashboard that is supposed to be watching it.
+#
+# That argument is about browsers and anything else with an internet-facing
+# parser worth a CVE feed, so it is aimed at a class of app rather than at
+# pixels, and fastpotify below is the one package that falls outside it.
 let
   # Wrapped rather than inlined so shellcheck runs on it at build time.
   pritunlSetup = pkgs.writeShellApplication {
@@ -99,6 +104,13 @@ in
           vegeta
           postgresql # the psql client, not a server
 
+          # Requested for this machine explicitly, and the only nix package
+          # here that opens a window. Upstream ships no .deb, so the distro
+          # route would mean a flatpak with its own runtime and its own
+          # updater, which is a second package manager on a machine that
+          # already has two.
+          inputs.fastpotify.packages.${pkgs.stdenv.hostPlatform.system}.default
+
           # ../../features/cli pulls in composio-cli, a pkgs.buildFHSEnv
           # package, which needs the AppArmor grant `wrk-bwrap-apparmor-setup`
           # installs. Run it once by hand (see
@@ -157,9 +169,9 @@ in
 
     # Orca itself comes from the distro (`apt install ./orca-ide_*.deb`), like
     # every other window on this machine. This only fixes the launcher, so the
-    # app finds the agents in the nix profile. The one graphical exception in a
-    # terminal-only profile, and it earns it by shipping no window of its own:
-    # it is a desktop entry and a two-line wrapper.
+    # app finds the agents in the nix profile. A graphical exception that costs
+    # nothing, since it ships no window of its own: it is a desktop entry and
+    # a two-line wrapper.
     modules.cli.orca.enable = true;
 
     # Not NixOS, so nothing sets up the session for a nix profile. This exports

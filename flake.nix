@@ -63,6 +63,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # fastpotify: native Spotify client (librespot + egui), no browser engine.
+    # Not following nixpkgs: it pins its rust toolchain through rust-overlay,
+    # and repinning that nixpkgs rebuilds the toolchain before the app.
+    fastpotify = {
+      url = "github:crmne/fastpotify";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
