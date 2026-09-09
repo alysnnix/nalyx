@@ -10,6 +10,10 @@
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
     ../../modules/services/ollama.nix
+    # Options only: the private layer owns the repository password, so it is
+    # also what sets `enable`. This host is the fleet's single backup source,
+    # since Syncthing converges the other peers anyway.
+    ../../modules/services/restic.nix
   ];
 
   wsl = {

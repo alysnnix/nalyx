@@ -40,7 +40,7 @@ No public module references secrets, private URLs, or knows the private repo exi
 | `laptop` | Notebook | Hyprland / GNOME | Intel |
 | `wsl` | WSL2 | None | Docker Desktop |
 | `vm` | Test VM | Hyprland / GNOME | Minimal |
-| `homelab` | Server | None | Tailscale, SSH, headless |
+| `homelab` | Server | None | Tailscale, SSH, headless, encrypted `wrk` sync + restic repo |
 
 ## Stack
 
