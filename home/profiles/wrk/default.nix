@@ -35,6 +35,13 @@ let
     runtimeInputs = [ pkgs.systemd ];
     text = builtins.readFile ./scripts/pritunl-setup.sh;
   };
+
+  # Same pattern as pritunlSetup: root-only work home-manager cannot do,
+  # wrapped so shellcheck runs on it at build time.
+  bwrapApparmorSetup = pkgs.writeShellApplication {
+    name = "wrk-bwrap-apparmor-setup";
+    text = builtins.readFile ./scripts/bwrap-apparmor-setup.sh;
+  };
 in
 {
   # Languages are listed one by one rather than pulling ../../features/languages,
@@ -91,6 +98,14 @@ in
           k6
           vegeta
           postgresql # the psql client, not a server
+
+          # ../../features/cli pulls in composio-cli, a pkgs.buildFHSEnv
+          # package, which needs the AppArmor grant `wrk-bwrap-apparmor-setup`
+          # installs. Run it once by hand (see
+          # scripts/bwrap-apparmor-setup.sh); Ubuntu 24.04+ otherwise refuses
+          # composio's bwrap sandbox with "setting up uid map: Permission
+          # denied".
+          bwrapApparmorSetup
         ]
         ++ lib.optionals config.modules.wrk.pritunl.enable [
           # The CLI alone does not connect: it talks to pritunl-client-service,
