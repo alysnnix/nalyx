@@ -319,7 +319,18 @@ fi
 # The override is the only place the project repo is ever mentioned, and it is
 # computed on the machine, so the public flake keeps its placeholder default and
 # never records a company name in flake.nix or flake.lock.
-if [ -n "${PULL_PID[$WRK_DIR]:-}" ]; then
+# `-n "$WRK_DIR"` first, and not just for tidiness: with no project layer
+# cloned, WRK_DIR is the empty string, and bash treats an empty subscript on an
+# associative array as an error rather than a miss ("bad array subscript"),
+# which `set -u` at the top turns into an abort. The `:-` default does not help,
+# because the failure is the subscript itself, not the lookup.
+#
+# Only this one of the three needs the guard: FLAKE_DIR and PRIVATE_DIR are
+# always path strings, even when the directory is absent. And it went unseen
+# because every host that gets switched often has exactly one layer cloned; the
+# homelab is the only one with none, so it was the only one that could hit it.
+# `track_repo` above already guards the same variable the same way.
+if [ -n "$WRK_DIR" ] && [ -n "${PULL_PID[$WRK_DIR]:-}" ]; then
   echo "  wrk:     $WRK_DIR"
   wait "${PULL_PID[$WRK_DIR]}" || require_current "$WRK_DIR" wrk
   EXTRA_ARGS+=(--override-input wrk "path:$WRK_DIR")
