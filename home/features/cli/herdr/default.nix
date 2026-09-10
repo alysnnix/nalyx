@@ -128,11 +128,22 @@ let
     };
   };
 
-  # Sync only herdr's config.toml. Everything else in ~/.config/herdr is
-  # per-machine runtime state (session history, logs, sockets) and must stay
-  # local: "!config.toml" keeps that one file, "*" ignores the rest.
+  # An allowlist: the `!` lines are kept, `*` drops everything else. Syncthing
+  # takes the first matching pattern, so the order matters.
+  #
+  # session.json and session-history.json joined config.toml on 2026-09-10, so a
+  # session opened on the laptop is visible here. What stays out is the reason
+  # this is an allowlist and not a blocklist:
+  #
+  #   herdr-server.log    3.5 MB and growing, per-machine, useless elsewhere
+  #   herdr-client.log    same
+  #   herdr.sock          a unix socket, replicating one is meaningless at best
+  #   herdr-client.sock   same
+  #   .plugins.lock       a lock, by definition local
   stignore = pkgs.writeText "herdr-stignore" ''
     !config.toml
+    !session.json
+    !session-history.json
     *
   '';
 in

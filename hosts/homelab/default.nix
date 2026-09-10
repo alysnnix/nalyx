@@ -92,6 +92,9 @@
   systemd.tmpfiles.rules = [
     "d /data/sync 0755 ${vars.user.name} users -"
     "d /data/sync/wrk-enc 0700 ${vars.user.name} users -"
+    "d /data/sync/claude-enc 0700 ${vars.user.name} users -"
+    "d /data/sync/omp-enc 0700 ${vars.user.name} users -"
+    "d /data/sync/herdr-enc 0700 ${vars.user.name} users -"
     "d /data/backup 0755 ${vars.user.name} users -"
     "d /data/backup/wrk 0700 ${vars.user.name} users -"
   ];
