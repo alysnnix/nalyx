@@ -17,17 +17,17 @@ let
   isWsl = config.networking.hostName == "nixos-wsl";
   isHomelab = config.networking.hostName == "homelab";
 
-  passwordFile = config.modules.services.syncthing.wrkEncryptionPasswordFile;
+  passwordFile = config.modules.services.syncthing.encryptionPasswordFile;
 
-  # The three hosts that hold the plaintext `~/wrk` and the folder password.
+  # The three hosts that hold plaintext and the folder password.
   trustedPeers = [
     "laptop"
     "wsl"
     "desktop"
   ];
 
-  # The homelab joins `wrk` only when a private layer supplied the password, and
-  # never otherwise. A missing password must not degrade into an unencrypted
+  # The homelab joins a folder only when a private layer supplied the password,
+  # and never otherwise. A missing password must not degrade into an unencrypted
   # share: the first rebuild without the private layer would then push plaintext
   # work data onto the untrusted host, and pushing that cannot be undone. An
   # absent peer is the safe failure. The nixpkgs module reads this path at
@@ -39,18 +39,22 @@ let
   };
 in
 {
-  options.modules.services.syncthing.wrkEncryptionPasswordFile = lib.mkOption {
+  options.modules.services.syncthing.encryptionPasswordFile = lib.mkOption {
     type = lib.types.nullOr lib.types.path;
     default = null;
     description = ''
-      Path to the file holding the Syncthing folder password for `wrk`, held by
-      the trusted peers (wsl, desktop, laptop) and used to offer the folder to
-      the homelab as a Receive Encrypted device.
+      Path to the file holding the Syncthing folder password, held by the
+      trusted peers (wsl, desktop, laptop) and used to offer every folder to the
+      homelab as a Receive Encrypted device.
 
-      Null by default, and null means the homelab is not a peer of `wrk` at all:
+      One password for all four folders rather than one each: the threat model
+      is identical (the homelab must read none of them), and a second password
+      would only add a way for them to drift apart.
+
+      Null by default, and null means the homelab is not a peer of any folder:
       a missing password never degrades into an unencrypted share, because a
-      single rebuild in that state would push plaintext work data onto an
-      untrusted host.
+      single rebuild in that state would push plaintext onto an untrusted host,
+      and pushing that cannot be undone.
 
       The homelab must never be a recipient of this secret. It holds only
       encrypted blocks, and reading the password there would make the untrusted
@@ -159,18 +163,20 @@ in
         # Guarded because the homelab imports this module for `wrk` alone. The
         # nixpkgs module filters folders only on `folder.enable` and POSTs every
         # other one, so an unguarded folder is created locally on every
-        # importer: the homelab would declare this one sendonly over a
-        # ~/.claude/projects it does not have, and the three peers never share
-        # it back, which settles into a permanent error state.
-        folders.claude = lib.mkIf (!isHomelab) {
+        # importer.
+        #
+        # Bidirectional since 2026-09-10, where it used to be one-way into the
+        # laptop. It is safe here specifically because of how Claude Code names
+        # its files: every transcript is `<session-uuid>.jsonl` and every agent
+        # record is `agent-<id>.meta.json`, so a given file has exactly one
+        # author machine and two peers never write the same path. That is what
+        # makes last-writer-wins harmless for this folder and not for the two
+        # below it.
+        folders.claude = {
           id = "claude";
-          path = "/home/${vars.user.name}/.claude/projects";
-          type = if isLaptop then "receiveonly" else "sendonly";
-          devices = [
-            "laptop"
-            "wsl"
-            "desktop"
-          ];
+          path = if isHomelab then "/data/sync/claude-enc" else "/home/${vars.user.name}/.claude/projects";
+          type = if isHomelab then "receiveencrypted" else "sendreceive";
+          devices = trustedPeers ++ lib.optionals (!isHomelab) untrustedPeer;
           maxConflicts = 0;
         };
 
@@ -184,31 +190,56 @@ in
         # Caveat: the SQLite dbs are WAL and written live, so a mid-write sync
         # can land a torn db on the laptop; maxConflicts = 0 means last-writer
         # wins with no .sync-conflict copies. Accepted by design here.
-        # Guarded for the same reason as folders.claude: not a homelab folder.
-        folders.omp = lib.mkIf (!isHomelab) {
+        #
+        # Deliberately NOT made bidirectional when `claude` was, on 2026-09-10.
+        # This folder carries agent.db plus its -wal and -shm sidecars, and
+        # Syncthing treats those three as unrelated files, so it can deliver a
+        # database from one instant with the write-ahead log from another. That
+        # is corruption, not a conflict, and no `maxConflicts` setting addresses
+        # it. One-way keeps the blast radius on the laptop, which is not the
+        # machine being worked on; sendreceive would put a torn database on the
+        # one that is. `AGENTS.md` and `RULES.md` in here are Nix-generated too
+        # (see their .nix-sha256 companions), so writing them back would fight
+        # activation.
+        #
+        # The homelab is still added: it only ever receives, so it changes
+        # nothing about the one-way topology between the trusted peers.
+        folders.omp = {
           id = "omp";
-          path = "/home/${vars.user.name}/.omp/agent";
-          type = if isLaptop then "receiveonly" else "sendonly";
-          devices = [
-            "laptop"
-            "wsl"
-            "desktop"
-          ];
+          path = if isHomelab then "/data/sync/omp-enc" else "/home/${vars.user.name}/.omp/agent";
+          type =
+            if isHomelab then
+              "receiveencrypted"
+            else if isLaptop then
+              "receiveonly"
+            else
+              "sendonly";
+          devices = trustedPeers ++ lib.optionals (!isHomelab) untrustedPeer;
           maxConflicts = 0;
         };
 
-        # Herdr config (config.toml): one-way WSL -> laptop only, so config set
-        # on WSL follows to the laptop. sendonly on WSL, receiveonly on laptop;
-        # not defined on desktop. A .stignore restricts the sync to config.toml,
-        # so herdr's per-machine session history, logs and sockets stay local.
-        folders.herdr = lib.mkIf (isLaptop || isWsl) {
+        # Herdr config plus session state, between WSL and the laptop, and
+        # encrypted onto the homelab. Not defined on the desktop, which does not
+        # run herdr. The .stignore written by home/features/cli/herdr keeps this
+        # to config.toml, session.json and session-history.json: the logs are
+        # 3.5 MB of per-machine noise and the two unix sockets must never be
+        # replicated at all.
+        #
+        # Bidirectional as of 2026-09-10, so a session started on the laptop
+        # comes back here. Unlike `claude`, the two state files have fixed
+        # names, so this one really is last-writer-wins: herdr open on both
+        # machines at once means one side's session-history.json overwrites the
+        # other's. Accepted because the machines are used one at a time, and it
+        # loses history rather than corrupting anything.
+        folders.herdr = lib.mkIf (isLaptop || isWsl || isHomelab) {
           id = "herdr";
-          path = "/home/${vars.user.name}/.config/herdr";
-          type = if isLaptop then "receiveonly" else "sendonly";
+          path = if isHomelab then "/data/sync/herdr-enc" else "/home/${vars.user.name}/.config/herdr";
+          type = if isHomelab then "receiveencrypted" else "sendreceive";
           devices = [
             "laptop"
             "wsl"
-          ];
+          ]
+          ++ lib.optionals (!isHomelab) untrustedPeer;
           maxConflicts = 0;
         };
       };
