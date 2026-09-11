@@ -124,6 +124,7 @@
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
+        pi = llm-agents.packages.${system}.pi;
         herdr = inputs.herdr.packages.${system}.default;
         paseo = inputs.paseo.packages.${system}.default;
         paseo-desktop = inputs.paseo.packages.${system}.desktop;
@@ -179,6 +180,7 @@
           enableClaude ? true,
           enableGemini ? true,
           enableOpencode ? true,
+          enablePi ? true,
         }:
         nixpkgs.lib.nixosSystem {
           inherit system;
@@ -236,6 +238,7 @@
                     enableClaude
                     enableGemini
                     enableOpencode
+                    enablePi
                     ;
                 };
               };
@@ -321,6 +324,7 @@
           enableClaude = false;
           enableGemini = false;
           enableOpencode = false;
+          enablePi = false;
           hostVars = vars // {
             desktop = null;
           };
@@ -351,6 +355,7 @@
               enableClaude = false;
               enableGemini = false;
               enableOpencode = false;
+              enablePi = false;
             };
             modules = [
               ./home
@@ -388,6 +393,7 @@
               enableClaude = true;
               enableGemini = true;
               enableOpencode = true;
+              enablePi = true;
             };
             modules = [
               ./home/profiles/wrk
