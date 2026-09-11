@@ -20,9 +20,9 @@ gh pr view --json number,url,title,body,headRefName,baseRefName,state,isDraft,co
 
 If no PR is found or PR is not open, inform the user and stop.
 
-**If `isDraft` is true, stop.** Every PR opens as a draft (see `/open-pr`) and only leaves draft when the review cycle passes. A draft here means the review never ran or never converged.
+**If `isDraft` is true, stop.** Every PR opens as a draft (see `/open-pr`) and only leaves draft when the review passes. A draft here means the review never ran or never converged.
 
-Tell the user to run `/review-loop`, which marks the PR ready itself once the review is clean and the project's checks pass. Do **not** run `gh pr ready` to unblock the merge: that skips the entire review, which is the one thing the draft state exists to prevent. `gh pr merge` would also just fail on a draft, so forcing it here buys nothing.
+Tell the user the PR still needs its review, which marks it ready once it is clean and the project's checks pass. Do **not** run `gh pr ready` to unblock the merge: that skips the entire review, which is the one thing the draft state exists to prevent. `gh pr merge` would also just fail on a draft, so forcing it here buys nothing.
 
 Verify the base branch is `develop`. If not, warn the user and ask for confirmation before proceeding.
 
@@ -112,4 +112,4 @@ Report the merge commit SHA and confirm success.
 - **NEVER** merge without checking for failing checks first
 - **NEVER** merge if the PR has conflicts, inform the user instead
 - **NEVER** force merge, always use standard squash merge
-- **NEVER** merge a draft PR, and **NEVER** run `gh pr ready` to get around one. Send the user to `/review-loop`.
+- **NEVER** merge a draft PR, and **NEVER** run `gh pr ready` to get around one. Send the user back to the review.
