@@ -14,6 +14,23 @@ let
   # win without ever owning or overwriting the file omp itself writes at
   # runtime (and which syncthing syncs across machines).
   configOverlay = yamlFormat.generate "omp-nix-overlay.yml" {
+    # Foreign user-level discovery sources omp is allowed to read. The default
+    # is empty, and an empty list means omp ignores ~/.claude entirely: no
+    # Claude skills, no Claude marketplace plugins, no MCP servers from
+    # ~/.claude/settings.json. Enabling `claude` also enables `claude-plugins`
+    # (omp special-cases the pair), so this one entry is what makes omp see
+    # everything Claude Code sees.
+    #
+    # This used to live only in ~/.omp/agent/config.yml, which omp writes
+    # itself at setup time: a host that never ran that setup, or a config reset,
+    # silently dropped every Claude-side skill with no error. Declaring it here
+    # makes the discovery surface a property of the flake instead.
+    #
+    # Consequence to know about: the overlay outranks the mutable config, so
+    # toggling a user source from inside omp no longer sticks. Adding a source
+    # means adding it to this list.
+    enabledProviders = [ "claude" ];
+
     tools = {
       # Mount rarely-used (discoverable) tools (MCP, LSP, inspect_image,
       # generate_image) under xd:// device URLs, driven on demand via
@@ -44,22 +61,37 @@ let
   # tailscale name is available; a previously-good overlay is never clobbered
   # if tailscale is momentarily down (e.g. at boot), so it survives cold boots.
   collabOverlay = "${config.home.homeDirectory}/.config/omp/collab-overlay.yml";
+
+  healClaudePlugins = import ./heal-claude-plugins.nix { inherit pkgs; };
 in
 {
+  home.packages = [ healClaudePlugins ];
+
   home.sessionVariables.PI_CONFIG_FILES =
     "${configOverlay}" + lib.optionalString isWsl ":${collabOverlay}";
 
-  home.activation = lib.mkIf isWsl {
-    ompCollabOverlay = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      name="$(${pkgs.tailscale}/bin/tailscale status --json 2>/dev/null \
-        | ${pkgs.jq}/bin/jq -r '(.Self.DNSName // "") | rtrimstr(".")' || true)"
-      mkdir -p "$(dirname "${collabOverlay}")"
-      if [ -n "$name" ]; then
-        printf 'collab:\n  relayUrl: wss://%s\n  webUrl: https://%s\n' \
-          "$name" "$name" > "${collabOverlay}"
-      elif [ ! -e "${collabOverlay}" ]; then
-        printf '{}\n' > "${collabOverlay}"
-      fi
-    '';
-  };
+  home.activation = lib.mkMerge [
+    {
+      # Runs on every switch, and the private `omp` shell wrapper runs it again
+      # per launch: Claude Code can invalidate its own plugin paths at any time,
+      # not only between rebuilds.
+      ompHealClaudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        ${healClaudePlugins}/bin/omp-heal-claude-plugins || true
+      '';
+    }
+
+    (lib.mkIf isWsl {
+      ompCollabOverlay = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        name="$(${pkgs.tailscale}/bin/tailscale status --json 2>/dev/null \
+          | ${pkgs.jq}/bin/jq -r '(.Self.DNSName // "") | rtrimstr(".")' || true)"
+        mkdir -p "$(dirname "${collabOverlay}")"
+        if [ -n "$name" ]; then
+          printf 'collab:\n  relayUrl: wss://%s\n  webUrl: https://%s\n' \
+            "$name" "$name" > "${collabOverlay}"
+        elif [ ! -e "${collabOverlay}" ]; then
+          printf '{}\n' > "${collabOverlay}"
+        fi
+      '';
+    })
+  ];
 }
