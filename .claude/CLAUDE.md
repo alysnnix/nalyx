@@ -82,7 +82,7 @@ The homelab still carries the personal key as a decryption fallback, so it can c
 | Boot | systemd-boot (Lanzaboote optional) |
 | Shell | Zsh |
 | Drivers | NVIDIA, Intel |
-| AI Tools | Claude Code, Gemini CLI, OpenCode |
+| AI Tools | Claude Code, Gemini CLI, OpenCode, pi |
 | Services | Tailscale, Syncthing, NordVPN, restic |
 
 ## Hosts
@@ -134,7 +134,7 @@ scripts/         # Utility scripts (homelab-install)
 
 - Module pattern: `{ pkgs, vars, lib, config, ... }:`
 - Conditional imports: `lib.optional (vars.desktop == "hyprland") ./hyprland`
-- HM special args: `isWsl`, `isServer`, `terminalOnly`, `enableClaude`, `enableGemini`, `enableOpencode`. Every one is passed at all four `extraSpecialArgs` sites (`fnMountSystem`, the two home profiles, `generators/`); the `? default` in each module signature is documentation, not a fallback that fires
+- HM special args: `isWsl`, `isServer`, `terminalOnly`, `enableClaude`, `enableGemini`, `enableOpencode`, `enablePi`. Every one is passed at all four `extraSpecialArgs` sites (`fnMountSystem`, the two home profiles, `generators/`); the `? default` in each module signature is documentation, not a fallback that fires
 - Directories: `kebab-case`, main files: `default.nix`
 - Host helper: `fnMountSystem` in `flake.nix` builds each host config
 

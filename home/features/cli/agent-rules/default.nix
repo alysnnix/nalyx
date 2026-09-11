@@ -5,6 +5,7 @@
   enableClaude ? true,
   enableGemini ? true,
   enableOpencode ? true,
+  enablePi ? true,
   ...
 }:
 
@@ -12,7 +13,7 @@
 # installed here. `rules.nix` owns the content, this module owns placement.
 #
 # This lives outside `claude/` on purpose. The rules are not Claude Code's,
-# they are the user's, and Claude Code is one of five consumers.
+# they are the user's, and Claude Code is one of six consumers.
 #
 # Each tool reads a different path, and none of them read another's, so a rule
 # that is not written to a tool's own path simply does not exist for that tool:
@@ -23,6 +24,7 @@
 #   ~/.codex/AGENTS.md              Codex CLI
 #   ~/.gemini/GEMINI.md             Gemini CLI
 #   ~/.config/opencode/AGENTS.md    opencode
+#   ~/.pi/agent/AGENTS.md           pi
 #
 # Why AGENTS.md as well as CLAUDE.md for omp: omp keeps exactly ONE user-level
 # context file, and its `native` provider (priority 100) shadows the `claude`
@@ -63,7 +65,8 @@ let
   # Tools that take the markdown verbatim.
   plainTargets =
     lib.optional enableGemini "${home}/.gemini/GEMINI.md"
-    ++ lib.optional enableOpencode "${home}/.config/opencode/AGENTS.md";
+    ++ lib.optional enableOpencode "${home}/.config/opencode/AGENTS.md"
+    ++ lib.optional enablePi "${home}/.pi/agent/AGENTS.md";
 
   stickyTargets = [ "${home}/.omp/agent/RULES.md" ];
 

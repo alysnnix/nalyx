@@ -4,6 +4,7 @@
   enableClaude ? true,
   enableGemini ? true,
   enableOpencode ? true,
+  enablePi ? true,
   isServer ? false,
   # Terminal-only host: keep the shell, the agents and the CLI toolchain, drop
   # everything that ships a window. Distinct from `isServer`, which describes a
@@ -39,7 +40,8 @@
   ]
   ++ (lib.optional enableGemini ./gemini)
   ++ (lib.optional enableClaude ./claude)
-  ++ (lib.optional enableOpencode ./opencode);
+  ++ (lib.optional enableOpencode ./opencode)
+  ++ (lib.optional enablePi ./pi);
 
   home.packages =
     with pkgs;
