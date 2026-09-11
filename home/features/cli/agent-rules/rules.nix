@@ -78,14 +78,6 @@ let
       longForm = false;
     }
     {
-      title = "Draft PR, Then Close The Review Loop";
-      body = ./sections/draft-pr-review-loop.md;
-      sticky = "Open every PR as a draft. Only the review loop marks it ready, and NEVER run `gh pr ready` to get around a blocked merge.";
-      # Sticky-only: the 6-step loop is a procedure, and the gb-review-loop
-      # skill already implements it more richly than this prose.
-      longForm = false;
-    }
-    {
       title = "Nothing Leaves This Machine";
       body = ./sections/no-cloud-publishing.md;
       sticky = "NEVER publish, upload, or run anything on claude.ai or another cloud environment: no artifacts, no remote agents, no cloud sessions. The account is shared. Deliver pages as local files and hand over the path.";
