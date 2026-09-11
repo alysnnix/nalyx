@@ -5,8 +5,6 @@
 let
   skillFiles = {
     "gb-open-pr/SKILL.md" = ./global/open-pr/SKILL.md;
-    "gb-check-review/SKILL.md" = ./global/check-review/SKILL.md;
-    "gb-review-loop/SKILL.md" = ./global/review-loop/SKILL.md;
     "gb-merge-dev/SKILL.md" = ./global/merge-dev/SKILL.md;
     "gb-co-authored/SKILL.md" = ./global/co-authored/SKILL.md;
     "gb-pipefy/SKILL.md" = ./global/pipefy/SKILL.md;

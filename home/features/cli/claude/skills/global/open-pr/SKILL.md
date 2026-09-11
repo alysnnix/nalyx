@@ -147,11 +147,11 @@ gh pr view <PR_NUMBER> --repo {owner}/{repo} --json assignees,labels,reviewReque
 
 If assignee, labels, or reviewers are missing, fix them with `gh pr edit`.
 
-### 8. Hand off to the review loop
+### 8. Hand off for review
 
-Report the PR URL to the user, then state the next step explicitly: the PR is a draft and `/review-loop` closes it out (independent review, triage, fix, verify, `gh pr ready`).
+Report the PR URL to the user, then state the next step explicitly: the PR is a draft and stays that way until it has been reviewed, whoever runs that review.
 
-Do not run `gh pr ready` here. Leaving draft is the review loop's decision, not this skill's.
+Do not run `gh pr ready` here. Leaving draft is the reviewer's call, not this skill's.
 
 ## Rules
 
@@ -165,5 +165,5 @@ Do not run `gh pr ready` here. Leaving draft is the review loop's decision, not 
 - **ALWAYS** verify the PR was created correctly (assignee, labels, reviewers)
 - If PR template exists at `.github/PULL_REQUEST_TEMPLATE.md`, use it as body structure instead
 - **ALWAYS** create the PR as a draft (`--draft`)
-- **NEVER** run `gh pr ready` in this skill - only `/review-loop` marks a PR ready
+- **NEVER** run `gh pr ready` in this skill - only the review marks a PR ready
 - **NEVER** request a bot as a reviewer, and never let bot PRs into the reviewer-ranking sample
