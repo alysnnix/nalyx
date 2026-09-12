@@ -49,6 +49,24 @@
       url = "github:getpaseo/paseo";
     };
 
+    # paseo-plugins: fork pessoal do board de GitHub do Paseo, com aprovar e
+    # mergear PR e com as correcoes de seguranca que a auditoria do upstream
+    # apontou (o allowlist de host do proxy de imagem era uma regex sobre a
+    # string crua e entregava o token do `gh` ao host errado).
+    #
+    # `git+ssh` e nao `github:` porque o repo ainda e privado: o `github:`
+    # fetcher sem token falha, e o ssh usa a chave que a maquina ja tem. Trocar
+    # para `github:alysnnix/paseo-plugins` quando o repo virar publico e o unico
+    # passo pendente; ate la um `nix flake check` sem a chave nao resolve este
+    # input.
+    #
+    # Segue nixpkgs porque o pacote e uma copia de fontes: nao compila nada e
+    # nao tem hash de dependencia para preservar.
+    paseo-plugins = {
+      url = "git+ssh://git@github.com/alysnnix/paseo-plugins.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # hermes-agent: self-hosted AI agent gateway (Discord, Slack, WhatsApp).
     # Not following nixpkgs: it builds its venv with uv2nix against its own
     # pinned nixpkgs, and repinning that breaks dependency resolution.
@@ -174,6 +192,7 @@
         herdr = inputs.herdr.packages.${system}.default;
         paseo = fixPtyNode inputs.paseo.packages.${system}.default;
         paseo-desktop = fixPtyNode inputs.paseo.packages.${system}.desktop;
+        paseo-github-board = inputs.paseo-plugins.packages.${system}.github-board;
       };
 
       pkgs = import nixpkgs {
