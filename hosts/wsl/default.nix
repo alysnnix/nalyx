@@ -148,6 +148,14 @@
     # nao enxergariam claude, opencode nem git.
     paseo = {
       enable = true;
+      # O modulo do upstream aponta o servico para o package output do proprio
+      # flake do Paseo (`services.paseo.package = lib.mkDefault
+      # self.packages.<system>.default`), e nao para `pkgs.paseo`. Isso passa
+      # por fora de qualquer overlay: o `fixPtyNode` do flake.nix consertava o
+      # CLI do perfil do usuario e deixava o daemon com o pacote sem o addon
+      # nativo do node-pty, ou seja, sem terminal e sem agente. Como la e
+      # mkDefault, uma atribuicao simples ganha e realinha os dois.
+      package = pkgs.paseo;
       user = vars.user.name;
       # Casa com o grupo real da conta; o default do modulo e o grupo `paseo`,
       # que so existe quando o servico roda como usuario de sistema e deixaria
