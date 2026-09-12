@@ -187,35 +187,47 @@
         features = {
           webUi.enabled = true;
 
-          # O catalogo de modelos locais do Paseo tem tres entradas
-          # (model-catalog.ts): parakeet v2, parakeet v3 e kokoro. O v2 e o
-          # default e e so ingles, por isso o ditado nao entendia portugues. O
-          # v3 cobre 25 idiomas europeus com deteccao automatica, incluindo o
-          # portugues, e e o unico do catalogo que serve aqui.
+          # Voz pela OpenAI, e nao pelos modelos locais, por um motivo que
+          # nao e qualidade sozinha: no provider local a chave `language` e
+          # inerte (sherpa-parakeet-stt.ts recebe e nunca usa), entao o idioma
+          # fica por conta de deteccao automatica e nao ha como fixar. Aqui
+          # ela e enviada de verdade na request (openai/stt.ts:208), que e o
+          # que torna o reconhecimento em portugues deterministico.
           #
-          # Duas limitacoes que nao dao para resolver por configuracao:
+          # `gpt-4o-transcribe` no lugar de `whisper-1`: supera o whisper em
+          # multilingue e e o unico par com `gpt-4o-mini-transcribe` que
+          # retorna logprobs, o que alimenta o `confidenceThreshold` e permite
+          # descartar transcricao ruim em vez de entregar lixo.
           #
-          # `stt.language` existe no schema e aceita "pt-BR" sem reclamar, mas
-          # e INERTE para o provider local: sherpa-parakeet-stt.ts recebe o
-          # parametro e nunca o usa, so o ecoa de volta no evento de
-          # transcript. Quem consome de verdade e o provider da OpenAI. Ou
-          # seja, nao ha como restringir o reconhecimento a um unico idioma
-          # aqui, o v3 detecta sozinho. Nao adianta declarar a chave achando
-          # que ajuda, ela e no-op silencioso.
+          # `tts-1-hd` e nao `gpt-4o-mini-tts`: o segundo provavelmente
+          # funcionaria, porque o schema aceita string livre e o codigo
+          # repassa o modelo direto para o SDK, mas openai/tts.ts:11 declara
+          # so `tts-1` e `tts-1-hd`. Ficar dentro do que o upstream declara.
           #
-          # O TTS segue em ingles, porque kokoro-en-v0_19 e o unico modelo de
-          # voz do catalogo. O modo de voz le portugues com fonetica inglesa.
+          # O custo real disto nao e dinheiro (cerca de US$ 0,006 por minuto),
+          # e o audio sair da maquina. Decisao consciente, nao default.
           #
-          # Trocar para pt-BR deterministico exigiria o provider openai, onde
-          # `language` funciona, ao custo de API key e de mandar audio para
-          # fora.
+          # A credencial NAO vem daqui: `providers.openai.apiKey` existiria no
+          # schema, mas `settings` vira JSON no /nix/store, legivel por
+          # qualquer usuario. A chave entra por OPENAI_API_KEY num
+          # EnvironmentFile do SOPS, na camada privada.
           dictation.stt = {
-            provider = "local";
-            model = "parakeet-tdt-0.6b-v3-int8";
+            provider = "openai";
+            model = "gpt-4o-transcribe";
+            language = "pt";
           };
-          voiceMode.stt = {
-            provider = "local";
-            model = "parakeet-tdt-0.6b-v3-int8";
+          voiceMode = {
+            stt = {
+              provider = "openai";
+              model = "gpt-4o-transcribe";
+              language = "pt";
+            };
+            # `voice` fica no default (`alloy`). O schema aceita alloy, echo,
+            # fable, onyx, nova e shimmer.
+            tts = {
+              provider = "openai";
+              model = "tts-1-hd";
+            };
           };
         };
 
