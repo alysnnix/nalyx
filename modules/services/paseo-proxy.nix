@@ -170,6 +170,21 @@ in
       # localhost ou IP, protecao contra DNS rebinding. Servido por nome, o
       # nome precisa estar nesta allowlist, senao o proxy inteiro responde 403.
       hostnames = [ cfg.domain ];
+
+      # Duas checagens distintas, e preencher so a de cima nao basta.
+      # `hostnames` olha o header Host, que quem manda e o nginx; esta olha o
+      # header Origin, que quem manda e o navegador.
+      #
+      # O sintoma de faltar e enganoso: a pagina carrega inteira, porque o
+      # HTML e estatico e nao passa por checagem de origem, e so o WebSocket e
+      # recusado, com "Rejected connection from origin" no daemon.log. Sem
+      # WebSocket o app nao completa o autoconnect de mesma origem e cai na
+      # tela /welcome, que parece "o proxy nao esta funcionando" quando na
+      # verdade o proxy esta certo e o daemon e que recusou.
+      #
+      # Mesma origem nao isenta: o navegador manda Origin em todo handshake de
+      # WebSocket, inclusive para a origem que serviu a pagina.
+      settings.daemon.cors.allowedOrigins = [ "https://${cfg.domain}" ];
     };
 
     # A senha entra por EnvironmentFile e nao por `services.paseo.settings`
