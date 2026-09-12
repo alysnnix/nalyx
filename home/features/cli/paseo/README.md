@@ -305,6 +305,39 @@ daemon:
 As preferências do cliente ficam no storage do navegador ou do app, sob
 `@paseo:app-settings`, e portanto valem por device. Ajuste em Settings.
 
+### Voz e idioma
+
+O ditado usa modelos locais (sherpa-onnx) que o daemon baixa sozinho no
+primeiro start. O catálogo tem **três entradas, só isso**:
+
+| id | tipo | idiomas |
+|---|---|---|
+| `parakeet-tdt-0.6b-v2-int8` | STT | inglês apenas, e é o default |
+| `parakeet-tdt-0.6b-v3-int8` | STT | 25 idiomas europeus com detecção automática, inclui português |
+| `kokoro-en-v0_19` | TTS | inglês apenas |
+
+Por isso o ditado não entendia português de fábrica: o default é um modelo que
+só fala inglês. Aqui o STT está fixado no v3, tanto para `dictation` quanto para
+`voiceMode`. Ele pesa cerca de 600 MB e é baixado no primeiro start depois da
+troca.
+
+Duas limitações que **não** se resolvem por configuração, e que vale conhecer
+antes de tentar:
+
+**Não dá para restringir a um idioma.** A chave `features.dictation.stt.language`
+existe, aceita `"pt-BR"` sem reclamar, e é inerte para o provider local: o
+código recebe o parâmetro e nunca o usa, apenas o ecoa no evento de transcript.
+Quem consome de verdade é o provider da OpenAI. O v3 detecta o idioma sozinho, e
+se errar não há config que corrija. Declarar essa chave achando que ajuda é
+no-op silencioso.
+
+**O TTS continua em inglês**, porque `kokoro-en-v0_19` é o único modelo de voz do
+catálogo. O modo de voz lê português com fonética inglesa.
+
+Para reconhecimento determinístico em português seria preciso trocar para
+`provider = "openai"`, onde `language` funciona de fato, ao custo de uma API key
+e de mandar o áudio para fora.
+
 ### Validar uma config antes de aplicar
 
 O schema é `.strict()`: **uma chave desconhecida faz o daemon não subir**, com
