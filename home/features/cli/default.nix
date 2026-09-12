@@ -5,6 +5,11 @@
   enableGemini ? true,
   enableOpencode ? true,
   enablePi ? true,
+  # Mirrors `hasDesktop` in home/default.nix. WSL is a terminal host whose
+  # graphical layer belongs to Windows, so anything that ships a window is as
+  # out of place here as it is on a server. Same `config`-position-only rule as
+  # `terminalOnly` below.
+  isWsl ? false,
   isServer ? false,
   # Terminal-only host: keep the shell, the agents and the CLI toolchain, drop
   # everything that ships a window. Distinct from `isServer`, which describes a
@@ -18,6 +23,11 @@
   terminalOnly ? false,
   ...
 }:
+let
+  # The same guard home/default.nix uses for the graphical tree, plus the
+  # terminal-only work laptop, which that file never has to consider.
+  hasDesktop = !isWsl && !isServer && !terminalOnly;
+in
 {
   imports = [
     ./zsh
@@ -78,14 +88,21 @@
       # the gb-slack and gb-calendar skills are built on top of it.
       (pkgs.callPackage ../../../packages/agent-browser.nix { })
     ]
-    # An AppImage with a GUI, so it goes with the other applications.
-    ++ lib.optionals (!isServer && !terminalOnly) [
+    # An Electron app with a window, so it follows the same rule as the rest of
+    # the graphical tree. The daemon is the half that matters and it is a plain
+    # service: on WSL it is declared in hosts/wsl and the client lives on the
+    # Windows side, either the bundled web UI in a browser or the Windows build
+    # of this same app tunnelling in over SSH.
+    ++ lib.optionals hasDesktop [
       paseo-desktop
     ];
 
   # The `paseo` CLI's `paseo .` launcher only probes a few hardcoded paths for
   # the desktop app; symlink the Nix build where it looks so `paseo .` finds it.
-  home.file."Applications/Paseo.AppImage" = lib.mkIf (!isServer && !terminalOnly) {
+  # The `.AppImage` name is what the launcher probes for, not a description of
+  # the target: nix/desktop-package.nix produces a shell wrapper around
+  # electron, never an AppImage.
+  home.file."Applications/Paseo.AppImage" = lib.mkIf hasDesktop {
     source = lib.getExe pkgs.paseo-desktop;
   };
 }

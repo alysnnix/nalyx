@@ -1,4 +1,5 @@
 {
+  inputs,
   vars,
   pkgs,
   lib,
@@ -7,6 +8,7 @@
 
 {
   imports = [
+    inputs.paseo.nixosModules.paseo
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
     ../../modules/services/ollama.nix
@@ -130,6 +132,44 @@
     # do WSL: quem filtra o tráfego de entrada é o do Windows. Então a chave é
     # a única tranca que este repo controla de fato, e `openFirewall = false`
     # (o que laptop e desktop usam) aqui não faria nada.
+    # Paseo roda do lado que tem o codigo: o daemon executa os agentes no
+    # filesystem local e nada e sincronizado do cliente para ele (`--cwd` e um
+    # path no host do daemon). Como os repos moram aqui, o daemon e daqui e o
+    # cliente e sempre remoto, pelos dois caminhos que o par Windows+WSL ja
+    # oferece: o browser do Windows em http://localhost:6767 (loopback
+    # compartilhado pelo networkingMode=mirrored) ou o build Windows do app
+    # desktop tunelando com `ssh -W`, o mesmo desenho que o Orca ja usa (ver a
+    # chave orca-windows em authorizedKeys abaixo).
+    #
+    # `user` aponta para a conta real em vez do usuario de sistema `paseo`, e
+    # isso decide duas coisas de uma vez: `dataDir` passa a ser ~/.paseo, e
+    # `inheritUserEnvironment` liga sozinho, pondo os perfis do NixOS e do
+    # home-manager no PATH do servico. Sem ele os agentes que o daemon spawna
+    # nao enxergariam claude, opencode nem git.
+    paseo = {
+      enable = true;
+      user = vars.user.name;
+      # Casa com o grupo real da conta; o default do modulo e o grupo `paseo`,
+      # que so existe quando o servico roda como usuario de sistema e deixaria
+      # ~/.paseo com dono aly:paseo.
+      group = "users";
+      listenAddress = "127.0.0.1";
+      port = 6767;
+      # Os dois clientes que este host atende sao locais ao par Windows+WSL,
+      # entao nao ha motivo para o daemon discar para o relay hospedado em
+      # app.paseo.sh so para alcancar uma maquina que ja esta no mesmo
+      # loopback. Menos superficie e menos dependencia externa.
+      relay.enable = false;
+      # A web UI vem embutida no daemon mas nasce desligada. Ligada, ela e
+      # servida na mesma origem da API, entao o browser em localhost:6767
+      # conecta sozinho e pula a tela de "Add Host".
+      #
+      # `settings` reescreve ~/.paseo/config.json a cada start, entao a
+      # configuracao do daemon passa a ser declarativa aqui e mudancas via
+      # `paseo daemon set-password` ou pelo app nao sobrevivem. E uma escolha
+      # ou outra, nao as duas.
+      settings.features.webUi.enabled = true;
+    };
     openssh = {
       enable = true;
       settings = {
