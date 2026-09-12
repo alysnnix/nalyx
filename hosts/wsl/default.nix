@@ -12,6 +12,13 @@
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
     ../../modules/services/ollama.nix
+    # So opcoes, desligado: o vhost TLS na frente do daemon Paseo precisa de um
+    # FQDN, do IP da tailnet deste no e de credenciais de DNS, e nenhum dos tres
+    # pode morar num repo publico sem dizer de quem e a infraestrutura. A camada
+    # privada e que preenche os valores e liga
+    # `modules.services.paseoProxy.enable`. Enquanto isso este host segue
+    # exatamente como antes, com o Paseo so no loopback.
+    ../../modules/services/paseo-proxy.nix
     # Options only: the private layer owns the repository password, so it is
     # also what sets `enable`. This host is the fleet's single backup source,
     # since Syncthing converges the other peers anyway.
