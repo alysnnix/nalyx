@@ -616,11 +616,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789193974,
-        "narHash": "sha256-CeOlpHmb22g4j6bgXQ8ZYPKKtqQmoDE4cchOTARXlYs=",
+        "lastModified": 1789195266,
+        "narHash": "sha256-BW36WjKlo39rMja/3Ai4E2dvQD794fVuaSQsc3nTKEc=",
         "ref": "refs/heads/main",
-        "rev": "7806c790a82248bcee5c9ac7bb51cfb9a0713539",
-        "revCount": 39,
+        "rev": "3276d6c5e44b9933941ec5fe677dac9ae9a38fb1",
+        "revCount": 40,
         "type": "git",
         "url": "ssh://git@github.com/alysnnix/paseo-plugins.git"
       },
