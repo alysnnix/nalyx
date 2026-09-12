@@ -183,7 +183,54 @@
       # configuracao do daemon passa a ser declarativa aqui e mudancas via
       # `paseo daemon set-password` ou pelo app nao sobrevivem. E uma escolha
       # ou outra, nao as duas.
-      settings.features.webUi.enabled = true;
+      settings = {
+        features.webUi.enabled = true;
+
+        daemon = {
+          # As ferramentas MCP do proprio Paseo. `enabled` ja vem true de
+          # fabrica; o que muda o comportamento e `injectIntoAgents`, que
+          # nasce false e e o que de fato entrega as tools ao agente.
+          mcp = {
+            enabled = true;
+            injectIntoAgents = true;
+          };
+
+          # Ferramentas de browser para os agentes. Depende de
+          # `mcp.injectIntoAgents` acima e de um host desktop conectado, senao
+          # as tools respondem `browser_disabled` / `browser_no_host`. O
+          # browser em si e do app Electron, nao do daemon, e por isso nao ha
+          # o que declarar aqui para "ligar o browser": so o acesso a ele.
+          browserTools.enabled = true;
+
+          autoArchiveAfterMerge = true;
+
+          # `enableTerminalAgentHooks` fica de fora de proposito. Ele nao e
+          # config do Paseo sozinho: o daemon passa a escrever hooks nos
+          # arquivos de config dos agentes, ou seja no ~/.claude/settings.json,
+          # que aqui e gerado por activation em
+          # home/features/cli/claude/activation/settings.nix. Os dois
+          # escrevendo no mesmo arquivo e briga garantida, e o Nix ganha no
+          # proximo switch. Manter o Paseo fora do territorio do Claude.
+        };
+
+        pluginsEnabled = true;
+
+        # Nao existe allowlist de provider: o modelo e opt-out por id, entao
+        # calar os outros exige `enabled = false` em cada um. Os builtin sao
+        # claude, codex, copilot, opencode, pi e omp.
+        #
+        # `omp` e o unico que nasce desligado (enabledByDefault = false no
+        # manifest), por isso precisa ser ligado explicitamente mesmo sendo um
+        # dos dois que queremos.
+        agents.providers = {
+          claude.enabled = true;
+          omp.enabled = true;
+          codex.enabled = false;
+          copilot.enabled = false;
+          opencode.enabled = false;
+          pi.enabled = false;
+        };
+      };
     };
     openssh = {
       enable = true;
