@@ -616,11 +616,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789201473,
-        "narHash": "sha256-Ygw1HE4DfsHt7AkqNYrndUwRxZA0qWaoCQU9YG6cfxE=",
+        "lastModified": 1789230186,
+        "narHash": "sha256-qaLnMztAH6hBhzmt3dQi7ZRYU9pbV/55gN0a0j8htAA=",
         "ref": "refs/heads/main",
-        "rev": "634cdad2ebceec0c233ab7b9e5259f3f70330077",
-        "revCount": 42,
+        "rev": "e70c6bfaf37057d1a7f0bd2992fa0026a4c566ac",
+        "revCount": 48,
         "type": "git",
         "url": "ssh://git@github.com/alysnnix/paseo-github-integration.git"
       },
