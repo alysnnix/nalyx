@@ -184,7 +184,40 @@
       # `paseo daemon set-password` ou pelo app nao sobrevivem. E uma escolha
       # ou outra, nao as duas.
       settings = {
-        features.webUi.enabled = true;
+        features = {
+          webUi.enabled = true;
+
+          # O catalogo de modelos locais do Paseo tem tres entradas
+          # (model-catalog.ts): parakeet v2, parakeet v3 e kokoro. O v2 e o
+          # default e e so ingles, por isso o ditado nao entendia portugues. O
+          # v3 cobre 25 idiomas europeus com deteccao automatica, incluindo o
+          # portugues, e e o unico do catalogo que serve aqui.
+          #
+          # Duas limitacoes que nao dao para resolver por configuracao:
+          #
+          # `stt.language` existe no schema e aceita "pt-BR" sem reclamar, mas
+          # e INERTE para o provider local: sherpa-parakeet-stt.ts recebe o
+          # parametro e nunca o usa, so o ecoa de volta no evento de
+          # transcript. Quem consome de verdade e o provider da OpenAI. Ou
+          # seja, nao ha como restringir o reconhecimento a um unico idioma
+          # aqui, o v3 detecta sozinho. Nao adianta declarar a chave achando
+          # que ajuda, ela e no-op silencioso.
+          #
+          # O TTS segue em ingles, porque kokoro-en-v0_19 e o unico modelo de
+          # voz do catalogo. O modo de voz le portugues com fonetica inglesa.
+          #
+          # Trocar para pt-BR deterministico exigiria o provider openai, onde
+          # `language` funciona, ao custo de API key e de mandar audio para
+          # fora.
+          dictation.stt = {
+            provider = "local";
+            model = "parakeet-tdt-0.6b-v3-int8";
+          };
+          voiceMode.stt = {
+            provider = "local";
+            model = "parakeet-tdt-0.6b-v3-int8";
+          };
+        };
 
         daemon = {
           # As ferramentas MCP do proprio Paseo. `enabled` ja vem true de
