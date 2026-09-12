@@ -307,36 +307,36 @@ As preferências do cliente ficam no storage do navegador ou do app, sob
 
 ### Voz e idioma
 
-O ditado usa modelos locais (sherpa-onnx) que o daemon baixa sozinho no
-primeiro start. O catálogo tem **três entradas, só isso**:
+O ditado e o modo de voz usam a OpenAI, não os modelos locais. A razão não é só
+qualidade.
 
-| id | tipo | idiomas |
+O provider local (sherpa-onnx) tem **três modelos, só isso**: `parakeet-...-v2`
+(inglês, e é o default), `parakeet-...-v3` (25 idiomas europeus com detecção
+automática, inclui português) e `kokoro-en-v0_19` (TTS, inglês). Nele a chave
+`features.dictation.stt.language` **é inerte**: o código recebe o parâmetro e
+nunca o usa, só o ecoa no evento de transcript. Ou seja, não há como fixar o
+idioma, e o TTS não tem opção fora do inglês.
+
+No provider da OpenAI a chave é enviada de verdade na request, o que torna o
+reconhecimento em português determinístico em vez de depender de detecção.
+
+| Chave | Valor | Por quê |
 |---|---|---|
-| `parakeet-tdt-0.6b-v2-int8` | STT | inglês apenas, e é o default |
-| `parakeet-tdt-0.6b-v3-int8` | STT | 25 idiomas europeus com detecção automática, inclui português |
-| `kokoro-en-v0_19` | TTS | inglês apenas |
+| `stt.provider` | `openai` | é onde `language` funciona |
+| `stt.model` | `gpt-4o-transcribe` | supera o `whisper-1` em multilíngue, e é o único par que retorna logprobs, o que alimenta o `confidenceThreshold` |
+| `stt.language` | `pt` | ISO-639-1, não `pt-BR` |
+| `tts.model` | `tts-1-hd` | `gpt-4o-mini-tts` provavelmente funcionaria, mas `openai/tts.ts:11` só declara `tts-1` e `tts-1-hd` |
+| `tts.voice` | default `alloy` | aceita `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
 
-Por isso o ditado não entendia português de fábrica: o default é um modelo que
-só fala inglês. Aqui o STT está fixado no v3, tanto para `dictation` quanto para
-`voiceMode`. Ele pesa cerca de 600 MB e é baixado no primeiro start depois da
-troca.
+A credencial **não** vai em `settings`, porque `settings` é renderizado como
+JSON no `/nix/store` e seria legível por qualquer usuário da máquina. Ela entra
+por `OPENAI_API_KEY` num `EnvironmentFile` vindo do SOPS, declarado na camada
+privada.
 
-Duas limitações que **não** se resolvem por configuração, e que vale conhecer
-antes de tentar:
-
-**Não dá para restringir a um idioma.** A chave `features.dictation.stt.language`
-existe, aceita `"pt-BR"` sem reclamar, e é inerte para o provider local: o
-código recebe o parâmetro e nunca o usa, apenas o ecoa no evento de transcript.
-Quem consome de verdade é o provider da OpenAI. O v3 detecta o idioma sozinho, e
-se errar não há config que corrija. Declarar essa chave achando que ajuda é
-no-op silencioso.
-
-**O TTS continua em inglês**, porque `kokoro-en-v0_19` é o único modelo de voz do
-catálogo. O modo de voz lê português com fonética inglesa.
-
-Para reconhecimento determinístico em português seria preciso trocar para
-`provider = "openai"`, onde `language` funciona de fato, ao custo de uma API key
-e de mandar o áudio para fora.
+Dois custos, e o segundo é o que importa: cerca de US$ 0,006 por minuto, e o
+**áudio sai da máquina**. Para voltar ao local, troque os dois `provider` para
+`local` e o modelo de STT para `parakeet-tdt-0.6b-v3-int8`, que é o único do
+catálogo com português.
 
 ### Validar uma config antes de aplicar
 
