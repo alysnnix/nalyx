@@ -50,25 +50,20 @@
     };
 
     # paseo-github: o plugin de integracao com o GitHub para o Paseo, repo
-    # proprio (`alysnnix/paseo-github-integration`). Nasceu como fork do
-    # `gpambrozio/paseo-plugins`, mas o fork carregava mais dois plugins que
+    # proprio e publico (`alysnnix/paseo-github-integration`). Nasceu como fork
+    # do `gpambrozio/paseo-plugins`, mas o fork carregava mais dois plugins que
     # nao sao nossos e um deles so roda em macOS; o repo novo e so o plugin,
-    # com o historico e a licenca preservados.
+    # com a licenca e o credito preservados no README.
     #
-    # `git+ssh` e nao `github:` porque o repo ainda e privado: o `github:`
-    # fetcher sem token falha, e o ssh usa a chave que a maquina ja tem. Trocar
-    # para `github:alysnnix/paseo-github-integration` quando virar publico.
-    #
-    # Ate la a CI nao alcanca este input e o troca pelo mesmo placeholder vazio
-    # que ja usa para o `private` (`--override-input`). O placeholder nao expoe
-    # `packages`, entao o overlay e o host precisam tolerar a ausencia: e
-    # `hasPaseoGithub` quem decide, e sem ele o wsl sobe sem plugin nenhum em
-    # vez de falhar a avaliacao.
+    # `github:` agora que e publico: o fetcher tarball dispensa chave e e mais
+    # rapido que clonar, e a CI passa a alcancar o input de verdade em vez de
+    # receber o placeholder vazio. O guard `hasPaseoGithub` fica de pe assim
+    # mesmo, porque e ele quem sustenta um clone sem acesso a rede.
     #
     # Segue nixpkgs porque o pacote e uma copia de fontes: nao compila nada e
     # nao tem hash de dependencia para preservar.
     paseo-github = {
-      url = "git+ssh://git@github.com/alysnnix/paseo-github-integration.git";
+      url = "github:alysnnix/paseo-github-integration/v1.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

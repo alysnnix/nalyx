@@ -618,15 +618,16 @@
       "locked": {
         "lastModified": 1789230186,
         "narHash": "sha256-qaLnMztAH6hBhzmt3dQi7ZRYU9pbV/55gN0a0j8htAA=",
-        "ref": "refs/heads/main",
+        "owner": "alysnnix",
+        "repo": "paseo-github-integration",
         "rev": "e70c6bfaf37057d1a7f0bd2992fa0026a4c566ac",
-        "revCount": 48,
-        "type": "git",
-        "url": "ssh://git@github.com/alysnnix/paseo-github-integration.git"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/alysnnix/paseo-github-integration.git"
+        "owner": "alysnnix",
+        "ref": "v1.0.0",
+        "repo": "paseo-github-integration",
+        "type": "github"
       }
     },
     "pre-commit": {
