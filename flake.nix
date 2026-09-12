@@ -121,13 +121,59 @@
     let
       system = "x86_64-linux";
 
+      # O build Nix do Paseo compila o addon nativo do node-pty e depois o
+      # perde. `scripts/trace-daemon.mjs` monta o closure por tracing estatico
+      # e precisa listar a mao o que e carregado por path computado; a linha
+      # que cobre o node-pty aponta para
+      # `node_modules/node-pty/prebuilds/<plat>-<arch>/**`, e erra em dois
+      # eixos: o npm aninha o pacote em `packages/server/node_modules/node-pty`
+      # (nao existe copia na raiz do output) e o `npm rebuild node-pty` do
+      # buildPhase escreve em `build/Release`, nao em `prebuilds`. Nenhum
+      # `pty.node` chega ao $out.
+      #
+      # O daemon sobe assim mesmo, porque o terminal roda em processo separado:
+      # o worker morre no import, o supervisor sobrevive, e o sintoma so
+      # aparece no primeiro uso, como
+      # `TERMINAL_CREATE_FAILED: Terminal worker is not running`. Sem terminal
+      # nao ha agente, entao isso derruba o produto inteiro, nao um extra.
+      #
+      # Copiado em postInstall e nao em installPhase porque o autoPatchelfHook
+      # roda depois, em postFixup, e ainda patcheia o addon contra o libuv que
+      # ja esta em buildInputs. Percorre os dois pacotes pelo mesmo caminho: o
+      # desktop instala em share/paseo-desktop e sofre do mesmo furo.
+      fixPtyNode =
+        pkg:
+        pkg.overrideAttrs (old: {
+          postInstall = (old.postInstall or "") + ''
+            ptySrc=$(find . -name pty.node -path '*node-pty*' -print -quit)
+            if [ -z "$ptySrc" ]; then
+              echo "fixPtyNode: nenhum pty.node na arvore de build" >&2
+              exit 1
+            fi
+            ptyDests=$(find $out -type d -name node-pty)
+            if [ -z "$ptyDests" ]; then
+              echo "fixPtyNode: nenhum node-pty no output" >&2
+              exit 1
+            fi
+            for d in $ptyDests; do
+              mkdir -p "$d/build/Release"
+              cp "$ptySrc" "$d/build/Release/pty.node"
+              helper=$(dirname "$ptySrc")/spawn-helper
+              if [ -e "$helper" ]; then
+                cp "$helper" "$d/build/Release/spawn-helper"
+              fi
+              echo "fixPtyNode: pty.node -> $d/build/Release"
+            done
+          '';
+        });
+
       claudeOverlay = _: _: {
         claude-code = llm-agents.packages.${system}.claude-code;
         omp = llm-agents.packages.${system}.omp;
         pi = llm-agents.packages.${system}.pi;
         herdr = inputs.herdr.packages.${system}.default;
-        paseo = inputs.paseo.packages.${system}.default;
-        paseo-desktop = inputs.paseo.packages.${system}.desktop;
+        paseo = fixPtyNode inputs.paseo.packages.${system}.default;
+        paseo-desktop = fixPtyNode inputs.paseo.packages.${system}.desktop;
       };
 
       pkgs = import nixpkgs {
