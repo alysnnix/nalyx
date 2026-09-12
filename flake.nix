@@ -49,6 +49,28 @@
       url = "github:getpaseo/paseo";
     };
 
+    # paseo-plugins: fork pessoal do board de GitHub do Paseo, com aprovar e
+    # mergear PR e com as correcoes de seguranca que a auditoria do upstream
+    # apontou (o allowlist de host do proxy de imagem era uma regex sobre a
+    # string crua e entregava o token do `gh` ao host errado).
+    #
+    # `git+ssh` e nao `github:` porque o repo ainda e privado: o `github:`
+    # fetcher sem token falha, e o ssh usa a chave que a maquina ja tem. Trocar
+    # para `github:alysnnix/paseo-plugins` quando o repo virar publico.
+    #
+    # Ate la a CI nao alcanca este input e o troca pelo mesmo placeholder vazio
+    # que ja usa para o `private` (`--override-input`). O placeholder nao expoe
+    # `packages`, entao o overlay e o host precisam tolerar a ausencia: e
+    # `hasPaseoPlugins` quem decide, e sem ele o wsl sobe sem plugin nenhum em
+    # vez de falhar a avaliacao.
+    #
+    # Segue nixpkgs porque o pacote e uma copia de fontes: nao compila nada e
+    # nao tem hash de dependencia para preservar.
+    paseo-plugins = {
+      url = "git+ssh://git@github.com/alysnnix/paseo-plugins.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # hermes-agent: self-hosted AI agent gateway (Discord, Slack, WhatsApp).
     # Not following nixpkgs: it builds its venv with uv2nix against its own
     # pinned nixpkgs, and repinning that breaks dependency resolution.
@@ -121,6 +143,15 @@
     let
       system = "x86_64-linux";
 
+      # O placeholder que a CI injeta no lugar do fork privado nao tem saida
+      # nenhuma, entao a presenca do pacote e a pergunta certa: um `? null` no
+      # argumento nao ajudaria porque o input existe nos dois casos, com
+      # conteudo diferente.
+      hasPaseoPlugins =
+        inputs.paseo-plugins ? packages
+        && inputs.paseo-plugins.packages ? ${system}
+        && inputs.paseo-plugins.packages.${system} ? github-board;
+
       # O build Nix do Paseo compila o addon nativo do node-pty e depois o
       # perde. `scripts/trace-daemon.mjs` monta o closure por tracing estatico
       # e precisa listar a mao o que e carregado por path computado; a linha
@@ -167,14 +198,19 @@
           '';
         });
 
-      claudeOverlay = _: _: {
-        claude-code = llm-agents.packages.${system}.claude-code;
-        omp = llm-agents.packages.${system}.omp;
-        pi = llm-agents.packages.${system}.pi;
-        herdr = inputs.herdr.packages.${system}.default;
-        paseo = fixPtyNode inputs.paseo.packages.${system}.default;
-        paseo-desktop = fixPtyNode inputs.paseo.packages.${system}.desktop;
-      };
+      claudeOverlay =
+        _: _:
+        {
+          claude-code = llm-agents.packages.${system}.claude-code;
+          omp = llm-agents.packages.${system}.omp;
+          pi = llm-agents.packages.${system}.pi;
+          herdr = inputs.herdr.packages.${system}.default;
+          paseo = fixPtyNode inputs.paseo.packages.${system}.default;
+          paseo-desktop = fixPtyNode inputs.paseo.packages.${system}.desktop;
+        }
+        // nixpkgs.lib.optionalAttrs hasPaseoPlugins {
+          paseo-github-board = inputs.paseo-plugins.packages.${system}.github-board;
+        };
 
       pkgs = import nixpkgs {
         inherit system;
@@ -509,6 +545,11 @@
       # nixfmt-tree (treefmt wrapper), not bare nixfmt: `nix fmt` with no
       # arguments passes none through, and bare nixfmt then reads empty stdin
       # and dies with "unexpected end of input". The wrapper walks the tree.
-      formatter.${system} = pkgs.nixfmt-tree;
+      #
+      # Do nixpkgs cru, e nao do `pkgs` com overlay: formatar .nix nao precisa
+      # de nenhum pacote do overlay, e sair pelo overlay forcaria a busca dos
+      # inputs privados so para rodar o formatador. A CI nao tem as chaves,
+      # entao o `nix fmt` dela morria em fetch antes de olhar um arquivo.
+      formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt-tree;
     };
 }

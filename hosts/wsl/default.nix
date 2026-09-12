@@ -275,6 +275,29 @@
           opencode.enabled = false;
           pi.enabled = false;
         };
+
+        # O overlay so define `paseo-github-board` quando o input do fork esta
+        # acessivel: a CI avalia este host com o placeholder vazio no lugar do
+        # repo privado, e la nao ha plugin para declarar. `pluginsEnabled` fica
+        # como esta, porque ligar o sistema de plugins e uma decisao separada de
+        # qual plugin roda.
+        #
+        # O plugin em si roda sem sandbox: o lado servidor e um subprocesso Node
+        # com o acesso do usuario do daemon (arquivos, processos, o token do
+        # `gh`, as chaves ssh) e o lado cliente roda dentro do app. Vale so
+        # porque e um fork nosso, com o codigo auditado antes de entrar.
+      }
+      // lib.optionalAttrs (pkgs ? paseo-github-board) {
+        plugins.github-board = {
+          # `directory` com um path do store em vez de `git`: a fonte git faz o
+          # daemon clonar e seguir a branch, ou seja, codigo sem sandbox que se
+          # atualiza sozinho pelas costas da geracao. Com o store path, a versao
+          # do plugin e o rev do input no flake.lock, muda quando o lock muda, e
+          # o rollback e o mesmo da geracao do sistema.
+          source = "directory";
+          path = "${pkgs.paseo-github-board}";
+          enabled = true;
+        };
       };
     };
     openssh = {
