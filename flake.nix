@@ -545,6 +545,11 @@
       # nixfmt-tree (treefmt wrapper), not bare nixfmt: `nix fmt` with no
       # arguments passes none through, and bare nixfmt then reads empty stdin
       # and dies with "unexpected end of input". The wrapper walks the tree.
-      formatter.${system} = pkgs.nixfmt-tree;
+      #
+      # Do nixpkgs cru, e nao do `pkgs` com overlay: formatar .nix nao precisa
+      # de nenhum pacote do overlay, e sair pelo overlay forcaria a busca dos
+      # inputs privados so para rodar o formatador. A CI nao tem as chaves,
+      # entao o `nix fmt` dela morria em fetch antes de olhar um arquivo.
+      formatter.${system} = nixpkgs.legacyPackages.${system}.nixfmt-tree;
     };
 }
