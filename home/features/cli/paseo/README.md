@@ -163,8 +163,7 @@ modules.services.paseoProxy = {
   enable = true;
   domain = "paseo.exemplo.dev";
   bindAddress = "100.x.y.z";                     # o IP desta máquina na tailnet
-  cloudflareCredentialsFile = config.sops.secrets.paseo_cloudflare_dns.path;
-  passwordFile = config.sops.secrets.paseo_password.path;
+  cloudflareCredentialsFile = config.sops.templates."paseo-acme-cloudflare".path;
 };
 ```
 
@@ -180,9 +179,50 @@ O que cada peça faz:
 - **`services.paseo.hostnames`.** Preenchido com o domínio automaticamente. Sem
   isso o daemon responde `403 Invalid Host header`, por causa da proteção contra
   DNS rebinding.
-- **`passwordFile`.** Um `EnvironmentFile` com `PASEO_PASSWORD=...`. Assim que o
-  daemon fica alcançável pela tailnet, qualquer device dela executa comandos como
-  você, então a senha deixa de ser opcional.
+- **`daemon.cors.allowedOrigins`.** Também preenchido com o domínio. São duas
+  checagens independentes e preencher só `hostnames` não basta: aquela olha o
+  header `Host`, que quem manda é o nginx, e esta olha o `Origin`, que quem
+  manda é o navegador. Mesma origem não isenta, o navegador manda `Origin` em
+  todo handshake de WebSocket.
+- **`passwordFile`.** Existe como opção, mas **não é usado aqui**. Veja "Quem
+  autentica" logo abaixo.
+
+### Quem autentica: a ACL da tailnet, não uma senha
+
+O daemon nasce **sem autenticação**, e até existir proxy a única proteção era o
+bind em loopback. Com o proxy, a pergunta passa a ser quem alcança a porta 443
+deste nó, e a resposta está na ACL da tailnet, não numa senha.
+
+A ACL já dava `autogroup:admin` para os devices do dono e deixava os tagueados
+sem nenhuma regra de `src`, então o deny implícito os barra. Isso foi verificado
+de dentro de um host tagueado: a conexão nem estabelece.
+
+Uma senha por cima disso custa caro e entrega pouco. Ela vale para **todo**
+cliente do daemon, então o `paseo` no terminal passa a responder
+`Password required` a cada comando, e a web UI embutida **não tem tela de
+login** para oferecer. O único caminho documentado é `Add Host` >
+`Direct connection`, digitando a senha à mão em cada navegador.
+
+O que fica descoberto é o loopback: qualquer processo local alcança o daemon sem
+autenticar. Isso já era verdade antes de existir proxy.
+
+Consequência que precisa estar escrita em algum lugar: a ACL virou
+**load-bearing**. Adicionar uma regra de `src` para um device tagueado, ou
+tagear uma máquina em que você não confia totalmente, entrega execução de código
+como o usuário nesta máquina.
+
+### O que alcança o serviço
+
+| Origem | Alcança | Por quê |
+|---|---|---|
+| Devices do dono na tailnet | sim | `autogroup:admin` na ACL |
+| Devices tagueados | não | sem regra de `src`, deny implícito |
+| Outra máquina na LAN | não | o nginx não escuta no IP da LAN |
+| Internet | não | nada publicado, e o A aponta para um IP `100.x` |
+| Processos locais | sim, sem autenticar | loopback |
+
+O registro DNS é público e qualquer um no mundo resolve o nome, mas ele devolve
+um endereço CGNAT da tailnet. Expor o nome não expõe o serviço.
 
 ### Os três passos que não são Nix
 
@@ -191,9 +231,24 @@ O que cada peça faz:
 2. **Registro A** apontando `paseo.exemplo.dev` para o IP `100.x.y.z` da tailnet.
    DNS público pode apontar para IP privado sem problema: quem não está na
    tailnet simplesmente não alcança.
-3. **Entrada no `hosts` do Windows** mapeando o mesmo nome para `127.0.0.1`.
-   É isso que faz a URL continuar funcionando com o Tailscale desligado, porque
-   o loopback não depende dele.
+3. **Entrada no `hosts` do Windows** mapeando o mesmo nome para `127.0.0.1`,
+   feita como Administrador. Não é conforto: sem ela o nome resolve pelo DNS
+   público para o IP da tailnet, e o navegador só chega lá enquanto o Tailscale
+   do Windows estiver conectado.
+
+E um quarto passo que só vale na primeira vez: **disparar a emissão do
+certificado à mão**.
+
+```bash
+sudo systemctl start acme-order-renew-<dominio>.service
+```
+
+O `switch` sozinho não emite nada. O NixOS separa "garantir que existe algum
+certificado para o nginx subir", que gera um autoassinado com `minica`, de
+"pedir o certificado real", que é esta unidade e fica esperando o timer. O timer
+pode estar a mais de um dia de distância, então na primeira vez o navegador
+reclamaria de certificado inválido sem motivo aparente. Depois disso a renovação
+é automática.
 
 ### Efeito colateral no omp-collab
 
@@ -205,15 +260,73 @@ só muda de porta na URL.
 ## Config declarativa: uma escolha, não duas
 
 `services.paseo.settings` reescreve `~/.paseo/config.json` **a cada start** do
-serviço. Então qualquer coisa feita em runtime (`paseo daemon set-password`, ou
-o app mexendo em provider e MCP) não sobrevive ao próximo restart.
+serviço. Então qualquer coisa ajustada em runtime, pelo CLI ou pela UI do app,
+não sobrevive ao próximo restart.
 
-A regra é escolher um lado. Nesta config o lado escolhido é o Nix, então
-qualquer ajuste de daemon vai em `services.paseo.settings` no host, não no CLI.
+A regra é escolher um lado. Aqui o lado é o Nix: ajuste de daemon vai em
+`services.paseo.settings` no host, e não na interface.
 
-A senha é a exceção, e por um motivo concreto: `settings` vira um JSON no
-`/nix/store`, que é legível por qualquer usuário da máquina. Por isso ela entra
-por `EnvironmentFile` apontando para um secret do SOPS.
+O que está declarado hoje em `hosts/wsl/default.nix`:
+
+| Chave | Efeito |
+|---|---|
+| `features.webUi.enabled` | serve a web UI embutida na mesma origem da API |
+| `daemon.mcp.injectIntoAgents` | entrega as ferramentas do Paseo ao agente |
+| `daemon.browserTools.enabled` | dá acesso às ferramentas de browser |
+| `daemon.autoArchiveAfterMerge` | arquiva workspace quando o PR é mergeado |
+| `pluginsEnabled` | liga o carregamento de plugins locais |
+| `agents.providers.<id>.enabled` | deixa só Claude Code e Oh My Pi ligados |
+
+Sobre os providers: **não existe allowlist**. O modelo é opt-out por id, então
+calar os outros exige `enabled = false` em cada um. Os builtin são `claude`,
+`codex`, `copilot`, `opencode`, `pi` e `omp`. O `omp` é o único que nasce
+desligado, então precisa ser ligado explicitamente mesmo sendo um dos dois que
+se quer.
+
+### O que fica de fora, e por quê
+
+**`daemon.enableTerminalAgentHooks` não é ligado de propósito.** Ele não é
+config do Paseo sozinho: o daemon passa a escrever hooks nos arquivos de config
+dos agentes, ou seja no `~/.claude/settings.json`, que aqui é gerado por
+activation em `home/features/cli/claude/activation/settings.nix`. Dois donos
+escrevendo no mesmo arquivo é briga garantida, e o merge do Nix (`existing *
+managed`, gerenciado vence) faz o Nix ganhar no próximo switch. O Paseo fica
+fora do território do Claude.
+
+**Três ajustes comuns não são alcançáveis por Nix**, porque não são config do
+daemon:
+
+| Ajuste | Onde vive |
+|---|---|
+| Browser interno | capacidade do app Electron, não existe chave. O que se liga é o acesso a ele, que é `daemon.browserTools` |
+| Tool call display | preferência do cliente, chave `toolCallDetailLevel`, valores `overview` (mostrado como "Summary") e `detailed` |
+| Fontes e tamanhos | preferências do cliente: `uiFontFamily`, `monoFontFamily`, `uiBaseFontSize`, `contentFontSize`, `codeFontSize` |
+
+As preferências do cliente ficam no storage do navegador ou do app, sob
+`@paseo:app-settings`, e portanto valem por device. Ajuste em Settings.
+
+### Validar uma config antes de aplicar
+
+O schema é `.strict()`: **uma chave desconhecida faz o daemon não subir**, com
+`[Config] Invalid config in <path>`. Não há fallback para o default.
+
+O upstream publica um JSON Schema em `paseo.sh/schemas/paseo.config.v1.json`,
+mas ele é gerado por script e **pode estar defasado** em relação ao Zod que o
+daemon usa de fato. Aconteceu: o schema publicado rejeitou `daemon.browserTools`
+e `pluginsEnabled`, que existem e funcionam.
+
+O teste que não mente é subir um daemon descartável com a config candidata:
+
+```bash
+mkdir -p /tmp/paseo-cfgtest
+cp candidato.json /tmp/paseo-cfgtest/config.json
+PASEO_HOME=/tmp/paseo-cfgtest PASEO_LISTEN=127.0.0.1:6799 paseo-server --no-relay
+```
+
+Se ele responder em `http://127.0.0.1:6799/api/health`, a config é válida.
+Cuidado com o que você liga nesse teste: `enableTerminalAgentHooks` escreve nos
+configs dos agentes do usuário real, porque `PASEO_HOME` isola o estado do
+Paseo, não o resto do home.
 
 ## Pegadinhas conhecidas
 
@@ -237,6 +350,16 @@ do `paseo .` procura. O alvo é um wrapper shell em volta do electron.
 
 **O acesso pelo celular depende do PC ligado.** O nó da tailnet só existe
 enquanto a distro WSL estiver rodando.
+
+**Cair na tela `/welcome` quase nunca é o proxy.** O HTML é estático e não passa
+por checagem de origem, então a página carrega inteira mesmo quando o daemon
+recusa a conexão. Sem WebSocket o app não completa o autoconnect e mostra o Add
+Host. Olhe o `daemon.log`: `Rejected connection from origin` é
+`daemon.cors.allowedOrigins`, e `Rejected WebSocket connection with invalid
+daemon password` é credencial.
+
+**O certificado não sai no primeiro switch.** Ver "Os três passos que não são
+Nix" acima.
 
 ## Diagnóstico
 
