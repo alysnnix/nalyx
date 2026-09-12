@@ -27,14 +27,14 @@ jobs:
 
       # Evaluates all nixosConfigurations without building them.
       # Uses empty private placeholders since CI has no access to the private
-      # repos: `private` is the personal layer, `paseo-plugins` the plugin fork.
+      # repos: `private` is the personal layer, `paseo-github` the plugin repo.
       # Both absences are guarded in the tree, so the evaluation still covers
       # every host, with those layers off.
       - name: Evaluate all configurations
         run: |
           nix flake check --no-build \
             --override-input private path:./ci/empty-private \
-            --override-input paseo-plugins path:./ci/empty-private
+            --override-input paseo-github path:./ci/empty-private
 
       # `--ci` is treefmt's CI mode (implies --no-cache --fail-on-change).
       # nixfmt's old `--check` flag does not exist on the treefmt wrapper.

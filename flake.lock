@@ -609,24 +609,24 @@
         "type": "github"
       }
     },
-    "paseo-plugins": {
+    "paseo-github": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1789195266,
-        "narHash": "sha256-BW36WjKlo39rMja/3Ai4E2dvQD794fVuaSQsc3nTKEc=",
+        "lastModified": 1789201473,
+        "narHash": "sha256-Ygw1HE4DfsHt7AkqNYrndUwRxZA0qWaoCQU9YG6cfxE=",
         "ref": "refs/heads/main",
-        "rev": "3276d6c5e44b9933941ec5fe677dac9ae9a38fb1",
-        "revCount": 40,
+        "rev": "634cdad2ebceec0c233ab7b9e5259f3f70330077",
+        "revCount": 42,
         "type": "git",
-        "url": "ssh://git@github.com/alysnnix/paseo-plugins.git"
+        "url": "ssh://git@github.com/alysnnix/paseo-github-integration.git"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/alysnnix/paseo-plugins.git"
+        "url": "ssh://git@github.com/alysnnix/paseo-github-integration.git"
       }
     },
     "pre-commit": {
@@ -758,7 +758,7 @@
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_5",
         "paseo": "paseo",
-        "paseo-plugins": "paseo-plugins",
+        "paseo-github": "paseo-github",
         "private": "private",
         "sops-nix": "sops-nix",
         "wrk": "wrk"

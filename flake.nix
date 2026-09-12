@@ -49,25 +49,26 @@
       url = "github:getpaseo/paseo";
     };
 
-    # paseo-plugins: fork pessoal do board de GitHub do Paseo, com aprovar e
-    # mergear PR e com as correcoes de seguranca que a auditoria do upstream
-    # apontou (o allowlist de host do proxy de imagem era uma regex sobre a
-    # string crua e entregava o token do `gh` ao host errado).
+    # paseo-github: o plugin de integracao com o GitHub para o Paseo, repo
+    # proprio (`alysnnix/paseo-github-integration`). Nasceu como fork do
+    # `gpambrozio/paseo-plugins`, mas o fork carregava mais dois plugins que
+    # nao sao nossos e um deles so roda em macOS; o repo novo e so o plugin,
+    # com o historico e a licenca preservados.
     #
     # `git+ssh` e nao `github:` porque o repo ainda e privado: o `github:`
     # fetcher sem token falha, e o ssh usa a chave que a maquina ja tem. Trocar
-    # para `github:alysnnix/paseo-plugins` quando o repo virar publico.
+    # para `github:alysnnix/paseo-github-integration` quando virar publico.
     #
     # Ate la a CI nao alcanca este input e o troca pelo mesmo placeholder vazio
     # que ja usa para o `private` (`--override-input`). O placeholder nao expoe
     # `packages`, entao o overlay e o host precisam tolerar a ausencia: e
-    # `hasPaseoPlugins` quem decide, e sem ele o wsl sobe sem plugin nenhum em
+    # `hasPaseoGithub` quem decide, e sem ele o wsl sobe sem plugin nenhum em
     # vez de falhar a avaliacao.
     #
     # Segue nixpkgs porque o pacote e uma copia de fontes: nao compila nada e
     # nao tem hash de dependencia para preservar.
-    paseo-plugins = {
-      url = "git+ssh://git@github.com/alysnnix/paseo-plugins.git";
+    paseo-github = {
+      url = "git+ssh://git@github.com/alysnnix/paseo-github-integration.git";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -143,14 +144,14 @@
     let
       system = "x86_64-linux";
 
-      # O placeholder que a CI injeta no lugar do fork privado nao tem saida
+      # O placeholder que a CI injeta no lugar do repo privado nao tem saida
       # nenhuma, entao a presenca do pacote e a pergunta certa: um `? null` no
       # argumento nao ajudaria porque o input existe nos dois casos, com
       # conteudo diferente.
-      hasPaseoPlugins =
-        inputs.paseo-plugins ? packages
-        && inputs.paseo-plugins.packages ? ${system}
-        && inputs.paseo-plugins.packages.${system} ? github-board;
+      hasPaseoGithub =
+        inputs.paseo-github ? packages
+        && inputs.paseo-github.packages ? ${system}
+        && inputs.paseo-github.packages.${system} ? github-integration;
 
       # O build Nix do Paseo compila o addon nativo do node-pty e depois o
       # perde. `scripts/trace-daemon.mjs` monta o closure por tracing estatico
@@ -208,8 +209,8 @@
           paseo = fixPtyNode inputs.paseo.packages.${system}.default;
           paseo-desktop = fixPtyNode inputs.paseo.packages.${system}.desktop;
         }
-        // nixpkgs.lib.optionalAttrs hasPaseoPlugins {
-          paseo-github-board = inputs.paseo-plugins.packages.${system}.github-board;
+        // nixpkgs.lib.optionalAttrs hasPaseoGithub {
+          paseo-github-integration = inputs.paseo-github.packages.${system}.github-integration;
         };
 
       pkgs = import nixpkgs {
