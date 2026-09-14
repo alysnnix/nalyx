@@ -407,6 +407,16 @@ apontando para o output do flake do próprio Paseo. Por isso `hosts/wsl` atribui
 `package = pkgs.paseo` explicitamente. Sem essa linha, o CLI fica corrigido e o
 daemon não, e um `switch` parece não ter efeito nenhum.
 
+**`paseo daemon restart` não conhece o serviço systemd.** Ele mata o processo e
+sobe um substituto solto, fora do unit, que fica com a 6767. O `paseo.service`
+então não consegue dar bind e entra em loop de `Restart=on-failure`, enquanto o
+app segue conversando com o processo avulso, que é o binário da geração
+anterior. Isso faz um `switch` com correção no daemon parecer sem efeito, porque
+o `ExecStart` novo nunca chega a rodar. Num host com o daemon gerenciado use
+sempre `systemctl --user restart paseo`; para desfazer um restart avulso,
+`systemctl --user stop paseo && paseo daemon stop`, conferir a porta livre, e só
+então `systemctl --user start paseo`.
+
 **O `Applications/Paseo.AppImage` não é um AppImage.** É o nome que o launcher
 do `paseo .` procura. O alvo é um wrapper shell em volta do electron.
 
@@ -430,6 +440,10 @@ systemctl status paseo            # o serviço
 paseo daemon status               # versão, listen, home, providers
 curl -s localhost:6767/api/health # o daemon responde?
 tail -f ~/.paseo/daemon.log       # o log
+
+# quem está com a porta? tem que ser o MainPID do unit, não um daemon avulso
+ss -tlnp | grep 6767
+systemctl --user show -p MainPID -p NRestarts --value paseo
 
 # o terminal funciona? (isto é o que prova que o pty.node está no lugar)
 paseo terminal create --cwd /tmp --json
