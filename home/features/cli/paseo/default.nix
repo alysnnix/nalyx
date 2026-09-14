@@ -100,9 +100,14 @@ let
         exit 1
       fi
 
+      # The daemon checks Origin on every WebSocket handshake. Its own name
+      # covers the bundled web UI opened directly; extraAllowedOrigins covers
+      # a Paseo UI served from elsewhere that adds this daemon as a host, and
+      # would otherwise get a silent close 1006.
       managed="$(mktemp)"
-      jq -n --arg fqdn "$fqdn" \
-        '{daemon: {hostnames: [$fqdn], cors: {allowedOrigins: ["https://\($fqdn)"]}}}' > "$managed"
+      jq -n --arg fqdn "$fqdn" --args \
+        '{daemon: {hostnames: [$fqdn], cors: {allowedOrigins: (["https://\($fqdn)"] + $ARGS.positional)}}}' \
+        ${lib.escapeShellArgs cfg.tailnetServe.extraAllowedOrigins} > "$managed"
       paseo-config-merge "$managed"
       rm -f "$managed"
 
@@ -187,18 +192,35 @@ in
       };
     };
 
-    tailnetServe.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = ''
-        Publish the daemon on the tailnet as `https://<node>.<tailnet>.ts.net`
-        via `tailscale serve`, and allowlist that origin in the daemon.
+    tailnetServe = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Publish the daemon on the tailnet as `https://<node>.<tailnet>.ts.net`
+          via `tailscale serve`, and allowlist that origin in the daemon.
 
-        The daemon has no password; who reaches port 443 of this node is
-        decided by the tailnet ACL, and that rule is its authentication.
-        Needs the user to be tailscale operator once:
-        `paseo-tailnet-operator-setup`.
-      '';
+          The daemon has no password; who reaches port 443 of this node is
+          decided by the tailnet ACL, and that rule is its authentication.
+          Needs the user to be tailscale operator once:
+          `paseo-tailnet-operator-setup`.
+        '';
+      };
+
+      extraAllowedOrigins = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "https://paseo.example.dev" ];
+        description = ''
+          Further origins the daemon accepts WebSocket connections from, on
+          top of its own MagicDNS name. Needed for every other Paseo UI that
+          adds this daemon as a host: the browser sends that UI's origin,
+          and the daemon closes the socket (code 1006) when it is not listed.
+
+          Empty here on purpose; a personal or project domain is a value for
+          a private layer.
+        '';
+      };
     };
   };
 
