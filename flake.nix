@@ -142,6 +142,13 @@
     }@inputs:
     let
       system = "x86_64-linux";
+      # Como o node nomeia esta plataforma, o sufixo dos `prebuilds/` do node-pty.
+      nodePlatform =
+        {
+          x86_64-linux = "linux-x64";
+          aarch64-linux = "linux-arm64";
+        }
+        .${system};
 
       # O placeholder que a CI injeta no lugar do fork privado nao tem saida
       # nenhuma, entao a presenca do pacote e a pergunta certa: um `? null` no
@@ -152,15 +159,12 @@
         && inputs.paseo-plugins.packages ? ${system}
         && inputs.paseo-plugins.packages.${system} ? github-board;
 
-      # O build Nix do Paseo compila o addon nativo do node-pty e depois o
-      # perde. `scripts/trace-daemon.mjs` monta o closure por tracing estatico
-      # e precisa listar a mao o que e carregado por path computado; a linha
-      # que cobre o node-pty aponta para
-      # `node_modules/node-pty/prebuilds/<plat>-<arch>/**`, e erra em dois
-      # eixos: o npm aninha o pacote em `packages/server/node_modules/node-pty`
-      # (nao existe copia na raiz do output) e o `npm rebuild node-pty` do
-      # buildPhase escreve em `build/Release`, nao em `prebuilds`. Nenhum
-      # `pty.node` chega ao $out.
+      # O build Nix do Paseo perde o addon nativo do node-pty.
+      # `scripts/trace-daemon.mjs` monta o closure por tracing estatico e
+      # precisa listar a mao o que e carregado por path computado; a linha que
+      # cobre o node-pty aponta para `node_modules/node-pty/prebuilds/...`, mas
+      # o npm aninha o pacote em `packages/server/node_modules/node-pty` e nao
+      # existe copia na raiz. Nenhum `pty.node` chega ao $out.
       #
       # O daemon sobe assim mesmo, porque o terminal roda em processo separado:
       # o worker morre no import, o supervisor sobrevive, e o sintoma so
@@ -168,17 +172,34 @@
       # `TERMINAL_CREATE_FAILED: Terminal worker is not running`. Sem terminal
       # nao ha agente, entao isso derruba o produto inteiro, nao um extra.
       #
-      # Copiado em postInstall e nao em installPhase porque o autoPatchelfHook
-      # roda depois, em postFixup, e ainda patcheia o addon contra o libuv que
-      # ja esta em buildInputs. Percorre os dois pacotes pelo mesmo caminho: o
-      # desktop instala em share/paseo-desktop e sofre do mesmo furo.
+      # De onde vem o addon: o node-pty 1.2 traz `prebuilds/<plat>-<arch>/` para
+      # linux, darwin e win32, e o `npm rebuild node-pty` do buildPhase acha o
+      # prebuild da plataforma e nem chama o node-gyp, entao `build/Release`
+      # nunca existe na arvore de build. So um deles serve, e o caminho
+      # completo e o que o escolhe. A versao anterior fazia
+      # `find -name pty.node -print -quit`, e o primeiro na ordem do filesystem
+      # muda de maquina para maquina: no WSL veio o linux-x64, no laptop veio um
+      # Mach-O de darwin e o worker morreu com "invalid ELF header". Mesmo
+      # store path, conteudo diferente, ou seja um build nao reprodutivel. A
+      # checagem do magic number fecha a porta caso o layout mude de novo.
+      #
+      # Copiado para build/Release, que e o primeiro lugar onde o loader do
+      # node-pty procura, e em postInstall e nao em installPhase porque o
+      # autoPatchelfHook roda depois, em postFixup, e ainda patcheia o addon
+      # contra o libuv que ja esta em buildInputs. Percorre os dois pacotes
+      # pelo mesmo caminho: o desktop instala em share/paseo-desktop e sofre do
+      # mesmo furo.
       fixPtyNode =
         pkg:
         pkg.overrideAttrs (old: {
           postInstall = (old.postInstall or "") + ''
-            ptySrc=$(find . -name pty.node -path '*node-pty*' -print -quit)
+            ptySrc=$(find . -path '*/node-pty/prebuilds/${nodePlatform}/pty.node' -print -quit)
             if [ -z "$ptySrc" ]; then
-              echo "fixPtyNode: nenhum pty.node na arvore de build" >&2
+              echo "fixPtyNode: nenhum pty.node em node-pty/prebuilds/${nodePlatform}" >&2
+              exit 1
+            fi
+            if ! head -c 4 "$ptySrc" | grep -q 'ELF'; then
+              echo "fixPtyNode: $ptySrc nao e um ELF" >&2
               exit 1
             fi
             ptyDests=$(find $out -type d -name node-pty)
