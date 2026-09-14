@@ -1,6 +1,6 @@
 # Point-in-time history for `~/wrk`, pushed from WSL to the homelab.
 #
-# Syncthing already replicates `~/wrk` across wsl, desktop and laptop, but with
+# Syncthing already replicates `~/wrk` across wsl and desktop, but with
 # `maxConflicts = 0` and no versioning, which is replication and not backup: a
 # `rm -rf` or a bad `git reset` reaches every copy within seconds, and no older
 # copy exists anywhere in the fleet. restic supplies the axis Syncthing has

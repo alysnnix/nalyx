@@ -360,23 +360,16 @@
     in
     {
       nixosConfigurations = {
-        # Standard desktop/laptop configurations (isWsl defaults to false)
+        # Standard desktop configurations (isWsl defaults to false)
         #
         # `backup` carries the Syncthing folder password for `wrk`, so it goes
-        # to the three hosts that hold that folder in plaintext and to nothing
+        # to the two hosts that hold that folder in plaintext and to nothing
         # else. The homelab's absence from this list is the mechanism that
         # keeps it an untrusted device, and `vm` is left out because it does
         # not import the syncthing module that declares the option.
         desktop = fnMountSystem {
           hostname = "desktop";
           extraModules = privateNixosModule "backup";
-        };
-        laptop = fnMountSystem {
-          hostname = "laptop";
-          extraModules = privateNixosModule "backup";
-          hostVars = vars // {
-            desktop = "gnome";
-          };
         };
         vm = fnMountSystem { hostname = "vm"; };
 
@@ -486,7 +479,6 @@
 
       packages.${system} = {
         desktop-iso = isos.desktop;
-        laptop-iso = isos.laptop;
         homelab-iso = isos.homelab;
       };
 
@@ -494,7 +486,6 @@
       # Run with: nix flake check --no-build
       checks.${system} = {
         desktop = self.nixosConfigurations.desktop.config.system.build.toplevel;
-        laptop = self.nixosConfigurations.laptop.config.system.build.toplevel;
         vm = self.nixosConfigurations.vm.config.system.build.toplevel;
         wsl = self.nixosConfigurations.wsl.config.system.build.toplevel;
         homelab = self.nixosConfigurations.homelab.config.system.build.toplevel;
@@ -511,7 +502,6 @@
               excludes = [ "hardware-configuration\\.nix" ];
               settings.ignore = [
                 "hosts/desktop/hardware-configuration.nix"
-                "hosts/laptop/hardware-configuration.nix"
                 "hosts/vm/hardware-configuration.nix"
                 "hosts/homelab/hardware-configuration.nix"
               ];

@@ -34,7 +34,6 @@ in
 
       # Prefix prompt with hostname on remote machines
       [[ "$(hostname)" == "homelab" ]] && PROMPT="%F{cyan}[homelab]%f $PROMPT"
-      [[ "$(hostname)" == "laptop" ]] && PROMPT="%F{cyan}[laptop]%f $PROMPT"
 
       # Create/enter a git worktree for <branch>, always anchored at the
       # main worktree root so worktrees never nest inside other worktrees.

@@ -67,7 +67,7 @@
   # Syncthing fica reconectando sem nunca transferir. Buraco negro de MTU
   # clássico, sem ICMP de volta.
   #
-  # Medido no caminho para o laptop, com as duas interfaces em 1280:
+  # Medido em 2026 contra o antigo laptop, com as duas interfaces em 1280:
   # passa até 1208 bytes, bloqueia a partir de 1228.
   #
   # 1420 em vez de 1500 de propósito. Os adaptadores do host são:
@@ -138,7 +138,7 @@
     # bootstrap (ver users.users abaixo), e o firewall do NixOS não roda dentro
     # do WSL: quem filtra o tráfego de entrada é o do Windows. Então a chave é
     # a única tranca que este repo controla de fato, e `openFirewall = false`
-    # (o que laptop e desktop usam) aqui não faria nada.
+    # (o que o desktop usa) aqui não faria nada.
     # Paseo roda do lado que tem o codigo: o daemon executa os agentes no
     # filesystem local e nada e sincronizado do cliente para ele (`--cwd` e um
     # path no host do daemon). Como os repos moram aqui, o daemon e daqui e o
@@ -363,7 +363,7 @@
     # Este era o único host pessoal sem authorizedKeys, ou seja, só entrava por
     # senha. A chave pessoal não é acessório: sem ela, o PasswordAuthentication
     # desligado acima trancaria o SSH no `wsl-nix` via Tailscale a partir do
-    # desktop e do laptop.
+    # desktop.
     openssh.authorizedKeys.keys = [
       vars.user.publicKey
 
@@ -404,7 +404,7 @@
 
     # Repetido de modules/core, que este host não importa (o NixOS-WSL traz base
     # própria, então aqui se declara usuário, pacotes e stateVersion na mão).
-    # Ligar lá cobre desktop, laptop, vm e homelab, e não alcança este. Nenhuma
+    # Ligar lá cobre desktop, vm e homelab, e não alcança este. Nenhuma
     # das duas cópias é redundante.
     #
     # O motivo está em modules/core; aqui o gatilho concreto é o Orca, que
