@@ -153,7 +153,7 @@ in
       };
 
       settings = lib.mkOption {
-        type = (pkgs.formats.json { }).type;
+        inherit (pkgs.formats.json { }) type;
         default = { };
         description = ''
           Managed part of `~/.paseo/config.json`, merged over the existing
