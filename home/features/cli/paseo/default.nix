@@ -106,6 +106,30 @@ let
       paseo-config-merge "$managed"
       rm -f "$managed"
 
+      # Renaming the node in the admin console leaves the handler behind under
+      # the old name, which no longer resolves, and `serve --https=443 off`
+      # only ever touches the current name's. The CLI has no per-name removal,
+      # so the leftover can only go with a reset, and the result is a `serve
+      # status` that lists an address nobody can reach.
+      #
+      # The reset is destructive, so it runs only when 443 is the whole serve
+      # config on this node; with anything else served, the leftover is
+      # reported and kept rather than taking that config down with it.
+      stale="$(tailscale serve status --json 2>/dev/null |
+        jq -r --arg k "$fqdn:443" '(.Web // {}) | keys[] | select(endswith(":443")) | select(. != $k)')"
+      if [ -n "$stale" ]; then
+        others="$(tailscale serve status --json 2>/dev/null | jq -r '
+          ((.Web // {}) | keys[] | select(endswith(":443") | not)),
+          ((.TCP // {}) | keys[] | select(. != "443"))
+        ')"
+        if [ -z "$others" ]; then
+          echo "dropping serve config left behind by a rename ($stale)"
+          tailscale serve reset
+        else
+          echo "stale serve handler from a rename ($stale); clear it with 'tailscale serve reset'" >&2
+        fi
+      fi
+
       if ! tailscale serve --bg --https=443 http://${listen}; then
         echo "tailscale serve refused. It needs root or the operator role; grant it once with" >&2
         echo "  paseo-tailnet-operator-setup" >&2
@@ -139,10 +163,10 @@ in
           Run the Paseo daemon as a systemd user service, on loopback.
 
           For a host with no NixOS layer to declare `services.paseo`, such as
-          the standalone `wrk` profile. The desktop app then has to stop
-          managing its own built-in daemon (Settings, "Manage built-in
-          daemon" off) and connect to `127.0.0.1:<port>` instead, which is
-          the same split WSL uses: the daemon is a service, the app a client.
+          the standalone `wrk` profile. The split is the one WSL uses: the
+          daemon is a service, the app a client. The desktop app is pointed at
+          it automatically (its "Manage built-in daemon" setting is turned
+          off), since two daemons cannot share the port.
         '';
       };
 
@@ -202,6 +226,34 @@ in
     home.file."Applications/Paseo.AppImage" = lib.mkIf hasDesktop {
       source = lib.getExe pkgs.paseo-desktop;
     };
+
+    # Point the desktop app at the service above. Without it the app spawns its
+    # own daemon on the same port, the service loses the race or crash-loops,
+    # and the one that wins is the app's, which is launched with `--no-web-ui`:
+    # the tailnet then reaches the API and gets 404 for every UI path.
+    #
+    # Gated on daemon.enable rather than hasDesktop, because the machine this
+    # matters on is the terminal-only work laptop, where the app is the
+    # distro's package and not this tree's.
+    #
+    # Patched in place rather than owned: the file is the app's own state, and
+    # rewriting it would drop the notification and release-channel settings
+    # next to this key. The test is a plain `!= false`, never `(… // true) !=
+    # false`: jq's `//` treats `false` as empty, so the alternative fires on
+    # the very value being checked and the guard never closes, rewriting the
+    # file on every activation. A missing key is null, which is `!= false`, so
+    # an untouched file is still patched.
+    home.activation.paseoDesktopDaemon = lib.mkIf cfg.daemon.enable (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        settings="${config.home.homeDirectory}/.config/Paseo/desktop-settings.json"
+        if [ -f "$settings" ] && ${lib.getExe pkgs.jq} -e \
+          '.settings.daemon.manageBuiltInDaemon != false' "$settings" >/dev/null 2>&1; then
+          $DRY_RUN_CMD ${lib.getExe pkgs.jq} '.settings.daemon.manageBuiltInDaemon = false' \
+            "$settings" >"$settings.hm-tmp" && $DRY_RUN_CMD mv "$settings.hm-tmp" "$settings"
+          echo "paseo: desktop app pointed at the systemd-managed daemon"
+        fi
+      ''
+    );
 
     assertions = [
       {

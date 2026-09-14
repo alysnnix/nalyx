@@ -204,10 +204,10 @@ in
       # the tailnet ACL's call (the daemon has no password), and the node name
       # is read at start, so nothing here says which tailnet or which job.
       #
-      # Two manual steps, once: `paseo-tailnet-operator-setup` (root, grants
-      # `tailscale serve` to this user) and, in the desktop app, "Manage
-      # built-in daemon" off so it connects to this service instead of
-      # spawning a second one on the same port.
+      # One manual step, once: `paseo-tailnet-operator-setup` (root, grants
+      # `tailscale serve` to this user). Pointing the desktop app at this
+      # service is done by the module's activation, since two daemons cannot
+      # share the port.
       paseo = {
         daemon = {
           enable = true;

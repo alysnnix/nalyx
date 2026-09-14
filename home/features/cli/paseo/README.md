@@ -163,13 +163,16 @@ a tailnet aparecem no repositório, e as duas checagens do daemon (`hostnames`
 e `cors.allowedOrigins`) são preenchidas a partir dele. Quem alcança a 443 é a
 ACL da tailnet, como no wsl.
 
-Dois passos manuais, uma vez só:
+Um passo manual, uma vez só: `paseo-tailnet-operator-setup`. `tailscale serve`
+só aceita ordem de root ou do operador, e isso é
+`sudo tailscale set --operator=$USER`.
 
-1. `paseo-tailnet-operator-setup`: `tailscale serve` só aceita ordem de root ou
-   do operador, e isso é `sudo tailscale set --operator=$USER`.
-2. No app desktop (AppImage), Settings, desligar "Manage built-in daemon" e
-   conectar em `127.0.0.1:6767`. Senão ele sobe um segundo daemon na mesma
-   porta e o serviço perde o bind.
+O outro passo, desligar "Manage built-in daemon" no app desktop, é feito pela
+activation: ela vira `manageBuiltInDaemon` para `false` em
+`~/.config/Paseo/desktop-settings.json`, e sem isso o app sobe um segundo
+daemon na mesma porta. Quem ganha o bind costuma ser o do app, que é lançado
+com `--no-web-ui`: a tailnet então alcança a API e recebe 404 em toda rota de
+UI. O app precisa ser reiniciado para largar o daemon que já subiu.
 
 `systemctl --user status paseo paseo-tailnet-serve` mostra os dois; o segundo
 imprime a URL final no log.
