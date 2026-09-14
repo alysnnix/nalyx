@@ -117,11 +117,12 @@
   # daemon do Windows). Assim dá pra dar SSH direto no WSL sem passar pelo host
   # Windows. O WSL só fica online enquanto a distro estiver rodando.
   #
-  # O nome do nó é fixado em `wsl-nix` (desacoplado do hostname do SO acima),
-  # porque o FQDN resultante `wsl-nix.<tailnet>.ts.net` é o endereço que o
-  # Syncthing dos peers disca. Nome derivado do hostname sobrevive a reinstall,
-  # mas só se o registro antigo não estiver segurando o nome; a identidade do
-  # nó é preservada pelo seed de tailscaled.state (repo privado).
+  # O nome do nó é fixado em `wsl` (desacoplado do hostname do SO acima, que
+  # é `nixos-wsl`), porque o FQDN resultante `wsl.<tailnet>.ts.net` é o
+  # endereço que o Syncthing dos peers disca. Nome derivado do hostname
+  # sobrevive a reinstall, mas só se o registro antigo não estiver segurando o
+  # nome; a identidade do nó é preservada pelo seed de tailscaled.state (repo
+  # privado).
   #
   # Os dois flags são necessários e não são redundantes:
   #   extraUpFlags  -> só roda no registro (tailscaled-autoconnect, quando o
@@ -131,8 +132,8 @@
   services = {
     tailscale = {
       enable = true;
-      extraUpFlags = [ "--hostname=wsl-nix" ];
-      extraSetFlags = [ "--hostname=wsl-nix" ];
+      extraUpFlags = [ "--hostname=wsl" ];
+      extraSetFlags = [ "--hostname=wsl" ];
     };
     # Só chave, sem senha. O login aqui nasce com o `initialPassword` de
     # bootstrap (ver users.users abaixo), e o firewall do NixOS não roda dentro
@@ -362,7 +363,7 @@
 
     # Este era o único host pessoal sem authorizedKeys, ou seja, só entrava por
     # senha. A chave pessoal não é acessório: sem ela, o PasswordAuthentication
-    # desligado acima trancaria o SSH no `wsl-nix` via Tailscale a partir do
+    # desligado acima trancaria o SSH no nó `wsl` via Tailscale a partir do
     # desktop.
     openssh.authorizedKeys.keys = [
       vars.user.publicKey
