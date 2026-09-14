@@ -37,7 +37,7 @@
   networking.hostName = "desktop";
 
   # SSH só acessível via Tailscale: porta 22 fechada nas demais interfaces,
-  # mesmo padrão do laptop e do wsl.
+  # mesmo padrão do wsl.
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
   services.openssh = {
     enable = true;

@@ -184,17 +184,54 @@ in
       fi
     '';
 
-    # No Syncthing peer here. The point of a managed machine is that it stops
-    # being a node in the personal fleet, so it must not even carry the ignore
-    # list for a folder it is never going to sync.
-    modules.cli.syncthing.enable = false;
+    modules.cli = {
+      # No Syncthing peer here. The point of a managed machine is that it stops
+      # being a node in the personal fleet, so it must not even carry the ignore
+      # list for a folder it is never going to sync.
+      syncthing.enable = false;
 
-    # Orca itself comes from the distro (`apt install ./orca-ide_*.deb`), like
-    # every other window on this machine. This only fixes the launcher, so the
-    # app finds the agents in the nix profile. A graphical exception that costs
-    # nothing, since it ships no window of its own: it is a desktop entry and
-    # a two-line wrapper.
-    modules.cli.orca.enable = true;
+      # Orca itself comes from the distro (`apt install ./orca-ide_*.deb`), like
+      # every other window on this machine. This only fixes the launcher, so the
+      # app finds the agents in the nix profile. A graphical exception that costs
+      # nothing, since it ships no window of its own: it is a desktop entry and
+      # a two-line wrapper.
+      orca.enable = true;
+
+      # The Paseo daemon as a user service, published on this node's own
+      # MagicDNS name so the personal desktop can open it in a browser. Off
+      # NixOS there is no `services.paseo` to declare it, and the AppImage's
+      # built-in daemon only lives while the app window does. Who reaches it is
+      # the tailnet ACL's call (the daemon has no password), and the node name
+      # is read at start, so nothing here says which tailnet or which job.
+      #
+      # Two manual steps, once: `paseo-tailnet-operator-setup` (root, grants
+      # `tailscale serve` to this user) and, in the desktop app, "Manage
+      # built-in daemon" off so it connects to this service instead of
+      # spawning a second one on the same port.
+      paseo = {
+        daemon = {
+          enable = true;
+          # Same shape as the WSL daemon in hosts/wsl, minus what needs a
+          # secret or a desktop host. Providers are opt-out by id (see there).
+          settings = {
+            features.webUi.enabled = true;
+            daemon.mcp = {
+              enabled = true;
+              injectIntoAgents = true;
+            };
+            agents.providers = {
+              claude.enabled = true;
+              omp.enabled = true;
+              codex.enabled = false;
+              copilot.enabled = false;
+              opencode.enabled = false;
+              pi.enabled = false;
+            };
+          };
+        };
+        tailnetServe.enable = true;
+      };
+    };
 
     # Not NixOS, so nothing sets up the session for a nix profile. This exports
     # XDG_DATA_DIRS and friends via hm-session-vars.sh, which is what makes

@@ -132,8 +132,8 @@ let
   # takes the first matching pattern, so the order matters.
   #
   # session.json and session-history.json joined config.toml on 2026-09-10, so a
-  # session opened on the laptop is visible here. What stays out is the reason
-  # this is an allowlist and not a blocklist:
+  # session opened on one host is visible on the other. What stays out is the
+  # reason this is an allowlist and not a blocklist:
   #
   #   herdr-server.log    3.5 MB and growing, per-machine, useless elsewhere
   #   herdr-client.log    same

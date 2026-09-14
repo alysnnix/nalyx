@@ -27,7 +27,7 @@ Windows                          WSL (nixos-wsl)
 |---|---|
 | `flake.nix` | o input `paseo`, e o overlay `fixPtyNode` que conserta os pacotes |
 | `hosts/wsl/default.nix` | `services.paseo`, o daemon como serviço systemd |
-| `home/features/cli/paseo/` | o CLI em todo host, e o app desktop só onde há janela |
+| `home/features/cli/paseo/` | o CLI em todo host, o app desktop só onde há janela, e `modules.cli.paseo.daemon` / `tailnetServe` para um host sem NixOS |
 | `modules/services/paseo-proxy.nix` | o nginx com TLS para um domínio próprio, desligado por padrão |
 
 ## Projetos e workspaces
@@ -147,6 +147,32 @@ não vai deixar claro que a causa foi essa.
 `Settings` → `Add host` → `Direct connection`, com o IP da tailnet e a porta
 `6767`. Isso exige o daemon alcançável além do loopback, o que é exatamente o
 que a próxima seção resolve, e com TLS.
+
+## Fora do NixOS: o daemon no perfil `wrk`
+
+Num host sem camada NixOS não existe `services.paseo`. O perfil `wrk` liga
+`modules.cli.paseo.daemon`, que roda o mesmo `paseo-server` como serviço
+systemd **de usuário**, em `127.0.0.1:6767`, com a parte gerenciada do
+`config.json` mesclada por cima da existente a cada start (gerenciado vence, o
+resto sobrevive, ao contrário do WSL, onde o Nix reescreve o arquivo inteiro).
+
+`modules.cli.paseo.tailnetServe` publica esse daemon com `tailscale serve` em
+`https://<nó>.<tailnet>.ts.net`, com o certificado que o próprio tailscaled
+emite. O nome do nó é lido de `tailscale status` na hora, então nem o nome nem
+a tailnet aparecem no repositório, e as duas checagens do daemon (`hostnames`
+e `cors.allowedOrigins`) são preenchidas a partir dele. Quem alcança a 443 é a
+ACL da tailnet, como no wsl.
+
+Dois passos manuais, uma vez só:
+
+1. `paseo-tailnet-operator-setup`: `tailscale serve` só aceita ordem de root ou
+   do operador, e isso é `sudo tailscale set --operator=$USER`.
+2. No app desktop (AppImage), Settings, desligar "Manage built-in daemon" e
+   conectar em `127.0.0.1:6767`. Senão ele sobe um segundo daemon na mesma
+   porta e o serviço perde o bind.
+
+`systemctl --user status paseo paseo-tailnet-serve` mostra os dois; o segundo
+imprime a URL final no log.
 
 ## Domínio próprio
 
