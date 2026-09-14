@@ -196,6 +196,41 @@ in
     # a two-line wrapper.
     modules.cli.orca.enable = true;
 
+    # The Paseo daemon as a user service, published on this node's own
+    # MagicDNS name so the personal desktop can open it in a browser. Off
+    # NixOS there is no `services.paseo` to declare it, and the AppImage's
+    # built-in daemon only lives while the app window does. Who reaches it is
+    # the tailnet ACL's call (the daemon has no password), and the node name
+    # is read at start, so nothing here says which tailnet or which job.
+    #
+    # Two manual steps, once: `paseo-tailnet-operator-setup` (root, grants
+    # `tailscale serve` to this user) and, in the desktop app, "Manage
+    # built-in daemon" off so it connects to this service instead of
+    # spawning a second one on the same port.
+    modules.cli.paseo = {
+      daemon = {
+        enable = true;
+        # Same shape as the WSL daemon in hosts/wsl, minus what needs a
+        # secret or a desktop host. Providers are opt-out by id (see there).
+        settings = {
+          features.webUi.enabled = true;
+          daemon.mcp = {
+            enabled = true;
+            injectIntoAgents = true;
+          };
+          agents.providers = {
+            claude.enabled = true;
+            omp.enabled = true;
+            codex.enabled = false;
+            copilot.enabled = false;
+            opencode.enabled = false;
+            pi.enabled = false;
+          };
+        };
+      };
+      tailnetServe.enable = true;
+    };
+
     # Not NixOS, so nothing sets up the session for a nix profile. This exports
     # XDG_DATA_DIRS and friends via hm-session-vars.sh, which is what makes
     # completions, man pages and desktop entries from the profile resolvable.
