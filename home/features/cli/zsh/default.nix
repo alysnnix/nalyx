@@ -19,7 +19,20 @@ in
 {
   home = {
     packages = myScripts ++ [ pkgs.sshfs ];
-    sessionPath = [ "$HOME/.local/bin" ];
+    sessionPath = [
+      "$HOME/.local/bin"
+    ]
+    # Off NixOS the nix client lives in the daemon's default profile, and that
+    # directory reaches PATH through /etc/profile.d, which only a login shell
+    # reads. A managed laptop opens its terminal as a non-login shell, so
+    # ~/.nix-profile/bin shows up (hm-session-vars.sh exports it) while
+    # /nix/var/nix/profiles/default/bin does not, and `nix` is missing from the
+    # very session that is supposed to rebuild the config. Naming it here makes
+    # the session self-sufficient instead of dependent on how the terminal was
+    # launched. On NixOS nix comes from the system profile and this would be
+    # noise, hence the gate. A single-user install has no such directory and
+    # PATH entries that do not exist are inert.
+    ++ lib.optional config.targets.genericLinux.enable "/nix/var/nix/profiles/default/bin";
   };
 
   programs.zsh = {
