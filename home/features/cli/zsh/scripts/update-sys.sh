@@ -63,6 +63,33 @@ TARGET="${positional[0]:-}"
 PROJECT="${positional[1]:-}"
 HOST="${TARGET:-$(hostname)}"
 
+# `nix` itself, before anything that shells out to it. A daemon install puts it
+# in the default profile, which reaches PATH through /etc/profile.d, and a
+# managed laptop is exactly where that does not happen: the terminal there
+# starts a non-login shell, so ~/.nix-profile/bin arrives from
+# hm-session-vars.sh while the daemon profile never does. The failure that
+# causes is opaque, because the thing that dies is the home-manager wrapper
+# rather than this script:
+#
+#   /home/<user>/.nix-profile/bin/home-manager: line 594: nix: command not found
+#
+# Exported, since the point is the child processes: home-manager, and the
+# `nix run` bootstrap below.
+if ! command -v nix >/dev/null 2>&1; then
+  for candidate in /nix/var/nix/profiles/default/bin "$HOME/.nix-profile/bin"; do
+    if [ -x "$candidate/nix" ]; then
+      PATH="$candidate:$PATH"
+      export PATH
+      break
+    fi
+  done
+fi
+if ! command -v nix >/dev/null 2>&1; then
+  echo "nix is not on PATH, and not in /nix/var/nix/profiles/default/bin" >&2
+  echo "nor in ~/.nix-profile/bin. Nothing can be built without it." >&2
+  exit 127
+fi
+
 FLAKE_DIR="$HOME/nalyx"
 # Personal layer: a fixed name, because there is only ever one of it.
 PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"

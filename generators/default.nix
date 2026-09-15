@@ -92,7 +92,6 @@ let
 in
 {
   desktop = fnMountISO { hostname = "desktop"; };
-  laptop = fnMountISO { hostname = "laptop"; };
   homelab = fnMountISO {
     hostname = "homelab";
     isServer = true;

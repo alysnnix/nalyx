@@ -81,7 +81,7 @@ The homelab still carries the personal key as a decryption fallback, so it can c
 | Secrets | SOPS-nix, Age |
 | Boot | systemd-boot (Lanzaboote optional) |
 | Shell | Zsh |
-| Drivers | NVIDIA, Intel |
+| Drivers | NVIDIA |
 | AI Tools | Claude Code, Gemini CLI, OpenCode, pi |
 | Services | Tailscale, Syncthing, NordVPN, restic |
 
@@ -90,7 +90,6 @@ The homelab still carries the personal key as a decryption fallback, so it can c
 | Host | Description | Desktop | Extras |
 |------|-------------|---------|--------|
 | `desktop` | Main PC | Hyprland/GNOME | NVIDIA, Steam, Gaming |
-| `laptop` | Notebook | Hyprland/GNOME | Intel, KDE Connect |
 | `wsl` | WSL2 | None | Docker, Pritunl, Playwright |
 | `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
 | `homelab` | Server | None | Tailscale, Syncthing (encrypted), restic |
@@ -111,7 +110,7 @@ hosts/           # NixOS system configs per host
 modules/
   core/          # Base system (all hosts)
   desktop/       # Hyprland, GNOME (system-level)
-  drivers/       # NVIDIA, Intel
+  drivers/       # NVIDIA
   services/      # NordVPN, Syncthing, Hermes Agent
   secureboot/    # Lanzaboote (optional)
 home/

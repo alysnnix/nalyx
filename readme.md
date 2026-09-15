@@ -1,6 +1,6 @@
 # Nalyx
 
-Personal NixOS configuration with multi-host support: desktop, laptop, WSL, VM, and homelab.
+Personal NixOS configuration with multi-host support: desktop, WSL, VM, and homelab.
 
 Built with **Flakes**, **Home-Manager**, **SOPS-nix**, and a **public/private split** using composable flake modules.
 
@@ -19,7 +19,6 @@ nalyx/ (public)                     nalyx-private/ (optional flake)
 ├── vars.nix                        ├── nixos/ (SOPS, passwords, secrets)
 ├── hosts/                          ├── home/ (MCPs, scripts, aliases)
 │   ├── desktop/                    └── secrets/secrets.yaml
-│   ├── laptop/
 │   ├── wsl/
 │   ├── vm/
 │   └── homelab/
@@ -37,7 +36,6 @@ No public module references secrets, private URLs, or knows the private repo exi
 | Host | Description | Desktop | Extras |
 |------|-------------|---------|--------|
 | `desktop` | Main PC | Hyprland / GNOME | NVIDIA, Steam, gaming |
-| `laptop` | Notebook | Hyprland / GNOME | Intel |
 | `wsl` | WSL2 | None | Docker Desktop |
 | `vm` | Test VM | Hyprland / GNOME | Minimal |
 | `homelab` | Server | None | Tailscale, SSH, headless, encrypted `wrk` sync + restic repo |
@@ -51,7 +49,7 @@ No public module references secrets, private URLs, or knows the private repo exi
 | Secrets | SOPS-nix, Age |
 | Boot | Lanzaboote (Secure Boot), systemd-boot |
 | Shell | Zsh, Oh-My-Zsh |
-| Drivers | NVIDIA, Intel |
+| Drivers | NVIDIA |
 
 ## Setup
 

@@ -27,7 +27,7 @@ Windows                          WSL (nixos-wsl)
 |---|---|
 | `flake.nix` | o input `paseo`, e o overlay `fixPtyNode` que conserta os pacotes |
 | `hosts/wsl/default.nix` | `services.paseo`, o daemon como serviço systemd |
-| `home/features/cli/paseo/` | o CLI em todo host, e o app desktop só onde há janela |
+| `home/features/cli/paseo/` | o CLI em todo host, o app desktop só onde há janela, e `modules.cli.paseo.daemon` / `tailnetServe` para um host sem NixOS |
 | `modules/services/paseo-proxy.nix` | o nginx com TLS para um domínio próprio, desligado por padrão |
 
 ## Projetos e workspaces
@@ -147,6 +147,35 @@ não vai deixar claro que a causa foi essa.
 `Settings` → `Add host` → `Direct connection`, com o IP da tailnet e a porta
 `6767`. Isso exige o daemon alcançável além do loopback, o que é exatamente o
 que a próxima seção resolve, e com TLS.
+
+## Fora do NixOS: o daemon no perfil `wrk`
+
+Num host sem camada NixOS não existe `services.paseo`. O perfil `wrk` liga
+`modules.cli.paseo.daemon`, que roda o mesmo `paseo-server` como serviço
+systemd **de usuário**, em `127.0.0.1:6767`, com a parte gerenciada do
+`config.json` mesclada por cima da existente a cada start (gerenciado vence, o
+resto sobrevive, ao contrário do WSL, onde o Nix reescreve o arquivo inteiro).
+
+`modules.cli.paseo.tailnetServe` publica esse daemon com `tailscale serve` em
+`https://<nó>.<tailnet>.ts.net`, com o certificado que o próprio tailscaled
+emite. O nome do nó é lido de `tailscale status` na hora, então nem o nome nem
+a tailnet aparecem no repositório, e as duas checagens do daemon (`hostnames`
+e `cors.allowedOrigins`) são preenchidas a partir dele. Quem alcança a 443 é a
+ACL da tailnet, como no wsl.
+
+Um passo manual, uma vez só: `paseo-tailnet-operator-setup`. `tailscale serve`
+só aceita ordem de root ou do operador, e isso é
+`sudo tailscale set --operator=$USER`.
+
+O outro passo, desligar "Manage built-in daemon" no app desktop, é feito pela
+activation: ela vira `manageBuiltInDaemon` para `false` em
+`~/.config/Paseo/desktop-settings.json`, e sem isso o app sobe um segundo
+daemon na mesma porta. Quem ganha o bind costuma ser o do app, que é lançado
+com `--no-web-ui`: a tailnet então alcança a API e recebe 404 em toda rota de
+UI. O app precisa ser reiniciado para largar o daemon que já subiu.
+
+`systemctl --user status paseo paseo-tailnet-serve` mostra os dois; o segundo
+imprime a URL final no log.
 
 ## Domínio próprio
 
@@ -378,6 +407,16 @@ apontando para o output do flake do próprio Paseo. Por isso `hosts/wsl` atribui
 `package = pkgs.paseo` explicitamente. Sem essa linha, o CLI fica corrigido e o
 daemon não, e um `switch` parece não ter efeito nenhum.
 
+**`paseo daemon restart` não conhece o serviço systemd.** Ele mata o processo e
+sobe um substituto solto, fora do unit, que fica com a 6767. O `paseo.service`
+então não consegue dar bind e entra em loop de `Restart=on-failure`, enquanto o
+app segue conversando com o processo avulso, que é o binário da geração
+anterior. Isso faz um `switch` com correção no daemon parecer sem efeito, porque
+o `ExecStart` novo nunca chega a rodar. Num host com o daemon gerenciado use
+sempre `systemctl --user restart paseo`; para desfazer um restart avulso,
+`systemctl --user stop paseo && paseo daemon stop`, conferir a porta livre, e só
+então `systemctl --user start paseo`.
+
 **O `Applications/Paseo.AppImage` não é um AppImage.** É o nome que o launcher
 do `paseo .` procura. O alvo é um wrapper shell em volta do electron.
 
@@ -401,6 +440,10 @@ systemctl status paseo            # o serviço
 paseo daemon status               # versão, listen, home, providers
 curl -s localhost:6767/api/health # o daemon responde?
 tail -f ~/.paseo/daemon.log       # o log
+
+# quem está com a porta? tem que ser o MainPID do unit, não um daemon avulso
+ss -tlnp | grep 6767
+systemctl --user show -p MainPID -p NRestarts --value paseo
 
 # o terminal funciona? (isto é o que prova que o pty.node está no lugar)
 paseo terminal create --cwd /tmp --json

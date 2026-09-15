@@ -123,7 +123,7 @@
     # Stated again in hosts/wsl, which does not import this module: NixOS-WSL
     # brings its own base, so that host declares its own users, packages and
     # stateVersion. Do not delete either copy as a duplicate; setting it here
-    # covers desktop, laptop, vm and homelab, and nothing else covers WSL.
+    # covers desktop, vm and homelab, and nothing else covers WSL.
     localBinInPath = true;
   };
 
