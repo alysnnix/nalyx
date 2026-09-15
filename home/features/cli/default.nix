@@ -52,6 +52,7 @@
       unzip
       gnupg
       pinentry-curses
+      bitwarden-cli
       stripe-cli
       supabase-cli
       flyctl
