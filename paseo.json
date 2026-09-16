@@ -1,0 +1,7 @@
+{
+  "metadataGeneration": {
+    "commitMessage": {
+      "instructions": "English, lowercase, imperative. Return a multi-line message: line 1 is 'type(scope): description' with at most 40 characters in total and no trailing period, line 2 is empty, line 3 is a single bullet starting with '- ' that says what changed. Allowed types: feat fix docs style refactor perf test build ci chore revert; append '!' before the colon only for a breaking change. Scope is lowercase letters, digits, '.', '_', '/' or '-', and is the module or area touched. The whole message must stay under 72 characters including newlines, so keep the bullet to a few words. Never add a Co-Authored-By trailer or any other trailer; the git hook adds it."
+    }
+  }
+}
