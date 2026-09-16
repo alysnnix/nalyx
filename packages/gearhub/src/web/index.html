@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gearhub</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9A%99%EF%B8%8F%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <h1><span class="accent">gear</span>hub</h1>
+    <p class="subtitle">painel de perifericos do desktop</p>
+  </header>
+
+  <main class="grid">
+    <section class="card" id="card-monitors">
+      <div class="card-head">
+        <h2>Monitores</h2>
+        <span class="status" data-status="monitors">carregando...</span>
+      </div>
+      <div class="card-body" id="monitors-body">
+        <p class="muted">Procurando displays DDC/CI...</p>
+      </div>
+    </section>
+
+    <section class="card" id="card-mouse">
+      <div class="card-head">
+        <h2>Mouse</h2>
+        <span class="status" data-status="mouse">carregando...</span>
+      </div>
+      <div class="card-body" id="mouse-body">
+        <p class="muted">Consultando solaar...</p>
+      </div>
+    </section>
+
+    <section class="card" id="card-cooler">
+      <div class="card-head">
+        <h2>Water cooler</h2>
+        <span class="status" data-status="cooler">carregando...</span>
+      </div>
+      <div class="card-body" id="cooler-body">
+        <p class="muted">Consultando OpenLinkHub...</p>
+      </div>
+      <div class="card-foot">
+        <a class="button" href="/openlinkhub/" target="_blank" rel="noopener">Abrir OpenLinkHub</a>
+      </div>
+    </section>
+
+    <section class="card" id="card-keyboard">
+      <div class="card-head">
+        <h2>Teclado</h2>
+        <span class="status ok">webhid</span>
+      </div>
+      <div class="card-body">
+        <p class="device-name">Keychron K2 HE</p>
+        <p class="muted">
+          Este teclado e configurado pelo Keychron Launcher, um app web que fala
+          direto com o teclado via WebHID. Nao ha nada para controlar por aqui.
+        </p>
+      </div>
+      <div class="card-foot">
+        <a class="button" href="https://launcher.keychron.com" target="_blank" rel="noopener">Abrir Keychron Launcher</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>gearhub · ddcutil · solaar · OpenLinkHub</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

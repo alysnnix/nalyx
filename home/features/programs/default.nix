@@ -7,6 +7,7 @@
     ./obs
     ./firefox
     ./games
+    ./gearhub
   ];
 
   home.packages = with pkgs; [

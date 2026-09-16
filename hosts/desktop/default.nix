@@ -17,6 +17,8 @@
     # publicacao dele na tailnet. Ligados mais abaixo.
     ../../modules/services/paseo.nix
     ../../modules/services/paseo-tailnet.nix
+    # Daemon do cooler Corsair (iCUE LINK), consumido pelo gearhub via HTTP.
+    ../../modules/services/openlinkhub.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
@@ -119,7 +121,12 @@
       PasswordAuthentication = false;
     };
   };
-  users.users.${vars.user.name}.openssh.authorizedKeys.keys = [ vars.user.publicKey ];
+  users.users.${vars.user.name} = {
+    openssh.authorizedKeys.keys = [ vars.user.publicKey ];
+    # ddcutil fala DDC/CI com os monitores AOC pelos nos /dev/i2c-*; o grupo
+    # vem do hardware.i2c.enable mais abaixo.
+    extraGroups = [ "i2c" ];
+  };
 
   # Paseo roda do lado que tem o codigo, e uma boa parte dos repos mora aqui.
   # O daemon fica no loopback e a publicacao e so na tailnet, com o TLS que o
@@ -145,6 +152,26 @@
   # dele, porque dois daemons nao dividem a porta 6767. Depois do primeiro
   # switch o app precisa ser reiniciado uma vez para largar a porta.
   modules.services.paseo.enable = true;
+
+  # Perifericos do gearhub (home/features/programs/gearhub). O daemon do
+  # cooler liga aqui; o resto e acesso a hardware que os CLIs precisam.
+  modules.services.openlinkhub.enable = true;
+
+  # Acesso i2c para o ddcutil: cria o grupo i2c e a regra de udev dos nos.
+  hardware.i2c.enable = true;
+
+  # Regras de udev do ltunify/solaar para o mouse Logitech; sem a parte
+  # grafica, o solaar ja vem pelo home-manager.
+  hardware.logitech.wireless = {
+    enable = true;
+    enableGraphical = false;
+  };
+
+  # O teclado Keychron K2 HE e configurado pelo Keychron Launcher (WebHID no
+  # navegador), que precisa de acesso ao hidraw do dispositivo sem root.
+  services.udev.extraRules = ''
+    KERNEL=="hidraw*", ATTRS{idVendor}=="3434", TAG+="uaccess"
+  '';
 
   home-manager.users.${vars.user.name} = import ../../home;
   home-manager.backupFileExtension = "backup-rev";
