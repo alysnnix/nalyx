@@ -254,11 +254,24 @@ function mouseConfigForm(deviceName) {
   return wrap;
 }
 
+function mouseRefreshButton() {
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = "Atualizar";
+  btn.title = "Consulta o mouse de novo (pode travar o ponteiro por um instante)";
+  btn.addEventListener("click", () => {
+    btn.disabled = true;
+    loadMouse(true).finally(() => (btn.disabled = false));
+  });
+  return btn;
+}
+
 function renderMouse(data) {
   const body = $("#mouse-body");
   if (!data.available || !data.devices || data.devices.length === 0) {
     setStatus("mouse", "nao detectado", "off");
     notDetected(body, "Nenhum dispositivo Logitech detectado via solaar.");
+    body.appendChild(mouseRefreshButton());
     return;
   }
   setStatus("mouse", "conectado", "ok");
@@ -291,11 +304,13 @@ function renderMouse(data) {
     sub.appendChild(mouseConfigForm(dev.name));
     body.appendChild(sub);
   }
+  body.appendChild(mouseRefreshButton());
 }
 
-async function loadMouse() {
+async function loadMouse(refresh) {
   try {
-    renderMouse(await getJSON("/api/mouse"));
+    const url = refresh ? "/api/mouse?refresh=1" : "/api/mouse";
+    renderMouse(await getJSON(url));
   } catch (err) {
     setStatus("mouse", "erro", "off");
     notDetected($("#mouse-body"), "Falha ao consultar solaar.");

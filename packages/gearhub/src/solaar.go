@@ -6,7 +6,25 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
+
+// Querying solaar enumerates HID++ features over the mouse's own hidraw
+// channel, which visibly stutters the pointer for a moment. Cache the
+// result so opening the page does not hit the device every time; a refresh
+// only happens on explicit request (?refresh=1) or after the TTL expires.
+const (
+	mouseCacheOKTTL  = 10 * time.Minute
+	mouseCacheErrTTL = 30 * time.Second
+)
+
+var mouseCache struct {
+	sync.Mutex
+	payload map[string]any
+	fetched time.Time
+	ok      bool
+}
 
 // MouseDevice is one device summarized from "solaar show" output.
 type MouseDevice struct {
@@ -86,18 +104,37 @@ func parseSolaarShow(out string) []MouseDevice {
 	return devices
 }
 
-func handleMouse(w http.ResponseWriter, r *http.Request) {
+func fetchMouse(r *http.Request) (map[string]any, bool) {
 	out, err := runCommand(r.Context(), "solaar", "show")
 	if err != nil {
-		writeUnavailable(w, fmt.Errorf("solaar show: %v", err))
-		return
+		return map[string]any{"available": false, "error": fmt.Sprintf("solaar show: %v", err)}, false
 	}
 	devices := parseSolaarShow(out)
 	if len(devices) == 0 {
-		writeJSON(w, map[string]any{"available": false, "error": "nenhum dispositivo encontrado"})
+		return map[string]any{"available": false, "error": "nenhum dispositivo encontrado"}, false
+	}
+	return map[string]any{"available": true, "devices": devices}, true
+}
+
+func handleMouse(w http.ResponseWriter, r *http.Request) {
+	force := r.URL.Query().Get("refresh") != ""
+	mouseCache.Lock()
+	defer mouseCache.Unlock()
+	ttl := mouseCacheErrTTL
+	if mouseCache.ok {
+		ttl = mouseCacheOKTTL
+	}
+	if !force && mouseCache.payload != nil && time.Since(mouseCache.fetched) < ttl {
+		payload := mouseCache.payload
+		payload["cachedAt"] = mouseCache.fetched.Format(time.RFC3339)
+		writeJSON(w, payload)
 		return
 	}
-	writeJSON(w, map[string]any{"available": true, "devices": devices})
+	payload, ok := fetchMouse(r)
+	mouseCache.payload = payload
+	mouseCache.fetched = time.Now()
+	mouseCache.ok = ok
+	writeJSON(w, payload)
 }
 
 type mouseConfigRequest struct {
@@ -123,5 +160,9 @@ func handleMouseConfig(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": strings.TrimSpace(out) + " " + err.Error()})
 		return
 	}
+	// The device state changed; drop the cache so the next read reflects it.
+	mouseCache.Lock()
+	mouseCache.payload = nil
+	mouseCache.Unlock()
 	writeJSON(w, map[string]any{"ok": true, "output": strings.TrimSpace(out)})
 }
