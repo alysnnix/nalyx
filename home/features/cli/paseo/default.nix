@@ -273,21 +273,44 @@ in
     # where the app is the distro's package and not this tree's, and the
     # personal desktop, where the app is this tree's and the daemon is not.
     #
+    # Two keys, and the second one is the one that bites. Quitting the app
+    # sends a shutdown to whatever daemon it is talking to, the external one
+    # included, so with `keepRunningAfterQuit = false` closing the window takes
+    # the system service down with it. The exit is clean (status 0), and the
+    # unit's `Restart=on-failure` does not fire on a clean exit, so the daemon
+    # simply stays dead and every remote client sees a refused connection.
+    #
     # Patched in place rather than owned: the file is the app's own state, and
     # rewriting it would drop the notification and release-channel settings
-    # next to this key. The test is a plain `!= false`, never `(… // true) !=
-    # false`: jq's `//` treats `false` as empty, so the alternative fires on
-    # the very value being checked and the guard never closes, rewriting the
-    # file on every activation. A missing key is null, which is `!= false`, so
-    # an untouched file is still patched.
+    # next to these keys. Three traps, all measured against jq 1.8.2 and the
+    # real file:
+    #
+    # 1. The tests are plain `!= false` / `!= true`, never `(… // true) !=
+    #    false`: jq's `//` treats `false` as empty, so the alternative would
+    #    fire on the very value being checked, the guard would never close and
+    #    the file would be rewritten on every activation.
+    # 2. Every parent is defaulted with `// {}` before being indexed. A file
+    #    without `.settings.daemon` (a freshly written one) makes
+    #    `.settings.daemon.manageBuiltInDaemon` raise "cannot use null as
+    #    iterable", jq exits 5, and `&&` reads that as "nothing to do": the
+    #    machine that needs the patch most is the one that silently misses it.
+    # 3. The write merges the two keys into whatever `.settings.daemon` holds
+    #    instead of assigning through a path, for the same reason.
+    #
+    # A missing key is null, which fails both tests, so an untouched file is
+    # still patched, and a correct file is left alone byte for byte.
     home.activation.paseoDesktopDaemon = lib.mkIf (cfg.daemon.enable || hasSystemDaemon) (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="${config.home.homeDirectory}/.config/Paseo/desktop-settings.json"
         if [ -f "$settings" ] && ${lib.getExe pkgs.jq} -e \
-          '.settings.daemon.manageBuiltInDaemon != false' "$settings" >/dev/null 2>&1; then
-          $DRY_RUN_CMD ${lib.getExe pkgs.jq} '.settings.daemon.manageBuiltInDaemon = false' \
+          '((((.settings // {}).daemon) // {})
+             | .manageBuiltInDaemon != false or .keepRunningAfterQuit != true)' \
+          "$settings" >/dev/null 2>&1; then
+          $DRY_RUN_CMD ${lib.getExe pkgs.jq} '.settings = (.settings // {})
+            | .settings.daemon = (((.settings.daemon) // {})
+              + { manageBuiltInDaemon: false, keepRunningAfterQuit: true })' \
             "$settings" >"$settings.hm-tmp" && $DRY_RUN_CMD mv "$settings.hm-tmp" "$settings"
-          echo "paseo: desktop app pointed at the systemd-managed daemon"
+          echo "paseo: desktop app pointed at the systemd-managed daemon, and told to leave it running"
         fi
       ''
     );

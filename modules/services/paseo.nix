@@ -201,5 +201,19 @@ in
         };
       };
     };
+
+    # `Restart=always`, e nao o `on-failure` do upstream. O daemon morre com
+    # exit 0 quando alguem pede shutdown pela API, e o app desktop pede
+    # exatamente isso ao fechar a janela (`keepRunningAfterQuit`, tratado na
+    # activation em home/features/cli/paseo). Com `on-failure` esse exit limpo
+    # nao religa nada: o servico fica morto e todo cliente remoto passa a ver
+    # conexao recusada, que foi como o acesso pelo celular caiu na primeira
+    # vez. Um daemon que existe para ser alcancado de fora nao pode depender de
+    # ninguem ter deixado a janela aberta.
+    #
+    # `systemctl stop` continua parando de verdade: uma parada pedida ao
+    # systemd nao dispara restart. O que volta e so a saida do proprio
+    # processo.
+    systemd.services.paseo.serviceConfig.Restart = lib.mkForce "always";
   };
 }
