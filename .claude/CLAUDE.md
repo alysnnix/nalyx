@@ -111,7 +111,7 @@ modules/
   core/          # Base system (all hosts)
   desktop/       # Hyprland, GNOME (system-level)
   drivers/       # NVIDIA
-  services/      # NordVPN, Syncthing, Hermes Agent
+  services/      # NordVPN, Syncthing, Paseo (daemon, tailnet, proxy), Hermes Agent
   secureboot/    # Lanzaboote (optional)
 home/
   default.nix    # Root HM config, imported by every NixOS host

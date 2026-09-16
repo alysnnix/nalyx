@@ -13,6 +13,10 @@
     ../../modules/drivers/nvidia.nix
     ../../modules/services/nordvpn.nix
     ../../modules/services/syncthing.nix
+    # O daemon do Paseo, com as settings compartilhadas com o wsl, e a
+    # publicacao dele na tailnet. Ligados mais abaixo.
+    ../../modules/services/paseo.nix
+    ../../modules/services/paseo-tailnet.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
@@ -108,6 +112,31 @@
     };
   };
   users.users.${vars.user.name}.openssh.authorizedKeys.keys = [ vars.user.publicKey ];
+
+  # Paseo roda do lado que tem o codigo, e uma boa parte dos repos mora aqui.
+  # O daemon fica no loopback e a publicacao e so na tailnet, com o TLS que o
+  # proprio tailscaled emite para o nome MagicDNS deste no: assim o celular e
+  # um laptop abrem a UI no navegador, sem porta publicada em nenhuma outra
+  # interface e sem dominio a manter (o outro caminho, nginx com ACME, e o que
+  # o wsl usa).
+  #
+  # `paseoTailnet` entra importado e desligado, mesmo padrao do `paseoProxy` no
+  # wsl: ligar exige o nome MagicDNS deste no, que nomeia a tailnet e nao pode
+  # aparecer aqui, e a assertion do modulo (de proposito, senao a publicacao
+  # ficaria muda) derrubaria a avaliacao da CI, que roda sem camada privada.
+  # Entao a camada privada e que liga e preenche:
+  #   modules.services.paseoTailnet = { enable = true; fqdn = "..."; };
+  #
+  # Duas coisas alem disso ficam fora deste repo pelo mesmo motivo: a regra de
+  # ACL liberando a 443 deste no para quem deve alcancar, que e a unica
+  # autenticacao que existe (o daemon nasce sem senha), e a OPENAI_API_KEY num
+  # EnvironmentFile, para a voz.
+  #
+  # O app Electron deste host e cliente deste daemon, nao dono de outro: a
+  # activation em home/features/cli/paseo desliga o "Manage built-in daemon"
+  # dele, porque dois daemons nao dividem a porta 6767. Depois do primeiro
+  # switch o app precisa ser reiniciado uma vez para largar a porta.
+  modules.services.paseo.enable = true;
 
   home-manager.users.${vars.user.name} = import ../../home;
   home-manager.backupFileExtension = "backup-rev";

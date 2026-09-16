@@ -8,7 +8,9 @@
 
 {
   imports = [
-    inputs.paseo.nixosModules.paseo
+    # O daemon e as settings compartilhadas com o desktop; o modulo traz o
+    # modulo do flake do Paseo junto.
+    ../../modules/services/paseo.nix
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
     ../../modules/services/ollama.nix
@@ -143,167 +145,6 @@
     # do WSL: quem filtra o tráfego de entrada é o do Windows. Então a chave é
     # a única tranca que este repo controla de fato, e `openFirewall = false`
     # (o que o desktop usa) aqui não faria nada.
-    # Paseo roda do lado que tem o codigo: o daemon executa os agentes no
-    # filesystem local e nada e sincronizado do cliente para ele (`--cwd` e um
-    # path no host do daemon). Como os repos moram aqui, o daemon e daqui e o
-    # cliente e sempre remoto, pelos dois caminhos que o par Windows+WSL ja
-    # oferece: o browser do Windows em http://localhost:6767 (loopback
-    # compartilhado pelo networkingMode=mirrored) ou o build Windows do app
-    # desktop tunelando com `ssh -W`, o mesmo desenho que o Orca ja usa (ver a
-    # chave orca-windows em authorizedKeys abaixo).
-    #
-    # `user` aponta para a conta real em vez do usuario de sistema `paseo`, e
-    # isso decide duas coisas de uma vez: `dataDir` passa a ser ~/.paseo, e
-    # `inheritUserEnvironment` liga sozinho, pondo os perfis do NixOS e do
-    # home-manager no PATH do servico. Sem ele os agentes que o daemon spawna
-    # nao enxergariam claude, opencode nem git.
-    paseo = {
-      enable = true;
-      # O modulo do upstream aponta o servico para o package output do proprio
-      # flake do Paseo (`services.paseo.package = lib.mkDefault
-      # self.packages.<system>.default`), e nao para `pkgs.paseo`. Isso passa
-      # por fora de qualquer overlay: o `fixPtyNode` do flake.nix consertava o
-      # CLI do perfil do usuario e deixava o daemon com o pacote sem o addon
-      # nativo do node-pty, ou seja, sem terminal e sem agente. Como la e
-      # mkDefault, uma atribuicao simples ganha e realinha os dois.
-      package = pkgs.paseo;
-      user = vars.user.name;
-      # Casa com o grupo real da conta; o default do modulo e o grupo `paseo`,
-      # que so existe quando o servico roda como usuario de sistema e deixaria
-      # ~/.paseo com dono aly:paseo.
-      group = "users";
-      listenAddress = "127.0.0.1";
-      port = 6767;
-      # Os dois clientes que este host atende sao locais ao par Windows+WSL,
-      # entao nao ha motivo para o daemon discar para o relay hospedado em
-      # app.paseo.sh so para alcancar uma maquina que ja esta no mesmo
-      # loopback. Menos superficie e menos dependencia externa.
-      relay.enable = false;
-      # A web UI vem embutida no daemon mas nasce desligada. Ligada, ela e
-      # servida na mesma origem da API, entao o browser em localhost:6767
-      # conecta sozinho e pula a tela de "Add Host".
-      #
-      # `settings` reescreve ~/.paseo/config.json a cada start, entao a
-      # configuracao do daemon passa a ser declarativa aqui e mudancas via
-      # `paseo daemon set-password` ou pelo app nao sobrevivem. E uma escolha
-      # ou outra, nao as duas.
-      settings = {
-        features = {
-          webUi.enabled = true;
-
-          # Voz pela OpenAI, e nao pelos modelos locais, por um motivo que
-          # nao e qualidade sozinha: no provider local a chave `language` e
-          # inerte (sherpa-parakeet-stt.ts recebe e nunca usa), entao o idioma
-          # fica por conta de deteccao automatica e nao ha como fixar. Aqui
-          # ela e enviada de verdade na request (openai/stt.ts:208), que e o
-          # que torna o reconhecimento em portugues deterministico.
-          #
-          # `gpt-4o-transcribe` no lugar de `whisper-1`: supera o whisper em
-          # multilingue e e o unico par com `gpt-4o-mini-transcribe` que
-          # retorna logprobs, o que alimenta o `confidenceThreshold` e permite
-          # descartar transcricao ruim em vez de entregar lixo.
-          #
-          # `tts-1-hd` e nao `gpt-4o-mini-tts`: o segundo provavelmente
-          # funcionaria, porque o schema aceita string livre e o codigo
-          # repassa o modelo direto para o SDK, mas openai/tts.ts:11 declara
-          # so `tts-1` e `tts-1-hd`. Ficar dentro do que o upstream declara.
-          #
-          # O custo real disto nao e dinheiro (cerca de US$ 0,006 por minuto),
-          # e o audio sair da maquina. Decisao consciente, nao default.
-          #
-          # A credencial NAO vem daqui: `providers.openai.apiKey` existiria no
-          # schema, mas `settings` vira JSON no /nix/store, legivel por
-          # qualquer usuario. A chave entra por OPENAI_API_KEY num
-          # EnvironmentFile do SOPS, na camada privada.
-          dictation.stt = {
-            provider = "openai";
-            model = "gpt-4o-transcribe";
-            language = "pt";
-          };
-          voiceMode = {
-            stt = {
-              provider = "openai";
-              model = "gpt-4o-transcribe";
-              language = "pt";
-            };
-            # `voice` fica no default (`alloy`). O schema aceita alloy, echo,
-            # fable, onyx, nova e shimmer.
-            tts = {
-              provider = "openai";
-              model = "tts-1-hd";
-            };
-          };
-        };
-
-        daemon = {
-          # As ferramentas MCP do proprio Paseo. `enabled` ja vem true de
-          # fabrica; o que muda o comportamento e `injectIntoAgents`, que
-          # nasce false e e o que de fato entrega as tools ao agente.
-          mcp = {
-            enabled = true;
-            injectIntoAgents = true;
-          };
-
-          # Ferramentas de browser para os agentes. Depende de
-          # `mcp.injectIntoAgents` acima e de um host desktop conectado, senao
-          # as tools respondem `browser_disabled` / `browser_no_host`. O
-          # browser em si e do app Electron, nao do daemon, e por isso nao ha
-          # o que declarar aqui para "ligar o browser": so o acesso a ele.
-          browserTools.enabled = true;
-
-          autoArchiveAfterMerge = true;
-
-          # `enableTerminalAgentHooks` fica de fora de proposito. Ele nao e
-          # config do Paseo sozinho: o daemon passa a escrever hooks nos
-          # arquivos de config dos agentes, ou seja no ~/.claude/settings.json,
-          # que aqui e gerado por activation em
-          # home/features/cli/claude/activation/settings.nix. Os dois
-          # escrevendo no mesmo arquivo e briga garantida, e o Nix ganha no
-          # proximo switch. Manter o Paseo fora do territorio do Claude.
-        };
-
-        pluginsEnabled = true;
-
-        # Nao existe allowlist de provider: o modelo e opt-out por id, entao
-        # calar os outros exige `enabled = false` em cada um. Os builtin sao
-        # claude, codex, copilot, opencode, pi e omp.
-        #
-        # `omp` e o unico que nasce desligado (enabledByDefault = false no
-        # manifest), por isso precisa ser ligado explicitamente mesmo sendo um
-        # dos dois que queremos.
-        agents.providers = {
-          claude.enabled = true;
-          omp.enabled = true;
-          codex.enabled = false;
-          copilot.enabled = false;
-          opencode.enabled = false;
-          pi.enabled = false;
-        };
-
-        # O overlay so define `paseo-github-integration` quando o input do repo
-        # esta acessivel: a CI avalia este host com o placeholder vazio no lugar
-        # do repo privado, e la nao ha plugin para declarar. `pluginsEnabled`
-        # fica como esta, porque ligar o sistema de plugins e uma decisao
-        # separada de qual plugin roda.
-        #
-        # O plugin em si roda sem sandbox: o lado servidor e um subprocesso Node
-        # com o acesso do usuario do daemon (arquivos, processos, o token do
-        # `gh`, as chaves ssh) e o lado cliente roda dentro do app. Vale so
-        # porque o repo e nosso, com o codigo auditado antes de entrar.
-      }
-      // lib.optionalAttrs (pkgs ? paseo-github-integration) {
-        plugins.github-integration = {
-          # `directory` com um path do store em vez de `git`: a fonte git faz o
-          # daemon clonar e seguir a branch, ou seja, codigo sem sandbox que se
-          # atualiza sozinho pelas costas da geracao. Com o store path, a versao
-          # do plugin e o rev do input no flake.lock, muda quando o lock muda, e
-          # o rollback e o mesmo da geracao do sistema.
-          source = "directory";
-          path = "${pkgs.paseo-github-integration}";
-          enabled = true;
-        };
-      };
-    };
     openssh = {
       enable = true;
       settings = {
@@ -313,6 +154,20 @@
       };
     };
   };
+
+  # Paseo roda do lado que tem o codigo: o daemon executa os agentes no
+  # filesystem local e nada e sincronizado do cliente para ele (`--cwd` e um
+  # path no host do daemon). Como os repos moram aqui, o daemon e daqui e o
+  # cliente e sempre remoto, pelos tres caminhos que este host oferece: o
+  # browser do Windows em http://localhost:6767 (loopback compartilhado pelo
+  # networkingMode=mirrored), o build Windows do app desktop tunelando com
+  # `ssh -W` (o mesmo desenho que o Orca ja usa, ver a chave orca-windows em
+  # authorizedKeys abaixo), e a tailnet pelo vhost do `paseoProxy`, que a
+  # camada privada liga.
+  #
+  # O conteudo do daemon (settings, providers, voz) e compartilhado com o
+  # desktop em modules/services/paseo.nix.
+  modules.services.paseo.enable = true;
 
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
 

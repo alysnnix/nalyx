@@ -18,14 +18,21 @@
   # module system to `_module.args`, which needs `config`, and that recurses.
   # Conditional imports are gated by real options instead (see ../syncthing).
   terminalOnly ? false,
+  # A configuracao NixOS embaixo deste home, ou null quando nao existe uma (o
+  # perfil `wrk`, standalone). Uma coisa so depende dela: saber se este host ja
+  # roda o daemon como servico de sistema (`services.paseo`), porque ai o app
+  # Electron daqui tem que ser apontado para ele. Lido so de posicao `config`,
+  # pela mesma razao do argumento acima.
+  osConfig ? null,
   ...
 }:
 # Paseo, outro front end para os agentes de codigo que esta config ja instala.
 #
 # A topologia tem duas metades e elas nao moram no mesmo lugar. O daemon roda
-# onde o codigo esta, nao onde a janela esta, entao ele e declarado no nivel
-# NixOS pelo host que hospeda os repositorios: `services.paseo` em
-# hosts/wsl/default.nix, com o modulo vindo do flake do proprio Paseo.
+# onde o codigo esta, nao onde a janela esta, entao nos hosts NixOS ele e
+# declarado no nivel do sistema por quem hospeda os repositorios:
+# `modules.services.paseo` em hosts/wsl e hosts/desktop, que traz o modulo do
+# flake do proprio Paseo.
 #
 # Este arquivo cuida so do lado home-manager, e sao duas coisas: o CLI `paseo`,
 # que vai para todo host porque e util em qualquer terminal, e o app desktop,
@@ -37,6 +44,11 @@ let
   # The same guard home/default.nix uses for the graphical tree, plus the
   # terminal-only work laptop, which that file never has to consider.
   hasDesktop = !isWsl && !isServer && !terminalOnly;
+
+  # Este host ja roda o daemon como servico de sistema (hosts/desktop,
+  # hosts/wsl). Nao ha nada a subir aqui nesse caso, mas o app Electron local
+  # ainda precisa ser apontado para ele.
+  hasSystemDaemon = osConfig != null && (osConfig.services.paseo.enable or false);
 
   cfg = config.modules.cli.paseo;
   paseoHome = "${config.home.homeDirectory}/.paseo";
@@ -249,14 +261,17 @@ in
       source = lib.getExe pkgs.paseo-desktop;
     };
 
-    # Point the desktop app at the service above. Without it the app spawns its
-    # own daemon on the same port, the service loses the race or crash-loops,
-    # and the one that wins is the app's, which is launched with `--no-web-ui`:
-    # the tailnet then reaches the API and gets 404 for every UI path.
+    # Point the desktop app at whichever managed daemon this host runs: the
+    # user service below, or the system one the NixOS host declares. Without
+    # it the app spawns its own daemon on the same port, the managed one loses
+    # the race or crash-loops, and the one that wins is the app's, which is
+    # launched with `--no-web-ui`: the tailnet then reaches the API and gets
+    # 404 for every UI path.
     #
-    # Gated on daemon.enable rather than hasDesktop, because the machine this
-    # matters on is the terminal-only work laptop, where the app is the
-    # distro's package and not this tree's.
+    # Gated on the daemon existing rather than on hasDesktop, because the two
+    # machines this matters on are opposites: the terminal-only work laptop,
+    # where the app is the distro's package and not this tree's, and the
+    # personal desktop, where the app is this tree's and the daemon is not.
     #
     # Patched in place rather than owned: the file is the app's own state, and
     # rewriting it would drop the notification and release-channel settings
@@ -265,7 +280,7 @@ in
     # the very value being checked and the guard never closes, rewriting the
     # file on every activation. A missing key is null, which is `!= false`, so
     # an untouched file is still patched.
-    home.activation.paseoDesktopDaemon = lib.mkIf cfg.daemon.enable (
+    home.activation.paseoDesktopDaemon = lib.mkIf (cfg.daemon.enable || hasSystemDaemon) (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="${config.home.homeDirectory}/.config/Paseo/desktop-settings.json"
         if [ -f "$settings" ] && ${lib.getExe pkgs.jq} -e \

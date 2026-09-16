@@ -387,7 +387,12 @@
         # not import the syncthing module that declares the option.
         desktop = fnMountSystem {
           hostname = "desktop";
-          extraModules = privateNixosModule "backup";
+          # `paseo-desktop` traz o que a publicacao do Paseo na tailnet nao
+          # pode declarar em publico: o nome MagicDNS deste no (que nomeia a
+          # tailnet) e a chave da OpenAI para a voz. Sem a camada privada o
+          # host ainda avalia, e a assertion do modulo e que reclama do fqdn
+          # vazio.
+          extraModules = privateNixosModule "backup" ++ privateNixosModule "paseo-desktop";
         };
         vm = fnMountSystem { hostname = "vm"; };
 
