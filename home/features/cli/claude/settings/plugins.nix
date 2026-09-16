@@ -8,7 +8,6 @@
     "playground@claude-plugins-official" = true;
     "playwright@claude-plugins-official" = true;
     "posthog@claude-plugins-official" = true;
-    "pr-review-toolkit@claude-plugins-official" = true;
     "pyright-lsp@claude-plugins-official" = true;
     "ralph-loop@claude-plugins-official" = true;
     "security-guidance@claude-plugins-official" = true;

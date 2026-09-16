@@ -62,14 +62,6 @@ let
       # list and the trailer rationale, which do not fit on one line.
     }
     {
-      title = "Proportionality";
-      body = ./sections/proportionality.md;
-      sticky = "Scale review to blast radius, not diff size. A diff that cannot change behavior gets no reviewer; anything touching a public signature, auth, data, money, or concurrency gets the full fan-out. Worktree and draft PR are never skipped, they cost nothing.";
-      # Sticky-only: the tier table is reference material, consulted when
-      # reviewing, not needed on every turn.
-      longForm = false;
-    }
-    {
       title = "One Worktree Per Task";
       body = ./sections/one-worktree-per-task.md;
       sticky = "Any task that will produce commits runs in its own git worktree, never in the primary checkout. Another agent may hold that checkout.";
