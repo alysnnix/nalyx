@@ -28,7 +28,6 @@ in
     };
     qemuGuest.enable = true;
     spice-vdagentd.enable = true;
-    displayManager.gdm.wayland = lib.mkForce false;
   };
 
   boot.loader = {

@@ -8,7 +8,7 @@
     fd
 
     # LSP servers
-    nodePackages.typescript-language-server
+    typescript-language-server
     pyright
     gopls
     jdt-language-server
@@ -18,7 +18,7 @@
 
     # Formatters
     nixfmt
-    nodePackages.prettier
+    prettier
     black
     stylua
     texlivePackages.latexindent

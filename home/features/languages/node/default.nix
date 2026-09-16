@@ -5,16 +5,16 @@
     packages = with pkgs; [
       nodejs_22
 
-      nodePackages.pnpm
+      pnpm
       yarn
 
       typescript-language-server
       vscode-langservers-extracted
-      nodePackages.prettier
-      nodePackages.typescript
+      prettier
+      typescript
 
-      nodePackages.nodemon
-      nodePackages.npm-check-updates
+      nodemon
+      npm-check-updates
     ];
 
     sessionVariables = {

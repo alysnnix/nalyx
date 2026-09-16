@@ -12,7 +12,8 @@
     };
 
     lanzaboote = {
-      url = "github:nix-community/lanzaboote/v1.0.0";
+      # v1.1 supports the current Bootspec API in nixos-unstable.
+      url = "github:nix-community/lanzaboote/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
