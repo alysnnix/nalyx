@@ -42,6 +42,12 @@
       glow
       omp
       herdr
+      # Codex CLI straight from nixpkgs, not from the llm-agents overlay: that
+      # flake exposes only claude-code, omp and pi here, and nixpkgs already
+      # carries codex with hydra-built substitutes. No module of its own, so
+      # `~/.codex/AGENTS.md` keeps landing through the `command -v codex` probe
+      # in ./agent-rules.
+      codex
       lazygit
       imagemagick
       tree
