@@ -58,6 +58,9 @@
   # pasta. Renomear aqui faria a pasta wrk virar sendreceive e anunciar o
   # ~/wrk local (possivelmente incompleto) como deleção para os peers.
   networking.hostName = "nixos-wsl";
+  # NixOS-WSL owns /etc/resolv.conf (backed by the Windows resolver), so the
+  # generic resolvconf service must not try to manage the same file.
+  networking.resolvconf.enable = false;
   system.stateVersion = "24.05";
 
   # O WSL herda o MTU do host Windows e sobe o eth0 com 1280, o mesmo valor que
@@ -328,7 +331,6 @@
       ];
     })
     playwright
-    wslu
   ];
 
   systemd.services.pritunl-client = {

@@ -123,7 +123,10 @@ in
       defaults.email = vars.user.email;
       certs.${cfg.domain} = {
         dnsProvider = "cloudflare";
-        credentialsFile = cfg.cloudflareCredentialsFile;
+        # The template is an EnvironmentFile (CF_DNS_API_TOKEN=...), not a
+        # single raw credential file.  Nixpkgs 26.11 split the old
+        # `credentialsFile` option into `environmentFile` and `credentialFiles`.
+        environmentFile = cfg.cloudflareCredentialsFile;
         # O nginx roda como usuario proprio e precisa ler a chave privada; o
         # default do modulo deixa o material so para o grupo `acme`.
         group = "nginx";
