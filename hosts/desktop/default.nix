@@ -99,6 +99,11 @@
   # SSH só acessível via Tailscale: porta 22 fechada nas demais interfaces,
   # mesmo padrão do wsl.
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
+  # `tailscale serve` e operacao de controle: tailscaled so a aceita de root ou
+  # do operador. Declarado aqui em vez de rodado a mao
+  # (`paseo-tailnet-operator-setup`) porque este host tem camada NixOS, e sem
+  # isso o servico que publica o Paseo na tailnet falha no boot.
+  services.tailscale.extraSetFlags = [ "--operator=${vars.user.name}" ];
   services.openssh = {
     enable = true;
     openFirewall = false;
@@ -109,6 +114,46 @@
   };
   users.users.${vars.user.name}.openssh.authorizedKeys.keys = [ vars.user.publicKey ];
 
-  home-manager.users.${vars.user.name} = import ../../home;
+  home-manager.users.${vars.user.name} = {
+    imports = [ ../../home ];
+
+    # O app desktop sobe um daemon proprio junto com a janela, sem web UI
+    # (`--no-web-ui`) e morto quando a janela fecha: serve para o app e para
+    # nada mais. Um celular na tailnet precisa do contrario, um daemon que
+    # existe sem janela e que serve a UI na mesma origem da API, entao aqui o
+    # daemon vira servico de usuario e o app e apontado para ele (a activation
+    # do modulo desliga `manageBuiltInDaemon`, porque duas instancias nao
+    # dividem a 6767).
+    #
+    # `tailnetServe` publica esse loopback em https://<no>.<tailnet>.ts.net com
+    # o certificado do proprio tailscaled, e injeta o nome do no em
+    # `daemon.hostnames` e `cors.allowedOrigins` em runtime: sem isso o daemon
+    # responde `403 Invalid Host header` a qualquer nome que nao seja localhost.
+    # Quem alcanca a 443 deste no e decisao da ACL da tailnet, que e a
+    # autenticacao aqui, porque o daemon nao tem senha.
+    #
+    # Um passo manual, uma vez: `paseo-tailnet-operator-setup`.
+    modules.cli.paseo = {
+      daemon = {
+        enable = true;
+        settings = {
+          # Nasce desligada. Ligada, a UI e servida na mesma origem da API, o
+          # que e exatamente o que faz o celular abrir a URL e conectar sem
+          # passar pela tela de "Add Host".
+          features.webUi.enabled = true;
+
+          daemon = {
+            mcp = {
+              enabled = true;
+              injectIntoAgents = true;
+            };
+            browserTools.enabled = true;
+            autoArchiveAfterMerge = true;
+          };
+        };
+      };
+      tailnetServe.enable = true;
+    };
+  };
   home-manager.backupFileExtension = "backup-rev";
 }

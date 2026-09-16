@@ -75,8 +75,10 @@ let
   # handshake even from the same origin). The daemon hot-reloads both fields,
   # so no restart is needed after the merge.
   #
-  # Distro tailscale, not pkgs.tailscale: the CLI has to match the tailscaled
-  # the machine actually runs, and off NixOS that one comes from apt.
+  # `tailscale` is resolved from PATH, not pinned to a store path, because off
+  # NixOS the CLI has to be the one that matches the running tailscaled, and
+  # there that one comes from apt. The unit PATH below therefore carries both
+  # `/run/current-system/sw/bin` (NixOS) and `/usr/bin` (everything else).
   tailnetServe = pkgs.writeShellApplication {
     name = "paseo-tailnet-serve";
     runtimeInputs = [
@@ -298,7 +300,7 @@ in
               "PASEO_LISTEN=${listen}"
               # Agents the daemon spawns need the nix userland, and a user unit
               # off NixOS starts with the distro's PATH only.
-              "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
+              "PATH=${config.home.profileDirectory}/bin:/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin"
             ];
             ExecStart = "${pkgs.paseo}/bin/paseo-server --no-relay";
             Restart = "on-failure";
@@ -325,7 +327,7 @@ in
             RemainAfterExit = true;
             Environment = [
               "PASEO_HOME=${paseoHome}"
-              "PATH=/usr/local/bin:/usr/bin:/bin"
+              "PATH=/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin"
             ];
             ExecStart = lib.getExe tailnetServe;
             ExecStop = "/usr/bin/env tailscale serve --https=443 off";
