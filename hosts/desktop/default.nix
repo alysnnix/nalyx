@@ -125,6 +125,10 @@
     openssh.authorizedKeys.keys = [ vars.user.publicKey ];
     # ddcutil fala DDC/CI com os monitores AOC pelos nos /dev/i2c-*; o grupo
     # vem do hardware.i2c.enable mais abaixo.
+    #
+    # Nada de adbusers: `programs.adb` saiu deste nixpkgs porque o systemd 258
+    # ja aplica as regras uaccess do dispositivo Android sozinho, e o binario
+    # vem pelo home-manager (home/features/programs/android).
     extraGroups = [ "i2c" ];
   };
 
@@ -166,6 +170,18 @@
     KERNEL=="hidraw*", ATTRS{idVendor}=="3434", TAG+="uaccess"
   '';
 
-  home-manager.users.${vars.user.name} = import ../../home;
+  # O androidenv se recusa a avaliar sem aceitação explícita da licença do SDK
+  # (`allowUnfree` sozinho não cobre). Fica neste host porque é o único que liga
+  # `modules.programs.android`: a avaliação do SDK é preguiçosa e nunca acontece
+  # nos outros.
+  nixpkgs.config.android_sdk.accept_license = true;
+
+  # Android Studio, SDK e emulador: este host tem KVM (kvm-intel) e a NVIDIA que
+  # o emulador usa para `-gpu host`, então é o único que carrega esse fecho.
+  home-manager.users.${vars.user.name} = {
+    imports = [ ../../home ];
+
+    modules.programs.android.enable = true;
+  };
   home-manager.backupFileExtension = "backup-rev";
 }

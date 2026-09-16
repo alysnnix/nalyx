@@ -8,6 +8,7 @@
     ./firefox
     ./games
     ./gearhub
+    ./android
   ];
 
   home.packages = with pkgs; [
