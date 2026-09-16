@@ -31,6 +31,16 @@ let
     # means adding it to this list.
     enabledProviders = [ "claude" ];
 
+    startup = {
+      # Suppress omp's startup/status notices, including the `xd://: mounted
+      # <every mcp tool name>` banner that `#notifyXdevMountDelta` emits the
+      # first time MCP servers finish connecting (i.e. right after the first
+      # message of a session). With this many MCP servers that notice is a
+      # screenful of noise in the Paseo transcript, and `startup.quiet` is the
+      # only gate omp has on it. Nothing else is lost but the welcome screen.
+      quiet = true;
+    };
+
     tools = {
       # Mount rarely-used (discoverable) tools (MCP, LSP, inspect_image,
       # generate_image) under xd:// device URLs, driven on demand via
