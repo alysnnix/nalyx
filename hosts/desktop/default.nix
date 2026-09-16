@@ -171,13 +171,14 @@
   '';
 
   # O androidenv se recusa a avaliar sem aceitação explícita da licença do SDK
-  # (`allowUnfree` sozinho não cobre). Fica neste host porque é o único que liga
-  # `modules.programs.android`: a avaliação do SDK é preguiçosa e nunca acontece
-  # nos outros.
+  # (`allowUnfree` sozinho não cobre), e o emulador do PATH vem dele. Fica neste
+  # host porque é o único que liga `modules.programs.android`: a avaliação é
+  # preguiçosa e nunca acontece nos outros.
   nixpkgs.config.android_sdk.accept_license = true;
 
-  # Android Studio, SDK e emulador: este host tem KVM (kvm-intel) e a NVIDIA que
-  # o emulador usa para `-gpu host`, então é o único que carrega esse fecho.
+  # Android Studio e emulador: este host tem KVM (kvm-intel) e a NVIDIA que o
+  # emulador usa para `-gpu host`. O conteúdo do SDK é gerenciado pela IDE, em
+  # ~/Android/Sdk; ver home/features/programs/android.
   home-manager.users.${vars.user.name} = {
     imports = [ ../../home ];
 
