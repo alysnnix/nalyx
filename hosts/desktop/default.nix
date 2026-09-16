@@ -98,6 +98,14 @@
   # below follows this same kernel package set, keeping the module ABI aligned.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
+  # Quando a GPU trava, o caminho de reset do driver fica preso segurando o
+  # lock do RM e tudo que toca a GPU cai em D-state, inclusive o `systemctl
+  # reboot`. Só sobra SysRq, e o padrão do NixOS (16) libera apenas o sync,
+  # então as outras teclas respondem "operation is disabled" e sobra cortar a
+  # energia no botão. Com 1 o REISUB completo funciona: Alt+SysRq+R E I S U B
+  # desmonta os filesystems antes de reiniciar, em vez de arriscar o journal.
+  boot.kernel.sysctl."kernel.sysrq" = 1;
+
   networking.hostName = "desktop";
 
   # SSH só acessível via Tailscale: porta 22 fechada nas demais interfaces,
