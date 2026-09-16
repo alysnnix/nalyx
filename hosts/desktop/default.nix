@@ -17,11 +17,61 @@
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
 
-  # Secure Boot: modules/secureboot forces systemd-boot and grub off and hands
-  # the ESP to lanzaboote, which installs its own signed systemd-boot. The
-  # bootloader basics (systemd-boot, canTouchEfiVariables) come from
-  # modules/core, so only the longer menu timeout is host specific.
+  # Lanzaboote owns the signed systemd-boot and NixOS UKIs. rEFInd is only an
+  # outer selector, explicitly signed with the same db key and installed under
+  # its own path so it cannot replace Lanzaboote's managed EFI files.
   boot.loader.timeout = lib.mkForce 30;
+
+  systemd.services.refind-install = {
+    description = "Install signed rEFInd boot selector";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "local-fs.target"
+      "prepare-sb-auto-enroll.service"
+    ];
+    path = [
+      pkgs.coreutils
+      pkgs.efibootmgr
+      pkgs.sbctl
+      pkgs.util-linux
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      esp_device="$(findmnt -no SOURCE /boot)"
+      esp_disk="/dev/$(lsblk -no PKNAME "$esp_device")"
+      esp_partition="$(lsblk -no PARTN "$esp_device")"
+
+      install -Dm755 ${pkgs.refind}/share/refind/refind_x64.efi /boot/EFI/refind/refind_x64.efi
+      install -d /boot/EFI/refind/icons
+      cp -fR ${pkgs.refind}/share/refind/icons/. /boot/EFI/refind/icons/
+
+      cat > /boot/EFI/refind/refind.conf <<'EOF'
+      timeout 10
+      use_nvram false
+      scanfor manual
+
+      menuentry "NixOS" {
+        loader \EFI\systemd\systemd-bootx64.efi
+      }
+
+      menuentry "Windows Boot Manager" {
+        volume 13e610e9-f1ec-4e91-91e9-10f355d0b371
+        loader \EFI\Microsoft\Boot\bootmgfw.efi
+      }
+      EOF
+
+      sbctl sign -s /boot/EFI/refind/refind_x64.efi
+      sbctl verify
+
+      case "$(efibootmgr)" in
+        *"rEFInd"*) ;;
+        *) efibootmgr --create --disk "$esp_disk" --part "$esp_partition" --label rEFInd --loader '\EFI\refind\refind_x64.efi' ;;
+      esac
+    '';
+  };
 
   programs = {
     steam = {
