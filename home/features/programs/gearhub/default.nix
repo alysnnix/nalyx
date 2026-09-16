@@ -1,14 +1,13 @@
 # Gearhub and the CLIs it fronts: ddcutil/ddcui for the AOC monitors over
-# DDC/CI, solaar for the Logitech mouse. The Corsair side talks to the
-# OpenLinkHub daemon (modules/services/openlinkhub.nix) over HTTP, so nothing
-# extra is needed here. Runs as a user service on 127.0.0.1:8686.
+# DDC/CI. The Corsair side talks to the OpenLinkHub daemon
+# (modules/services/openlinkhub.nix) over HTTP, so nothing extra is needed
+# here. Runs as a user service on 127.0.0.1:8686.
 { pkgs, ... }:
 let
   gearhub = pkgs.callPackage ../../../../packages/gearhub { };
 in
 {
   home.packages = with pkgs; [
-    solaar
     ddcutil
     ddcui
     gearhub
