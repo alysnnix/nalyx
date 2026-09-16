@@ -21,6 +21,15 @@
 # providers de agente existem, voz em portugues) nao tem nada de host.
 let
   cfg = config.modules.services.paseo;
+
+  # O prompt de ditado: uma frase de estilo mais, quando houver, a lista de
+  # palavras que o whisper erra sozinho. Ver o comentario no env la embaixo
+  # para o que este campo faz e por que ele nao pode ser vazio.
+  dictationPrompt =
+    "Transcrição literal em português do Brasil, com pontuação, incluindo termos técnicos como deploy, rollback, commit, branch, worktree, Nix, NixOS, Paseo, Claude Code."
+    + lib.optionalString (cfg.dictationVocabulary != [ ]) (
+      " Nomes próprios: " + lib.concatStringsSep ", " cfg.dictationVocabulary + "."
+    );
 in
 {
   imports = [ inputs.paseo.nixosModules.paseo ];
@@ -32,6 +41,22 @@ in
     nenhuma porta publicada: quem expoe o daemon e `modules.services.paseoProxy`
     ou `modules.services.paseoTailnet`.
   '';
+
+  options.modules.services.paseo.dictationVocabulary = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = [ ];
+    example = [ "Nalyx" ];
+    description = ''
+      Nomes proprios a ensinar ao ditado, anexados ao prompt que acompanha cada
+      audio. No whisper esse campo e bias de vocabulario, entao uma palavra
+      listada aqui passa a ser reconhecida: medido, "Seazone" volta como
+      "Sisoni" sem a palavra na lista e correto com ela.
+
+      Fica vazio no repo publico de proposito. Nome de empresa, cliente ou
+      produto de trabalho identifica infraestrutura e pertence a uma camada
+      privada, que e quem preenche esta lista.
+    '';
+  };
 
   config = lib.mkIf cfg.enable {
     services.paseo = {
@@ -92,8 +117,9 @@ in
       # systemd deixa a variavel AUSENTE, nao vazia (verificado com unit de
       # teste), e ausente cai no `env ?? default`, ou seja traria a instrucao
       # em ingles de volta. Como precisa ser um valor definido, entao que seja
-      # um valor util: vocabulario e pontuacao do que de fato se dita aqui.
-      environment.PASEO_DICTATION_TRANSCRIPTION_PROMPT = "Transcrição literal em português do Brasil, com pontuação, incluindo termos técnicos como deploy, rollback, commit, branch, worktree, Nix, NixOS, Paseo, Claude Code.";
+      # um valor util: estilo, pontuacao e os nomes proprios que o whisper
+      # erra sozinho, que e o que `dictationVocabulary` acrescenta.
+      environment.PASEO_DICTATION_TRANSCRIPTION_PROMPT = dictationPrompt;
 
       # A janela de commit do ditado, de 15s (default) para 5 minutos, e esta
       # e a causa real do ditado sair errado.
