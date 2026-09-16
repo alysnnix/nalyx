@@ -80,6 +80,47 @@ in
       # que volta a valer quando o upstream consertar a precedencia).
       environment.PASEO_WEB_UI_ENABLED = "true";
 
+      # O prompt que vai junto de todo audio de ditado. O default do daemon e
+      # uma instrucao em ingles ("Transcribe only what the speaker says...",
+      # dictation/dictation-stream-manager.ts:175), e ele e ruim duas vezes:
+      # num modelo que segue instrucao a fala passa a ser lida como pedido, e
+      # no whisper, onde `prompt` e bias de estilo e nao instrucao, um texto em
+      # ingles enxerta ingles na transcricao de quem fala portugues. Nao ha
+      # chave em `settings` para isto, so este env.
+      #
+      # Um prompt em portugues e nao string vazia: `Environment="FOO="` no
+      # systemd deixa a variavel AUSENTE, nao vazia (verificado com unit de
+      # teste), e ausente cai no `env ?? default`, ou seja traria a instrucao
+      # em ingles de volta. Como precisa ser um valor definido, entao que seja
+      # um valor util: vocabulario e pontuacao do que de fato se dita aqui.
+      environment.PASEO_DICTATION_TRANSCRIPTION_PROMPT = "Transcrição literal em português do Brasil, com pontuação, incluindo termos técnicos como deploy, rollback, commit, branch, worktree, Nix, NixOS, Paseo, Claude Code.";
+
+      # A janela de commit do ditado, de 15s (default) para 5 minutos, e esta
+      # e a causa real do ditado sair errado.
+      #
+      # O daemon nao manda a gravacao numa request: ele corta o audio a cada
+      # `autoCommitSeconds`, transcreve cada pedaco separado e concatena os
+      # textos (dictation-stream-manager.ts:605 e :758). O corte e cego, cai no
+      # meio da frase, e o que fica em cima da emenda se perde. Medido contra
+      # um daemon de teste com 46s de fala (778 chars): com 15s voltaram 710
+      # chars, sem "subir a migracao do banco" e sem "do time consegue ler",
+      # exatamente as duas emendas; com esta janela voltaram 781, completo.
+      #
+      # Pior quando os chunks chegam atrasados e em rajada, que e o caso do
+      # celular pela tailnet: `commit()` em openai/stt.ts le o buffer e so o
+      # zera no `finally`, depois da resposta. Dois commits sobrepostos
+      # remandam o mesmo audio, e o mesmo teste com os chunks em rajada
+      # devolveu os primeiros 15s repetidos quatro vezes, 967 chars. Com uma
+      # janela que nao fecha antes do fim nao ha segundo commit para correr
+      # contra o primeiro.
+      #
+      # 300s e nao 0 (que desligaria o fatiamento): o corpo e PCM 24 kHz mono
+      # s16, ou seja 48 KB/s, e o limite de upload da API e 25 MB. 300s da
+      # ~14 MB, entao qualquer ditado de tamanho humano vira uma unica request
+      # e ainda sobra margem, em vez de trocar a emenda por um erro de tamanho
+      # no ditado longo.
+      environment.PASEO_DICTATION_AUTO_COMMIT_SECONDS = "300";
+
       # `settings` reescreve ~/.paseo/config.json a cada start, entao a
       # configuracao do daemon passa a ser declarativa aqui e mudancas via
       # `paseo daemon set-password` ou pelo app nao sobrevivem. E uma escolha
@@ -95,10 +136,18 @@ in
           # ela e enviada de verdade na request (openai/stt.ts:208), que e o
           # que torna o reconhecimento em portugues deterministico.
           #
-          # `gpt-4o-transcribe` no lugar de `whisper-1`: supera o whisper em
-          # multilingue e e o unico par com `gpt-4o-mini-transcribe` que
-          # retorna logprobs, o que alimenta o `confidenceThreshold` e permite
-          # descartar transcricao ruim em vez de entregar lixo.
+          # `whisper-1` e nao `gpt-4o-transcribe`: o segundo e um LLM
+          # multimodal, e o daemon manda um prompt junto do audio em todo
+          # ditado (o env acima). Modelo que segue instrucao pode ler a fala
+          # como pedido e devolver resposta ou resumo no lugar da transcricao;
+          # o `whisper-1` e ASR puro, onde prompt e so bias de vocabulario.
+          # Exige `whisper-1` liberado no projeto da chave: fora da allowlist
+          # a API responde 403 e o ditado vira `STT transcription failed`.
+          #
+          # O preco e o `confidenceThreshold`, que depende de logprobs que so
+          # os modelos gpt-4o retornam (openai/stt.ts:187) e portanto fica
+          # inerte aqui. Ou seja, transcricao ruim chega em vez de ser
+          # descartada, o que e melhor que receber um resumo do que se falou.
           #
           # `tts-1-hd` e nao `gpt-4o-mini-tts`: o segundo provavelmente
           # funcionaria, porque o schema aceita string livre e o codigo
@@ -114,13 +163,13 @@ in
           # EnvironmentFile do SOPS, na camada privada.
           dictation.stt = {
             provider = "openai";
-            model = "gpt-4o-transcribe";
+            model = "whisper-1";
             language = "pt";
           };
           voiceMode = {
             stt = {
               provider = "openai";
-              model = "gpt-4o-transcribe";
+              model = "whisper-1";
               language = "pt";
             };
             # `voice` fica no default (`alloy`). O schema aceita alloy, echo,

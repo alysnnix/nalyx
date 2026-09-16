@@ -473,10 +473,63 @@ reconhecimento em português determinístico em vez de depender de detecção.
 | Chave | Valor | Por quê |
 |---|---|---|
 | `stt.provider` | `openai` | é onde `language` funciona |
-| `stt.model` | `gpt-4o-transcribe` | supera o `whisper-1` em multilíngue, e é o único par que retorna logprobs, o que alimenta o `confidenceThreshold` |
+| `stt.model` | `whisper-1` | ASR puro; um modelo que segue instrução trata a fala como pedido (ver abaixo) |
 | `stt.language` | `pt` | ISO-639-1, não `pt-BR` |
 | `tts.model` | `tts-1-hd` | `gpt-4o-mini-tts` provavelmente funcionaria, mas `openai/tts.ts:11` só declara `tts-1` e `tts-1-hd` |
 | `tts.voice` | default `alloy` | aceita `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
+
+O `whisper-1` precisa estar liberado no projeto da chave. A OpenAI permite
+restringir modelos por projeto (Limit model access), e um modelo de fora da
+lista devolve `403 Project ... does not have access to model whisper-1`, que no
+ditado aparece como `STT transcription failed`.
+
+#### Por que não `gpt-4o-transcribe`, e por que o prompt é substituído
+
+O daemon manda, junto de todo áudio de ditado, uma instrução em inglês
+(`"Transcribe only what the speaker says..."`,
+`dictation/dictation-stream-manager.ts:175`). Num modelo multimodal que segue
+instrução isso deixa a porta aberta para ele tratar a fala como pedido e
+devolver resposta ou resumo em vez da transcrição. No `whisper-1` o campo
+`prompt` é só bias de estilo e vocabulário, nunca instrução, mas aí um texto em
+inglês enxerta inglês na transcrição de quem fala português.
+
+Daí `PASEO_DICTATION_TRANSCRIPTION_PROMPT` receber uma frase em português com o
+vocabulário que de fato se dita aqui. **Não** string vazia: `Environment="FOO="`
+deixa a variável ausente no systemd, não vazia (verificado com unit de teste), e
+ausente cai no `env ?? default`, ou seja traz a instrução em inglês de volta.
+Como o valor precisa existir, que ele seja útil.
+
+O preço de sair do `gpt-4o-transcribe` é o `confidenceThreshold`, que depende de
+logprobs que só os modelos gpt-4o retornam (`openai/stt.ts:187`). Com whisper
+ele fica inerte: transcrição ruim chega em vez de ser descartada, o que é melhor
+que receber um resumo do que se falou.
+
+#### A janela de commit, que é a causa real
+
+O ditado não é uma request por gravação. O daemon corta o áudio a cada
+`autoCommitSeconds` (default **15s**), transcreve cada pedaço separado e
+concatena os textos (`dictation-stream-manager.ts:605` e `:758`). O corte é
+cego: cai no meio da frase e o que fica em cima da emenda se perde.
+
+Medido contra um daemon de teste, com 46s de fala (778 chars):
+
+| Janela | Resultado |
+|---|---|
+| 15s (default) | 710 chars, sem "subir a migração do banco" e sem "do time consegue ler", exatamente as duas emendas |
+| 15s, chunks em rajada | 967 chars, com os primeiros 15s repetidos quatro vezes |
+| 300s | 781 chars, completo |
+
+A rajada é o caso do celular pela tailnet, quando a conexão engasga e o cliente
+despeja o atraso de uma vez: `commit()` em `openai/stt.ts` lê o buffer e só o
+zera no `finally`, depois da resposta, então dois commits sobrepostos remandam o
+mesmo áudio. Com uma janela que não fecha antes do fim não existe segundo commit
+para correr contra o primeiro.
+
+Daí `PASEO_DICTATION_AUTO_COMMIT_SECONDS = "300"`. O corpo é PCM 24 kHz mono
+s16, ou seja 48 KB/s, e o limite de upload da API é 25 MB: 300s dá ~14 MB, então
+todo ditado de tamanho humano vira uma única request e ainda sobra margem. Zero
+desligaria o fatiamento de vez, mas trocaria a emenda por um erro de tamanho no
+ditado longo.
 
 A credencial **não** vai em `settings`, porque `settings` é renderizado como
 JSON no `/nix/store` e seria legível por qualquer usuário da máquina. Ela entra
