@@ -11,7 +11,7 @@
 
   terminal = "kitty";
   editor = "nvim";
-  desktop = "hyprland";
+  desktop = "gnome";
   shell = "caelestia";
 
   homelab = {

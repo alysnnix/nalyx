@@ -1,6 +1,7 @@
 {
   vars,
   lib,
+  pkgs,
   ...
 }:
 
@@ -33,6 +34,9 @@
   };
 
   boot.kernelModules = [ "wireguard" ];
+  # Track the newest kernel packaged by this nixpkgs pin.  The NVIDIA driver
+  # below follows this same kernel package set, keeping the module ABI aligned.
+  boot.kernelPackages = pkgs.linuxPackages_latest;
 
   networking.hostName = "desktop";
 
