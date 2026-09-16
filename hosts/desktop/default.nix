@@ -81,6 +81,12 @@
     };
     gamemode.enable = true;
     gamescope.enable = true;
+    # Descoberta e transferência usam a porta 53317 (TCP e UDP); sem
+    # openFirewall o app abre mas nenhum peer enxerga esta máquina.
+    localsend = {
+      enable = true;
+      openFirewall = true;
+    };
   };
 
   boot.kernelModules = [ "wireguard" ];
