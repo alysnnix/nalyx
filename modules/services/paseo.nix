@@ -252,6 +252,35 @@ in
           pi.enabled = false;
         };
 
+        # Quem escreve mensagem de commit, nome de branch e titulo de
+        # workspace nao e o agente da conversa: e uma chamada unica, em
+        # background, com um modelo proprio. Sem esta lista o daemon escolhe
+        # sozinho, por substring, na ordem `haiku`, `gpt-5.4-mini`,
+        # `minimax-m3`, `nemotron-3-super`, e o primeiro provider habilitado
+        # que tenha um match ganha: hoje isso cai no provider `claude`, que
+        # nao e por onde este usuario fala com os modelos.
+        #
+        # Os entries daqui sao tentados ANTES dos defaults, e o proximo so
+        # roda se o anterior falhar, entao esta lista fixa o provider (omp,
+        # que ja concentra todos os backends) e mantem a tarefa em modelos
+        # pequenos, que e o tamanho certo para escrever uma linha.
+        #
+        # Haiku primeiro por seguir formato apertado melhor que um nano; o
+        # mini da OpenAI como rede. `thinkingOptionId` fica de fora de
+        # proposito: um valor invalido para o modelo cai no default dele
+        # (`resolveThinkingOptionId`), e nao ha ganho em raciocinio longo
+        # para uma frase.
+        agents.metadataGeneration.providers = [
+          {
+            provider = "omp";
+            model = "anthropic/claude-haiku-4-5";
+          }
+          {
+            provider = "omp";
+            model = "openai/gpt-5.4-mini";
+          }
+        ];
+
         # O overlay so define `paseo-github-integration` quando o input do repo
         # esta acessivel: a CI avalia os hosts com o placeholder vazio no lugar
         # do repo privado, e la nao ha plugin para declarar. `pluginsEnabled`

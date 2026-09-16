@@ -197,126 +197,6 @@ async function pollMonitors() {
   }
 }
 
-/* ---------------- Mouse ---------------- */
-
-function mouseConfigForm(deviceName) {
-  const wrap = document.createElement("div");
-  wrap.className = "inline-form";
-
-  const settingSel = document.createElement("select");
-  for (const [value, label] of [["dpi", "DPI"], ["report_rate", "Taxa (polling)"]]) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = label;
-    settingSel.appendChild(opt);
-  }
-
-  const valueInput = document.createElement("input");
-  valueInput.type = "text";
-  valueInput.placeholder = "ex: 1600 ou 1ms";
-  valueInput.size = 10;
-
-  const btn = document.createElement("button");
-  btn.className = "button";
-  btn.type = "button";
-  btn.textContent = "Aplicar";
-
-  const notice = document.createElement("p");
-  notice.className = "notice";
-
-  btn.addEventListener("click", async () => {
-    const value = valueInput.value.trim();
-    if (!value) {
-      notice.textContent = "Informe um valor.";
-      return;
-    }
-    notice.textContent = "Aplicando...";
-    try {
-      const res = await postJSON("/api/mouse/config", {
-        device: deviceName,
-        setting: settingSel.value,
-        value,
-      });
-      notice.textContent = res.ok ? "Aplicado." : `Falhou: ${res.error || "erro"}`;
-      loadMouse();
-    } catch (err) {
-      notice.textContent = `Falhou: ${err.message}`;
-    }
-  });
-
-  const form = document.createElement("div");
-  form.className = "inline-form";
-  form.append(settingSel, valueInput, btn);
-
-  wrap.style.flexDirection = "column";
-  wrap.style.alignItems = "stretch";
-  wrap.append(form, notice);
-  return wrap;
-}
-
-function mouseRefreshButton() {
-  const btn = document.createElement("button");
-  btn.className = "btn";
-  btn.textContent = "Atualizar";
-  btn.title = "Consulta o mouse de novo (pode travar o ponteiro por um instante)";
-  btn.addEventListener("click", () => {
-    btn.disabled = true;
-    loadMouse(true).finally(() => (btn.disabled = false));
-  });
-  return btn;
-}
-
-function renderMouse(data) {
-  const body = $("#mouse-body");
-  if (!data.available || !data.devices || data.devices.length === 0) {
-    setStatus("mouse", "nao detectado", "off");
-    notDetected(body, "Nenhum dispositivo Logitech detectado via solaar.");
-    body.appendChild(mouseRefreshButton());
-    return;
-  }
-  setStatus("mouse", "conectado", "ok");
-  body.innerHTML = "";
-
-  for (const dev of data.devices) {
-    const sub = document.createElement("div");
-    sub.className = "subcard";
-
-    const name = document.createElement("p");
-    name.className = "device-name";
-    name.textContent = dev.name;
-    sub.appendChild(name);
-
-    const kv = document.createElement("dl");
-    kv.className = "kv";
-    const pairs = [];
-    if (dev.battery) pairs.push(["Bateria", dev.battery]);
-    if (dev.dpi) pairs.push(["DPI", dev.dpi]);
-    if (dev.reportRate) pairs.push(["Taxa", dev.reportRate]);
-    for (const [k, v] of pairs) {
-      const dt = document.createElement("dt");
-      dt.textContent = k;
-      const dd = document.createElement("dd");
-      dd.textContent = v;
-      kv.append(dt, dd);
-    }
-    if (pairs.length) sub.appendChild(kv);
-
-    sub.appendChild(mouseConfigForm(dev.name));
-    body.appendChild(sub);
-  }
-  body.appendChild(mouseRefreshButton());
-}
-
-async function loadMouse(refresh) {
-  try {
-    const url = refresh ? "/api/mouse?refresh=1" : "/api/mouse";
-    renderMouse(await getJSON(url));
-  } catch (err) {
-    setStatus("mouse", "erro", "off");
-    notDetected($("#mouse-body"), "Falha ao consultar solaar.");
-  }
-}
-
 /* ---------------- Water cooler ---------------- */
 
 // OpenLinkHub payloads vary by version; walk the JSON and pull out
@@ -403,7 +283,6 @@ async function pollCooler() {
 /* ---------------- boot ---------------- */
 
 pollMonitors();
-loadMouse();
 pollCooler();
 setInterval(pollMonitors, POLL_MS);
 setInterval(pollCooler, POLL_MS);

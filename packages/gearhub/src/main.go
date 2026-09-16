@@ -45,8 +45,6 @@ func main() {
 	mux.Handle("/", http.FileServerFS(static))
 	mux.HandleFunc("GET /api/monitors", handleMonitors)
 	mux.HandleFunc("POST /api/monitors/{n}/vcp", handleSetVCP)
-	mux.HandleFunc("GET /api/mouse", handleMouse)
-	mux.HandleFunc("POST /api/mouse/config", handleMouseConfig)
 	mux.HandleFunc("GET /api/cooler", makeCoolerHandler(olhURL))
 	mux.Handle("/openlinkhub/", makeOpenLinkHubProxy(olhURL))
 

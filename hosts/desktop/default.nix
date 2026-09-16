@@ -160,13 +160,6 @@
   # Acesso i2c para o ddcutil: cria o grupo i2c e a regra de udev dos nos.
   hardware.i2c.enable = true;
 
-  # Regras de udev do ltunify/solaar para o mouse Logitech; sem a parte
-  # grafica, o solaar ja vem pelo home-manager.
-  hardware.logitech.wireless = {
-    enable = true;
-    enableGraphical = false;
-  };
-
   # O teclado Keychron K2 HE e configurado pelo Keychron Launcher (WebHID no
   # navegador), que precisa de acesso ao hidraw do dispositivo sem root.
   services.udev.extraRules = ''
