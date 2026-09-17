@@ -59,8 +59,8 @@ in
     description = ''
       Nomes proprios a ensinar ao ditado, anexados ao prompt que acompanha cada
       audio. No whisper esse campo e bias de vocabulario, entao uma palavra
-      listada aqui passa a ser reconhecida: medido, "Seazone" volta como
-      "Sisoni" sem a palavra na lista e correto com ela.
+      listada aqui passa a ser reconhecida: medido, o nome de uma empresa volta
+      como outra palavra sem ele na lista e correto com ele.
 
       Fica vazio no repo publico de proposito. Nome de empresa, cliente ou
       produto de trabalho identifica infraestrutura e pertence a uma camada
@@ -238,6 +238,55 @@ in
           browserTools.enabled = true;
 
           autoArchiveAfterMerge = true;
+
+          # Os perfis que o seletor de modelo oferece em um clique, e que o
+          # `list_profiles` do MCP entrega a um agente orquestrador antes de
+          # ele lancar um worker. O campo que faz o trabalho e `notes`: a skill
+          # `paseo` manda ler as notas e escolher, entao uma nota vaga devolve
+          # escolha vaga. Sem perfil nenhum a alternativa e o orquestrador
+          # listar os 89 modelos do provider e chutar, que foi o que aconteceu
+          # antes disto existir.
+          #
+          # Revisao usa outra familia de modelo de proposito, e nao por gosto:
+          # revisor da mesma familia de quem escreveu herda o mesmo ponto cego.
+          agentProfiles = [
+            {
+              id = "planejamento";
+              name = "Planejamento";
+              provider = "omp";
+              model = "anthropic/claude-opus-5";
+              modeId = "ask";
+              thinkingOptionId = "high";
+              notes = "Arquitetura, investigacao de causa raiz, comparacao de abordagens e refinamento de demanda. Use quando a decisao ainda nao esta tomada e o custo de errar e alto. Nao implementa: o modo pede aprovacao pra escrever, de proposito, porque plano que ja comecou a editar deixou de ser plano.";
+            }
+            {
+              id = "implementacao";
+              name = "Implementacao";
+              provider = "omp";
+              model = "anthropic/claude-opus-5";
+              modeId = "full";
+              thinkingOptionId = "medium";
+              notes = "Escrever codigo com contrato ja fechado: fatia de backlog, bug com causa conhecida, migracao mecanica de callsites. Roda sem pedir permissao, entao lance sempre em workspace com isolamento de worktree, nunca no checkout principal.";
+            }
+            {
+              id = "revisao";
+              name = "Revisao";
+              provider = "omp";
+              model = "openai/gpt-5.6-terra";
+              modeId = "ask";
+              thinkingOptionId = "high";
+              notes = "Revisao independente de diff: correcao, caso de borda faltando, teste ausente, complexidade sem funcao. Modelo de outra familia de proposito, pra nao herdar o ponto cego de quem escreveu: nunca use o mesmo perfil que implementou pra revisar. Nao edita.";
+            }
+            {
+              id = "triagem";
+              name = "Triagem";
+              provider = "omp";
+              model = "anthropic/claude-haiku-4-5";
+              modeId = "full";
+              thinkingOptionId = "low";
+              notes = "Trabalho de volume e pouca decisao: triagem de fila, varredura de logs, coleta de dados, atualizacao mecanica de registro. Rapido e barato, e e isso que se paga aqui. NAO use pra decidir arquitetura nem pra revisar codigo.";
+            }
+          ];
 
           # `enableTerminalAgentHooks` fica de fora de proposito. Ele nao e
           # config do Paseo sozinho: o daemon passa a escrever hooks nos
