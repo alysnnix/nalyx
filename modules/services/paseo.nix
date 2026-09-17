@@ -272,10 +272,10 @@ in
               id = "revisao";
               name = "Revisao";
               provider = "omp";
-              model = "openai/gpt-5.6-terra";
+              model = "anthropic/claude-opus-4-8";
               modeId = "ask";
               thinkingOptionId = "high";
-              notes = "Revisao independente de diff: correcao, caso de borda faltando, teste ausente, complexidade sem funcao. Modelo de outra familia de proposito, pra nao herdar o ponto cego de quem escreveu: nunca use o mesmo perfil que implementou pra revisar. Nao edita.";
+              notes = "Revisao independente de diff: correcao, caso de borda faltando, teste ausente, complexidade sem funcao. Nao edita. Use SEMPRE um modelo diferente do que implementou: revisor igual ao autor herda o mesmo ponto cego. Aqui isso e geracao diferente (4.8 revisa o que o 5 escreveu), e nao familia diferente: o unico outro provider configurado autentica com a chave pessoal do usuario, e trabalho nao se paga com ela.";
             }
             {
               id = "triagem";
@@ -328,19 +328,21 @@ in
         # que ja concentra todos os backends) e mantem a tarefa em modelos
         # pequenos, que e o tamanho certo para escrever uma linha.
         #
-        # Haiku primeiro por seguir formato apertado melhor que um nano; o
-        # mini da OpenAI como rede. `thinkingOptionId` fica de fora de
-        # proposito: um valor invalido para o modelo cai no default dele
-        # (`resolveThinkingOptionId`), e nao ha ganho em raciocinio longo
-        # para uma frase.
+        # Haiku primeiro por seguir formato apertado melhor que um nano.
+        # `thinkingOptionId` fica de fora de proposito: um valor invalido para o
+        # modelo cai no default dele (`resolveThinkingOptionId`), e nao ha ganho
+        # em raciocinio longo para uma frase.
+        #
+        # A lista tem UM entry, e nao dois com um mini da OpenAI como rede,
+        # porque `openai/*` na omp autentica com OPENAI_API_KEY, que aqui e a
+        # chave PESSOAL vinda do SOPS da camada pessoal. Rede de seguranca que
+        # cobra na conta pessoal do usuario para escrever nome de branch nao e
+        # rede, e vazamento de custo. Falhando o entry unico, o Paseo cai nos
+        # defaults dele, que e o comportamento correto.
         agents.metadataGeneration.providers = [
           {
             provider = "omp";
             model = "anthropic/claude-haiku-4-5";
-          }
-          {
-            provider = "omp";
-            model = "openai/gpt-5.4-mini";
           }
         ];
 
