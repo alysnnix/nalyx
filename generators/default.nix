@@ -72,7 +72,7 @@ let
         # dies before anything is written. On the ISO it can be passed by path:
         #
         #   nixos-install --flake /mnt/etc/nixos#<host> \
-        #     --override-input private path:/iso/nalyx-private
+        #     --override-input private path:/iso/nix-priv-personal
         #
         # The secrets inside stay sops-encrypted. The age key that opens them is
         # deliberately NOT on the image: it would sit world-readable in the store
@@ -82,7 +82,7 @@ let
           isoImage.contents = [
             {
               source = privateSrc;
-              target = "/nalyx-private";
+              target = "/nix-priv-personal";
             }
           ];
         })

@@ -7,8 +7,8 @@ Personal NixOS configuration. Public, employer-neutral, with pluggable private l
 ```bash
 switch           # Build system (switches to main, auto-detects hostname)
 switch wsl       # Specify a host
-switch szn       # The wrk profile with the .private/szn-private layer
-switch wsl szn   # A host, naming which project layer to use
+switch <job>     # The wrk profile with the .private/nix-priv-<job> layer
+switch wsl <job> # A host, naming which project layer to use
 switch --no-main # Build from current branch instead of main
 switch --help    # Show all switch options
 nix flake check --no-build  # Validate
@@ -21,7 +21,7 @@ nix develop      # Enter devShell (installs pre-commit hooks)
 - NEVER edit `hardware-configuration.nix` files manually — they are auto-generated
 - NEVER edit the global agent rules at their deployed paths (`~/.claude/CLAUDE.md`, `~/.omp/agent/AGENTS.md`, `~/.omp/agent/RULES.md`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`, `~/.config/opencode/AGENTS.md`). They are all generated from `home/features/cli/agent-rules/`. Session-local notes go in `~/.claude/CLAUDE.local.md`, which Nix never overwrites
 - ALWAYS validate with `nix flake check --no-build` before commit
-- NEVER put personal data in the public repo, use nalyx-private for secrets and real values
+- NEVER put personal data in the public repo, use nix-priv-personal for secrets and real values
 - NEVER name an employer, client or their infrastructure anywhere in this repo, not in code, comments, filenames or `flake.lock`. That belongs in a project layer. A public config that says who you work for is a liability you cannot take back once pushed
 - NEVER read a specialArg with a default (`terminalOnly`, `isServer`) from an `imports` position. The module system then resolves it through `_module.args`, which needs `config`, and that recurses. Gate conditional imports on a real option instead (see `modules.cli.syncthing.enable`)
 
@@ -32,8 +32,8 @@ Three kinds of repo. This one is public and names nobody; the others are private
 | Repo | Holds | Flake input |
 |---|---|---|
 | `nalyx` (here) | everything publishable: hosts, features, options | |
-| `nalyx-private` | the person: personal secrets, personal repos, the syncthing fleet | `private` |
-| `<project>-private` | one employer or client: their identity, secrets, skills, tools | `wrk` |
+| `nix-priv-personal` | the person: personal secrets, personal repos, the syncthing fleet | `private` |
+| `nix-priv-<project>` | one employer or client: their identity, secrets, skills, tools | `wrk` |
 
 Both inputs are optional and detected with `private ? null` / `wrk ? null`, so a clone with neither still builds: safe defaults, `initialPassword = "changeme"`, SOPS disabled.
 
@@ -51,15 +51,15 @@ A layer plugs in by exporting `homeManagerModules.default`, and `nixosModules.de
 
 A flake input is static and lives in `flake.nix`, so any real URL there would publish the name it exists to hide. `wrk` therefore defaults to `path:./ci/empty-private` and `switch` overrides it per machine. The project layer's own `flake.lock` carries the employer's URLs, so they never reach a public lock file.
 
-`private` still defaults to a URL, because `nalyx-private` names nobody.
+`private` still defaults to a URL, because `nix-priv-personal` names nobody.
 
 ### How `switch` picks the layers
 
-Which layers a machine gets is decided by **what is cloned into `.private/`**, nothing else. `switch` discovers any directory there with a `flake.nix`: `nalyx-private` is the personal layer, anything else is a project layer (`.private/notes` is skipped for having no flake). It addresses a project by its directory name minus the `-private` suffix, so `.private/szn-private` is `switch szn`.
+Which layers a machine gets is decided by **what is cloned into `.private/`**, nothing else. `switch` discovers any directory there with a `flake.nix`: `nix-priv-personal` is the personal layer, anything else is a project layer (`.private/notes` is skipped for having no flake). It addresses a project by its directory name minus the `nix-priv-` prefix, so `.private/nix-priv-<job>` is `switch <job>`.
 
-With one project layer cloned the name is optional. With several it is required, because a flake takes one `wrk` input and NixOS hosts carry the layer too: `switch wsl szn`.
+With one project layer cloned the name is optional. With several it is required, because a flake takes one `wrk` input and NixOS hosts carry the layer too: `switch wsl <job>`.
 
-The work laptop simply never clones `nalyx-private`, and that absence is the whole isolation mechanism.
+The work laptop simply never clones `nix-priv-personal`, and that absence is the whole isolation mechanism.
 
 ### Secrets
 

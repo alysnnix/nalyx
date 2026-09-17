@@ -16,11 +16,11 @@ Arguments:
   target       a host, a home profile, or a project name (default: hostname)
 
                A project name is the directory under .private/ with the
-               `-private` suffix dropped, so a checkout at
-               .private/szn-private is addressed as `szn`. Naming one selects
-               the `wrk` profile with that layer plugged in, which is how one
-               generic profile serves several jobs without this repo ever
-               naming any of them.
+               `nix-priv-` prefix dropped, so a checkout at
+               .private/nix-priv-<job> is addressed as `<job>`. Naming one
+               selects the `wrk` profile with that layer plugged in, which is
+               how one generic profile serves several jobs without this repo
+               ever naming any of them.
 
                With exactly one project layer cloned the name is optional;
                with several it is required, because a flake takes one layer.
@@ -32,7 +32,7 @@ Options:
 Examples:
   switch                 # switch to main, pull, rebuild current host
   switch wsl             # switch to main, pull, rebuild the wsl host
-  switch szn             # the wrk profile with the szn layer
+  switch <job>           # the wrk profile with that project layer
   switch wrk             # the wrk profile with whatever single layer is cloned
   switch --no-main       # stay on current branch, pull, rebuild
   switch wsl --no-main
@@ -92,7 +92,7 @@ fi
 
 FLAKE_DIR="$HOME/nalyx"
 # Personal layer: a fixed name, because there is only ever one of it.
-PRIVATE_DIR="$FLAKE_DIR/.private/nalyx-private"
+PRIVATE_DIR="$FLAKE_DIR/.private/nix-priv-personal"
 
 # Project layer: discovered rather than named, because its name is an
 # employer's and this script lives in a public repo. Any flake under .private/
@@ -110,19 +110,21 @@ for candidate in "$FLAKE_DIR"/.private/*/; do
   [ -f "$candidate/flake.nix" ] || continue
   [ "$candidate" = "$PRIVATE_DIR" ] && continue
   wrk_found+=("$candidate")
-  # `szn-private` is addressed as `szn`, so the target you type is the job, not
-  # the repo. The suffix is a naming convention, not something this has to know.
-  wrk_names+=("$(basename "${candidate%-private}")")
+  # `nix-priv-<job>` is addressed as `<job>`, so the target you type is the
+  # job, not the repo. The prefix is a naming convention, not something this
+  # has to know: a layer cloned without it keeps its directory name.
+  candidate_name="$(basename "$candidate")"
+  wrk_names+=("${candidate_name#nix-priv-}")
 done
 
-# Resolve the target the user asked for against those names, so `switch szn`
-# means "the wrk profile, with the szn layer plugged in".
+# Resolve the target the user asked for against those names, so naming a job
+# means "the wrk profile, with that layer plugged in".
 #
-# The name is matched here rather than being a flake output on purpose. An
-# output called `szn` would put an employer's name back into the public flake,
-# which is the one thing this whole layout exists to avoid. A string the user
-# types and a directory on their own disk carry no such cost, so the naming
-# lives entirely on the machine.
+# The name is matched here rather than being a flake output on purpose. A flake
+# output named after a job would put an employer's name back into the public
+# flake, which is the one thing this whole layout exists to avoid. A string the
+# user types and a directory on their own disk carry no such cost, so the
+# naming lives entirely on the machine.
 # Look up a project name among the cloned layers. Prints the path, or nothing.
 find_layer() {
   local want="$1" i
@@ -368,7 +370,7 @@ fi
 # Clone notes vault (Obsidian) if available and not already cloned
 NOTES_DIR="$FLAKE_DIR/.private/notes"
 if [ ! -d "$NOTES_DIR" ] && [ -d "$PRIVATE_DIR" ]; then
-  NOTES_REMOTE=$(git -C "$PRIVATE_DIR" remote get-url origin 2>/dev/null | sed 's|nalyx-private|notes|')
+  NOTES_REMOTE=$(git -C "$PRIVATE_DIR" remote get-url origin 2>/dev/null | sed 's|nix-priv-personal|notes|')
   if [ -n "$NOTES_REMOTE" ]; then
     echo "  notes: cloning..."
     git clone "$NOTES_REMOTE" "$NOTES_DIR" || echo "  notes: clone failed, skipping"

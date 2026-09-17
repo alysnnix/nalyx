@@ -660,17 +660,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1787289418,
-        "narHash": "sha256-/yjAAaKOZEofWsxBjz1gkoY/WoryMrPOoB0qVX2kepE=",
+        "lastModified": 1789575073,
+        "narHash": "sha256-Zy4SsTlR+KmqL46r2MaMCdpsfwFPq0NSzwFV6jEMn8U=",
         "ref": "refs/heads/main",
-        "rev": "9f00a7256ec7f87d24e6cb3344f8a19e5137bf63",
-        "revCount": 126,
+        "rev": "80e3086700b08595f17ae7c6dd41862185130fa0",
+        "revCount": 152,
         "type": "git",
-        "url": "ssh://git@github.com/alysnnix/nalyx-private"
+        "url": "ssh://git@github.com/alysnnix/nix-priv-personal"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/alysnnix/nalyx-private"
+        "url": "ssh://git@github.com/alysnnix/nix-priv-personal"
       }
     },
     "pyproject-build-systems": {

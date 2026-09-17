@@ -14,7 +14,7 @@ switch wsl      # specify a host
 ## Architecture
 
 ```
-nalyx/ (public)                     nalyx-private/ (optional flake)
+nalyx/ (public)                     nix-priv-personal/ (optional flake)
 ├── flake.nix                       ├── flake.nix (exports modules)
 ├── vars.nix                        ├── nixos/ (SOPS, passwords, secrets)
 ├── hosts/                          ├── home/ (MCPs, scripts, aliases)
@@ -63,7 +63,7 @@ cd ~/nalyx
 ### 2. Private repo (optional)
 
 ```bash
-git clone git@github.com:alysnnix/nalyx-private.git .private/nalyx-private
+git clone git@github.com:alysnnix/nix-priv-personal.git .private/nix-priv-personal
 ```
 
 ### 3. Build

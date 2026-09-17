@@ -1,5 +1,5 @@
 # Homelab host — server-only NixOS install, reachable only via Tailscale.
-# Threat model and one-time bootstrap steps: see nalyx-private SECURITY.md.
+# Threat model and one-time bootstrap steps: see nix-priv-personal SECURITY.md.
 {
   vars,
   pkgs,

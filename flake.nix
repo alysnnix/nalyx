@@ -100,7 +100,7 @@
     # Contains SOPS secrets, private scripts, and MCP configs
     # Without it: safe defaults, no secrets, public-only configs
     private = {
-      url = "git+ssh://git@github.com/alysnnix/nalyx-private";
+      url = "git+ssh://git@github.com/alysnnix/nix-priv-personal";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -114,9 +114,9 @@
     # The default is the local placeholder, never a URL, and that is the whole
     # trick: a flake input is static and lives in this file, so any real URL
     # here would publish the name it exists to hide. `switch` overrides it with
-    # .private/wrk when that checkout is present, so the name only ever lives
-    # on the machine that needs it. Point .private/wrk at a different project's
-    # repo and the same profile serves the next job.
+    # the .private/nix-priv-<project> checkout when one is present, so the name
+    # only ever lives on the machine that needs it. Clone a different project's
+    # layer there and the same profile serves the next job.
     wrk = {
       url = "path:./ci/empty-private";
     };
@@ -309,7 +309,7 @@
                 # the desktop do employer work too, and the layer that carries
                 # it has to reach them or a `switch` there silently drops every
                 # project skill, agent and script. Empty unless the machine has
-                # a .private/wrk checkout, so this costs nothing on the others.
+                # a project layer cloned, so this costs nothing on the others.
                 #
                 # A server is exempt, though, and `enableClaude = false` alone
                 # was not enough to make that true: the project layer installs
