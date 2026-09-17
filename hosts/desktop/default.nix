@@ -19,6 +19,9 @@
     ../../modules/services/paseo-tailnet.nix
     # Daemon do cooler Corsair (iCUE LINK), consumido pelo gearhub via HTTP.
     ../../modules/services/openlinkhub.nix
+    # Trava o áudio Bluetooth em A2DP: sem isto o fone cai para HSP/HFP e o som
+    # fica mono em 8-16 kHz, com o nó de saída morrendo e renascendo em loop.
+    ../../modules/services/bluetooth-audio.nix
   ]
   ++ (lib.optional (vars.desktop == "gnome") ../../modules/desktop/gnome.nix)
   ++ (lib.optional (vars.desktop == "hyprland") ../../modules/desktop/hyprland.nix);
@@ -100,13 +103,54 @@
   # below follows this same kernel package set, keeping the module ABI aligned.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
-  # Quando a GPU trava, o caminho de reset do driver fica preso segurando o
-  # lock do RM e tudo que toca a GPU cai em D-state, inclusive o `systemctl
-  # reboot`. Só sobra SysRq, e o padrão do NixOS (16) libera apenas o sync,
-  # então as outras teclas respondem "operation is disabled" e sobra cortar a
-  # energia no botão. Com 1 o REISUB completo funciona: Alt+SysRq+R E I S U B
-  # desmonta os filesystems antes de reiniciar, em vez de arriscar o journal.
-  boot.kernel.sysctl."kernel.sysrq" = 1;
+  # Esta máquina tem 62 GiB de RAM e nenhuma swap, e a raiz mora num Kingston
+  # A400, um SSD SATA sem cache DRAM. A combinação trava o desktop inteiro por
+  # dois caminhos distintos, e os dois são de kernel, não de aplicação.
+  #
+  # 1. Sem swap, o reclaim não tem para onde despejar página anônima. Quando o
+  #    cache cresce (medido: 51 GiB de page cache contra 1,3 GiB livres), o
+  #    kworker de mm_percpu_wq passa a girar em reclaim síncrono. Medido preso
+  #    em ~60% de um core de forma contínua, não em pico.
+  #
+  #    zram em vez de swap em disco: comprime na RAM e não joga escrita extra
+  #    justamente no disco que já é o gargalo. page-cluster=0 porque readahead
+  #    de swap não faz sentido quando o "disco" é memória, e swappiness alto é
+  #    o certo aqui pelo mesmo motivo: trocar por zram custa menos que descartar
+  #    page cache e reler do A400.
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 25;
+  };
+
+  boot.kernel.sysctl = {
+    # Quando a GPU trava, o caminho de reset do driver fica preso segurando o
+    # lock do RM e tudo que toca a GPU cai em D-state, inclusive o `systemctl
+    # reboot`. Só sobra SysRq, e o padrão do NixOS (16) libera apenas o sync,
+    # então as outras teclas respondem "operation is disabled" e sobra cortar a
+    # energia no botão. Com 1 o REISUB completo funciona: Alt+SysRq+R E I S U B
+    # desmonta os filesystems antes de reiniciar, em vez de arriscar o journal.
+    "kernel.sysrq" = 1;
+
+    "vm.swappiness" = 180;
+    "vm.page-cluster" = 0;
+
+    # 2. O outro caminho é o writeback. Os defaults são percentuais da RAM, e
+    #    num host de 62 GiB isso vira um teto absurdo: dirty_background_ratio=10
+    #    deixa 6,3 GiB sujarem antes do flusher sequer acordar, e dirty_ratio=20
+    #    deixa 12,5 GiB antes de bloquear quem escreve. Escoar vários GiB de
+    #    escrita pequena e aleatória num A400 é justamente o pior caso dele, e o
+    #    resultado medido foi kworker/u81-flush-8:32 preso em ~43% de um core
+    #    sustentado para drenar só 1,1 MB/s.
+    #
+    #    dirty_bytes e dirty_background_bytes sobrescrevem os percentuais e
+    #    fixam o teto em valor absoluto, então o lote volta a caber no disco e o
+    #    flusher termina em vez de acumular. Áudio é o primeiro a quebrar quando
+    #    um core some assim, porque tem prazo em milissegundos, e o vídeo engasga
+    #    junto por sincronizar no relógio do áudio.
+    "vm.dirty_background_bytes" = 256 * 1024 * 1024;
+    "vm.dirty_bytes" = 1024 * 1024 * 1024;
+  };
 
   networking.hostName = "desktop";
 
@@ -160,6 +204,8 @@
   # Perifericos do gearhub (home/features/programs/gearhub). O daemon do
   # cooler liga aqui; o resto e acesso a hardware que os CLIs precisam.
   modules.services.openlinkhub.enable = true;
+
+  modules.services.bluetoothAudio.enable = true;
 
   # Acesso i2c para o ddcutil: cria o grupo i2c e a regra de udev dos nos.
   hardware.i2c.enable = true;
