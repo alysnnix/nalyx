@@ -30,6 +30,16 @@ let
     + lib.optionalString (cfg.dictationVocabulary != [ ]) (
       " Nomes próprios: " + lib.concatStringsSep ", " cfg.dictationVocabulary + "."
     );
+
+  # O mesmo overlay declarativo da omp que o home-manager entrega ao shell de
+  # login. Aqui ele e obrigatorio e nao conveniencia: o daemon e servico de
+  # sistema, nao passa por hm-session-vars, e todo agente omp que ele spawna
+  # herda este environment. Sem PI_CONFIG_FILES a omp cai no default vazio de
+  # `enabledProviders`, ou seja ignora ~/.claude por inteiro: nenhuma skill,
+  # nenhum plugin e nenhum MCP server do Claude Code dentro do Paseo, sem erro
+  # nenhum na tela. O ~/.omp/agent/config.yml mutavel nao segura isso: a propria
+  # omp reescreve o arquivo no setup e a chave desaparece.
+  ompConfigOverlay = import ../../home/features/cli/omp/config-overlay.nix { inherit pkgs; };
 in
 {
   imports = [ inputs.paseo.nixosModules.paseo ];
@@ -104,6 +114,10 @@ in
       # As duas ficam: o env e o que liga, a settings e o que documenta (e o
       # que volta a valer quando o upstream consertar a precedencia).
       environment.PASEO_WEB_UI_ENABLED = "true";
+
+      # Herdado por todo agente omp que o daemon spawna. Ver o comentario do
+      # `ompConfigOverlay` no let, que e onde o motivo esta escrito.
+      environment.PI_CONFIG_FILES = "${ompConfigOverlay}";
 
       # O prompt que vai junto de todo audio de ditado. O default do daemon e
       # uma instrucao em ingles ("Transcribe only what the speaker says...",

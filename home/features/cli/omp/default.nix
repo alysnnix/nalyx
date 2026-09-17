@@ -6,61 +6,10 @@
   ...
 }:
 let
-  yamlFormat = pkgs.formats.yaml { };
-
-  # Declarative omp settings, layered on top of the mutable global config
-  # (~/.omp/agent/config.yml) via the PI_CONFIG_FILES overlay mechanism.
-  # Overlays sit above the global config in omp's precedence, so these values
-  # win without ever owning or overwriting the file omp itself writes at
-  # runtime (and which syncthing syncs across machines).
-  configOverlay = yamlFormat.generate "omp-nix-overlay.yml" {
-    # Foreign user-level discovery sources omp is allowed to read. The default
-    # is empty, and an empty list means omp ignores ~/.claude entirely: no
-    # Claude skills, no Claude marketplace plugins, no MCP servers from
-    # ~/.claude/settings.json. Enabling `claude` also enables `claude-plugins`
-    # (omp special-cases the pair), so this one entry is what makes omp see
-    # everything Claude Code sees.
-    #
-    # This used to live only in ~/.omp/agent/config.yml, which omp writes
-    # itself at setup time: a host that never ran that setup, or a config reset,
-    # silently dropped every Claude-side skill with no error. Declaring it here
-    # makes the discovery surface a property of the flake instead.
-    #
-    # Consequence to know about: the overlay outranks the mutable config, so
-    # toggling a user source from inside omp no longer sticks. Adding a source
-    # means adding it to this list.
-    enabledProviders = [ "claude" ];
-
-    startup = {
-      # Suppress omp's startup/status notices, including the `xd://: mounted
-      # <every mcp tool name>` banner that `#notifyXdevMountDelta` emits the
-      # first time MCP servers finish connecting (i.e. right after the first
-      # message of a session). With this many MCP servers that notice is a
-      # screenful of noise in the Paseo transcript, and `startup.quiet` is the
-      # only gate omp has on it. Nothing else is lost but the welcome screen.
-      quiet = true;
-    };
-
-    tools = {
-      # Mount rarely-used (discoverable) tools (MCP, LSP, inspect_image,
-      # generate_image) under xd:// device URLs, driven on demand via
-      # read/write, instead of shipping every schema on every request. This
-      # is omp's own default (tools.xdev defaults to true); we set it
-      # explicitly to document the choice. With many MCP servers connected,
-      # top-level exposure (xdev = false) added ~90k tokens of tool schemas
-      # to the base of every request, even a bare greeting. Essential coding
-      # tools (read/write/edit/bash/glob/grep) stay top-level regardless; the
-      # trade-off is a one-hop discovery when an MCP or image tool is
-      # actually needed, paid only then rather than on every message.
-      xdev = true;
-    };
-
-    # Load the context image-pruner extension in every session. It keeps only
-    # the most-recent N image blocks per request (env OMP_MAX_CONTEXT_IMAGES,
-    # default 10) so a long session never trips Anthropic's stricter 2000px
-    # per-image cap that applies once a request carries more than 20 images.
-    extensions = [ "${./prune-context-images.js}" ];
-  };
+  # Shared with modules/services/paseo.nix, which needs the same overlay in the
+  # daemon's service environment: a home-manager session variable never reaches
+  # a system service. See the header of that file.
+  configOverlay = import ./config-overlay.nix { inherit pkgs; };
 
   # On the WSL, point omp's `/collab` at the self-hosted tailnet relay (the
   # omp-collab module), so live session sharing never touches the public
