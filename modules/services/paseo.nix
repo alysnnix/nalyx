@@ -328,21 +328,27 @@ in
         # que ja concentra todos os backends) e mantem a tarefa em modelos
         # pequenos, que e o tamanho certo para escrever uma linha.
         #
-        # Haiku primeiro por seguir formato apertado melhor que um nano.
-        # `thinkingOptionId` fica de fora de proposito: um valor invalido para o
-        # modelo cai no default dele (`resolveThinkingOptionId`), e nao ha ganho
-        # em raciocinio longo para uma frase.
+        # Haiku primeiro por seguir formato apertado melhor que um nano; o
+        # mini da OpenAI como rede. `thinkingOptionId` fica de fora de
+        # proposito: um valor invalido para o modelo cai no default dele
+        # (`resolveThinkingOptionId`), e nao ha ganho em raciocinio longo
+        # para uma frase.
         #
-        # A lista tem UM entry, e nao dois com um mini da OpenAI como rede,
-        # porque `openai/*` na omp autentica com OPENAI_API_KEY, que aqui e a
-        # chave PESSOAL vinda do SOPS da camada pessoal. Rede de seguranca que
-        # cobra na conta pessoal do usuario para escrever nome de branch nao e
-        # rede, e vazamento de custo. Falhando o entry unico, o Paseo cai nos
-        # defaults dele, que e o comportamento correto.
+        # O mini autentica com OPENAI_API_KEY, que e a chave pessoal do usuario
+        # vinda do SOPS da camada pessoal, e isso esta certo aqui: e a mesma
+        # chave que ele ja usa para ditado e voz, e a tarefa e uma linha de
+        # texto que so roda quando o Haiku falha. O que NAO pode usar essa
+        # chave e trabalho de volume, tipo um perfil de revisao lendo diff
+        # inteiro em thinking high: por isso o perfil de revisao e anthropic e
+        # esta rede nao.
         agents.metadataGeneration.providers = [
           {
             provider = "omp";
             model = "anthropic/claude-haiku-4-5";
+          }
+          {
+            provider = "omp";
+            model = "openai/gpt-5.4-mini";
           }
         ];
 
