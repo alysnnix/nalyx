@@ -40,6 +40,12 @@ let
   # nenhum na tela. O ~/.omp/agent/config.yml mutavel nao segura isso: a propria
   # omp reescreve o arquivo no setup e a chave desaparece.
   ompConfigOverlay = import ../../home/features/cli/omp/config-overlay.nix { inherit pkgs; };
+
+  # O plugin de voz vive neste repo, em packages/paseo-tts, e nao num input:
+  # ele so faz sentido junto desta configuracao de daemon (usa a mesma chave da
+  # OpenAI do ditado e a mesma omp dos agentes), entao um repo separado so
+  # adicionaria um lock para atualizar.
+  paseoTts = pkgs.callPackage ../../packages/paseo-tts { };
 in
 {
   imports = [ inputs.paseo.nixosModules.paseo ];
@@ -352,27 +358,45 @@ in
           }
         ];
 
-        # O overlay so define `paseo-github-integration` quando o input do repo
-        # esta acessivel: a CI avalia os hosts com o placeholder vazio no lugar
-        # do repo privado, e la nao ha plugin para declarar. `pluginsEnabled`
-        # fica como esta, porque ligar o sistema de plugins e uma decisao
-        # separada de qual plugin roda.
+        # Os plugins do daemon. Eles rodam sem sandbox: o lado servidor e um
+        # subprocesso Node com o acesso do usuario do daemon (arquivos,
+        # processos, o token do `gh`, as chaves ssh) e o lado cliente roda
+        # dentro do app. Vale so porque as duas fontes sao nossas, com o codigo
+        # auditado antes de entrar.
         #
-        # O plugin em si roda sem sandbox: o lado servidor e um subprocesso Node
-        # com o acesso do usuario do daemon (arquivos, processos, o token do
-        # `gh`, as chaves ssh) e o lado cliente roda dentro do app. Vale so
-        # porque o repo e nosso, com o codigo auditado antes de entrar.
-      }
-      // lib.optionalAttrs (pkgs ? paseo-github-integration) {
-        plugins.github-integration = {
-          # `directory` com um path do store em vez de `git`: a fonte git faz o
-          # daemon clonar e seguir a branch, ou seja, codigo sem sandbox que se
-          # atualiza sozinho pelas costas da geracao. Com o store path, a versao
-          # do plugin e o rev do input no flake.lock, muda quando o lock muda, e
-          # o rollback e o mesmo da geracao do sistema.
-          source = "directory";
-          path = "${pkgs.paseo-github-integration}";
-          enabled = true;
+        # `source = "directory"` com um path do store, nunca `git`: a fonte git
+        # faz o daemon clonar e seguir a branch, ou seja codigo sem sandbox que
+        # se atualiza sozinho pelas costas da geracao. Com o store path a versao
+        # do plugin e a da geracao do sistema, e o rollback e o mesmo rollback.
+        #
+        # Declarar aqui nao e so organizacao: `settings` reescreve o
+        # ~/.paseo/config.json a cada start, entao um plugin instalado por
+        # `paseo plugin install` desaparece no proximo restart do daemon.
+        plugins = {
+          # Le a ultima resposta do agente em voz alta. Ver o comentario longo
+          # em packages/paseo-tts/default.nix para o caminho completo e para o
+          # detalhe de que o audio sai na maquina do daemon.
+          #
+          # A chave da OpenAI nao aparece aqui: o plugin le OPENAI_API_KEY do
+          # environment do servico, que e o mesmo EnvironmentFile do SOPS que o
+          # ditado ja usa. Note que o projeto dessa chave so libera modelos de
+          # voz, e e por isso que o resumo falado roda pelo CLI da omp em vez de
+          # uma chamada de chat.
+          paseo-tts = {
+            source = "directory";
+            path = "${paseoTts}";
+            enabled = true;
+          };
+        }
+        // lib.optionalAttrs (pkgs ? paseo-github-integration) {
+          # O overlay so define este pacote quando o input do repo esta
+          # acessivel: a CI avalia os hosts com o placeholder vazio no lugar do
+          # repo privado, e la nao ha plugin para declarar.
+          github-integration = {
+            source = "directory";
+            path = "${pkgs.paseo-github-integration}";
+            enabled = true;
+          };
         };
       };
     };
