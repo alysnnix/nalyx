@@ -195,10 +195,15 @@ in
           # inerte aqui. Ou seja, transcricao ruim chega em vez de ser
           # descartada, o que e melhor que receber um resumo do que se falou.
           #
-          # `tts-1-hd` e nao `gpt-4o-mini-tts`: o segundo provavelmente
-          # funcionaria, porque o schema aceita string livre e o codigo
-          # repassa o modelo direto para o SDK, mas openai/tts.ts:11 declara
-          # so `tts-1` e `tts-1-hd`. Ficar dentro do que o upstream declara.
+          # `gpt-4o-mini-tts` no TTS, e nao o `tts-1-hd` que estava aqui: o
+          # segundo custa US$ 30 por 1M de caracteres contra ~US$ 0,015 por
+          # minuto de audio do primeiro, ou seja o dobro por uma diferenca que
+          # fone de mesa nao entrega. O caminho de `settings` aceita o modelo
+          # novo (`persisted-config.js` valida `model` como string livre e o
+          # provider repassa direto ao SDK); quem so declara `tts-1`/`tts-1-hd`
+          # e o parser das variaveis de ambiente, que nao e usado aqui.
+          # Verificado contra a API com `response_format: "pcm"` e voz `alloy`,
+          # que e o formato que o voice-session pede: HTTP 200, 168 KB.
           #
           # O custo real disto nao e dinheiro (cerca de US$ 0,006 por minuto),
           # e o audio sair da maquina. Decisao consciente, nao default.
@@ -218,11 +223,13 @@ in
               model = "whisper-1";
               language = "pt";
             };
-            # `voice` fica no default (`alloy`). O schema aceita alloy, echo,
-            # fable, onyx, nova e shimmer.
+            # `voice` fica no default (`alloy`). O schema do voice mode ainda
+            # aceita so alloy, echo, fable, onyx, nova e shimmer, entao as vozes
+            # novas (coral, sage, ash) que o plugin de leitura usa nao valem
+            # aqui, mesmo com o modelo novo.
             tts = {
               provider = "openai";
-              model = "tts-1-hd";
+              model = "gpt-4o-mini-tts";
             };
           };
         };
