@@ -98,6 +98,21 @@
     };
   };
 
+  # Host de streaming para o Moonlight. No GNOME Wayland a captura sai pelo KMS
+  # grab, que exige CAP_SYS_ADMIN: sem capSysAdmin o serviço sobe e o cliente
+  # conecta, mas a tela chega preta. openFirewall abre a faixa derivada da porta
+  # base 47989 (47984, 47989, 47990 e 48010 em TCP; 47998-48000, 48002 e 48010
+  # em UDP).
+  #
+  # Sem `settings` nem `applications` de propósito: qualquer um dos dois gera um
+  # arquivo de config no store e tranca a web UI (https://localhost:47990), que
+  # é por onde o pareamento e os apps são configurados.
+  services.sunshine = {
+    enable = true;
+    openFirewall = true;
+    capSysAdmin = true;
+  };
+
   boot.kernelModules = [ "wireguard" ];
   # Track the newest kernel packaged by this nixpkgs pin.  The NVIDIA driver
   # below follows this same kernel package set, keeping the module ABI aligned.
