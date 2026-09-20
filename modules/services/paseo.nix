@@ -195,18 +195,9 @@ in
           # inerte aqui. Ou seja, transcricao ruim chega em vez de ser
           # descartada, o que e melhor que receber um resumo do que se falou.
           #
-          # `gpt-4o-mini-tts` no TTS, e nao o `tts-1-hd` que estava aqui: o
-          # segundo custa US$ 30 por 1M de caracteres contra ~US$ 0,015 por
-          # minuto de audio do primeiro, ou seja o dobro por uma diferenca que
-          # fone de mesa nao entrega. O caminho de `settings` aceita o modelo
-          # novo (`persisted-config.js` valida `model` como string livre e o
-          # provider repassa direto ao SDK); quem so declara `tts-1`/`tts-1-hd`
-          # e o parser das variaveis de ambiente, que nao e usado aqui.
-          # Verificado contra a API com `response_format: "pcm"` e voz `alloy`,
-          # que e o formato que o voice-session pede: HTTP 200, 168 KB.
-          #
-          # O custo real disto nao e dinheiro (cerca de US$ 0,006 por minuto),
-          # e o audio sair da maquina. Decisao consciente, nao default.
+          # O daemon 0.8.0-beta.1 valida os modelos declarados e aceita apenas
+          # `tts-1` e `tts-1-hd`. `tts-1` preserva a opcao de menor custo entre
+          # os valores aceitos e evita derrubar o worker no boot.
           #
           # A credencial NAO vem daqui: `providers.openai.apiKey` existiria no
           # schema, mas `settings` vira JSON no /nix/store, legivel por
@@ -229,7 +220,7 @@ in
             # aqui, mesmo com o modelo novo.
             tts = {
               provider = "openai";
-              model = "gpt-4o-mini-tts";
+              model = "tts-1";
             };
           };
         };
