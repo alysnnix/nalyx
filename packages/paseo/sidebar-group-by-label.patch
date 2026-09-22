@@ -1,0 +1,332 @@
+--- a/packages/app/src/components/sidebar/display-preferences/menu.tsx
++++ b/packages/app/src/components/sidebar/display-preferences/menu.tsx
+@@ -89,6 +89,7 @@
+ const GROUPING_ICONS: Record<SidebarGroupMode, OptionIcon> = {
+   project: withUnistyles(Folder),
+   status: withUnistyles(CircleDashed),
++  label: withUnistyles(Tag),
+ };
+ 
+ const TITLE_SOURCE_ICONS: Record<WorkspaceTitleSource, OptionIcon> = {
+@@ -120,13 +121,14 @@
+   timestamp: withUnistyles(Clock),
+ };
+ 
+-const GROUPING_MODES: readonly SidebarGroupMode[] = ["project", "status"];
++const GROUPING_MODES: readonly SidebarGroupMode[] = ["project", "status", "label"];
+ const TITLE_SOURCES: readonly WorkspaceTitleSource[] = ["title", "branch"];
+ const TRAILING_CHOICES: readonly SidebarTrailingChoice[] = ["diff", "timestamp"];
+ 
+ const GROUPING_LABEL_KEYS: Record<SidebarGroupMode, string> = {
+   project: "sidebar.display.grouping.project",
+   status: "sidebar.display.grouping.status",
++  label: "sidebar.display.grouping.labels",
+ };
+ 
+ const TITLE_SOURCE_LABEL_KEYS: Record<WorkspaceTitleSource, string> = {
+--- a/packages/app/src/components/sidebar/sidebar-labels.ts
++++ b/packages/app/src/components/sidebar/sidebar-labels.ts
+@@ -1,13 +1,29 @@
+-import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
++import {
++  normalizeWorkspaceLabelName,
++  workspaceLabelKey,
++  type WorkspaceLabelColor,
++  type WorkspaceLabelDefinition,
++} from "@getpaseo/protocol/workspace-labels";
+ import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
+ import { SIDEBAR_UNLABELLED_LABEL_KEY, type SidebarLabelFilter } from "@/stores/sidebar-view-store";
+ import type { StatusBucket, StatusGroup } from "@/hooks/sidebar-status-view-model";
+ 
++/**
++ * What a group header draws before its name: the status glyph, or the label's color as a dot.
++ *
++ * A label whose definition the merged catalog does not carry has `color: null` — an offline host
++ * still has its workspaces on screen, and a group that loses its dot is better than a group that
++ * guesses a color the manager never picked.
++ */
++export type SidebarWorkspaceGroupLeading =
++  | { kind: "status"; bucket: StatusBucket }
++  | { kind: "label"; color: WorkspaceLabelColor | null };
++
+ export interface SidebarWorkspaceGroup {
+   key: string;
+   label: string;
+   rows: SidebarWorkspaceEntry[];
+-  leading: { kind: "status"; bucket: StatusBucket };
++  leading: SidebarWorkspaceGroupLeading;
+ }
+ 
+ export function statusWorkspaceGroups(groups: readonly StatusGroup[]): SidebarWorkspaceGroup[] {
+@@ -19,6 +35,93 @@
+   }));
+ }
+ 
++/** The group key namespace, so a label and a status bucket never share a collapsed-section key. */
++const LABEL_GROUP_KEY_PREFIX = "label:";
++/** Outside the prefixed namespace on purpose: no label name can ever produce this key. */
++const UNLABELLED_GROUP_KEY = "no-label";
++
++/**
++ * Groups the sidebar by the labels its workspaces carry.
++ *
++ * A workspace lands in exactly one group — the first label it was given — rather than in one per
++ * label. Grouping answers "where does this workspace live", and the shortcut model walks the
++ * sections this produces: a workspace drawn twice would own two shortcut numbers and take the
++ * second one from a workspace that has none.
++ *
++ * Group order follows the catalog the Labels page defines, so the sidebar and that page read the
++ * same way. A label the catalog does not carry sorts after the ones it does, by name, and
++ * `Unlabelled` is always last: it is the remainder, not a label.
++ */
++export function labelWorkspaceGroups(input: {
++  workspaces: readonly SidebarWorkspaceEntry[];
++  definitions: readonly WorkspaceLabelDefinition[];
++  unlabelledLabel: string;
++}): SidebarWorkspaceGroup[] {
++  const { workspaces, definitions, unlabelledLabel } = input;
++  const catalogRank = new Map<string, number>();
++  const colorsByKey = new Map<string, WorkspaceLabelColor>();
++  definitions.forEach((definition, index) => {
++    const key = workspaceLabelKey(definition.name);
++    if (catalogRank.has(key)) return;
++    catalogRank.set(key, index);
++    colorsByKey.set(key, definition.color);
++  });
++
++  const groups = new Map<string, { name: string; rows: SidebarWorkspaceEntry[] }>();
++  const unlabelled: SidebarWorkspaceEntry[] = [];
++  for (const workspace of workspaces) {
++    const primary = primaryWorkspaceLabelName(workspace);
++    if (primary === null) {
++      unlabelled.push(workspace);
++      continue;
++    }
++    const key = workspaceLabelKey(primary);
++    const group = groups.get(key);
++    if (group) {
++      group.rows.push(workspace);
++      continue;
++    }
++    // The catalog spells the name the manager typed; the workspace only carries what it was given.
++    const definitionIndex = catalogRank.get(key);
++    const name = definitionIndex === undefined ? primary : definitions[definitionIndex].name;
++    groups.set(key, { name, rows: [workspace] });
++  }
++
++  const ordered = [...groups.entries()].sort(([keyA, a], [keyB, b]) => {
++    const rankA = catalogRank.get(keyA);
++    const rankB = catalogRank.get(keyB);
++    if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
++    if (rankA !== undefined) return -1;
++    if (rankB !== undefined) return 1;
++    return a.name.localeCompare(b.name);
++  });
++
++  const result: SidebarWorkspaceGroup[] = ordered.map(([key, group]) => ({
++    key: `${LABEL_GROUP_KEY_PREFIX}${key}`,
++    label: group.name,
++    rows: group.rows,
++    leading: { kind: "label", color: colorsByKey.get(key) ?? null },
++  }));
++  if (unlabelled.length > 0) {
++    result.push({
++      key: UNLABELLED_GROUP_KEY,
++      label: unlabelledLabel,
++      rows: unlabelled,
++      leading: { kind: "label", color: null },
++    });
++  }
++  return result;
++}
++
++/** The label a workspace is filed under: the first it carries that survives normalization. */
++function primaryWorkspaceLabelName(workspace: SidebarWorkspaceEntry): string | null {
++  for (const name of workspace.labels ?? []) {
++    const normalized = normalizeWorkspaceLabelName(name);
++    if (normalized.length > 0) return normalized;
++  }
++  return null;
++}
++
+ /**
+  * Applies the Labels page's selection to the sidebar.
+  *
+--- a/packages/app/src/components/sidebar/sidebar-model.tsx
++++ b/packages/app/src/components/sidebar/sidebar-model.tsx
+@@ -1,4 +1,5 @@
+ import React, { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
++import { useTranslation } from "react-i18next";
+ import {
+   useSidebarWorkspacesList,
+   type SidebarProjectEntry,
+@@ -54,12 +55,13 @@
+   active?: boolean;
+   children: ReactNode;
+ }) {
++  const { t } = useTranslation();
+   const list = useSidebarWorkspacesList({ enabled: active });
+   const groupMode = useSidebarViewStore((state) => state.groupMode);
+   const labelFilter = useSidebarViewStore((state) => state.labelFilter);
+   const projectFilters = useSidebarViewStore((state) => state.projectFilters);
+   const reconcileLabelFilter = useSidebarViewStore((state) => state.reconcileLabelFilter);
+-  const { hosts: labelHosts } = useWorkspaceLabelProjection();
++  const { hosts: labelHosts, labels: labelDefinitions } = useWorkspaceLabelProjection();
+   const collapsedProjectKeys = useSidebarCollapsedSectionsStore(
+     (state) => state.collapsedProjectKeys,
+   );
+@@ -139,6 +141,7 @@
+     visibleWorkspaceKeys,
+   ]);
+   const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
++  const unlabelledLabel = t("workspaceLabels.unlabelled");
+   const projectionInput = useMemo(
+     () => ({
+       projects: filteredProjects,
+@@ -150,16 +153,20 @@
+       pinnedCollapsed,
+       collapsedProjectKeys,
+       collapsedWorkspaceGroupKeys,
++      labelDefinitions,
++      unlabelledLabel,
+     }),
+     [
+       collapsedProjectKeys,
+       collapsedWorkspaceGroupKeys,
+       groupMode,
++      labelDefinitions,
+       list.projectNamesByViewKey,
+       filteredProjects,
+       pinnedCollapsed,
+       pinnedKeys,
+       pinnedWorkspaceOrder,
++      unlabelledLabel,
+       filteredWorkspaceEntriesByKey,
+     ],
+   );
+--- a/packages/app/src/components/sidebar/sidebar-projection.ts
++++ b/packages/app/src/components/sidebar/sidebar-projection.ts
+@@ -1,3 +1,4 @@
++import type { WorkspaceLabelDefinition } from "@getpaseo/protocol/workspace-labels";
+ import { buildStatusGroups } from "@/hooks/sidebar-status-view-model";
+ import {
+   splitPinnedSidebarGroups,
+@@ -18,7 +19,11 @@
+   type SidebarShortcutModel,
+   type SidebarShortcutSection,
+ } from "@/utils/sidebar-shortcuts";
+-import { statusWorkspaceGroups, type SidebarWorkspaceGroup } from "./sidebar-labels";
++import {
++  labelWorkspaceGroups,
++  statusWorkspaceGroups,
++  type SidebarWorkspaceGroup,
++} from "./sidebar-labels";
+ 
+ export interface SidebarProjection {
+   pinnedGroups: PinnedSidebarGroups;
+@@ -45,6 +50,10 @@
+   pinnedCollapsed: boolean;
+   collapsedProjectKeys: ReadonlySet<string>;
+   collapsedWorkspaceGroupKeys: ReadonlySet<string>;
++  /** The merged label catalog, in the order the Labels page lists it. Only label mode reads it. */
++  labelDefinitions: readonly WorkspaceLabelDefinition[];
++  /** What the leftover group is called, already translated: this module holds no strings. */
++  unlabelledLabel: string;
+ }
+ 
+ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarProjection {
+@@ -90,7 +99,9 @@
+   };
+ }
+ 
+-/** Project mode keeps its project headers and groups nothing; status mode groups the rows. */
++/**
++ * Project mode keeps its project headers and groups nothing; status and label mode group the rows.
++ */
+ function buildWorkspaceGroups(
+   input: SidebarProjectionInput,
+   unpinnedWorkspaces: SidebarWorkspaceEntry[],
+@@ -102,5 +113,11 @@
+       return statusWorkspaceGroups(
+         buildStatusGroups(unpinnedWorkspaces, input.projectNamesByViewKey),
+       );
++    case "label":
++      return labelWorkspaceGroups({
++        workspaces: unpinnedWorkspaces,
++        definitions: input.labelDefinitions,
++        unlabelledLabel: input.unlabelledLabel,
++      });
+   }
+ }
+--- a/packages/app/src/components/sidebar/sidebar-status-list.tsx
++++ b/packages/app/src/components/sidebar/sidebar-status-list.tsx
+@@ -38,7 +38,9 @@
+   CircleCheck,
+   CircleDot,
+   CircleX,
++  Tag,
+ } from "lucide-react-native";
++import { WorkspaceLabelDot } from "@/workspace-labels/swatch";
+ import { useToast } from "@/contexts/toast-context";
+ import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
+ import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
+@@ -105,6 +107,7 @@
+ const ThemedCircleCheck = withUnistyles(CircleCheck);
+ const ThemedCircleDot = withUnistyles(CircleDot);
+ const ThemedCircleX = withUnistyles(CircleX);
++const ThemedTag = withUnistyles(Tag);
+ const EMPTY_SHORTCUT_INDEX = new Map<string, number>();
+ 
+ function statusWorkspaceKeyExtractor(workspace: SidebarWorkspaceEntry): string {
+@@ -465,7 +468,7 @@
+   showChevron: boolean;
+ }) {
+   if (!showChevron) {
+-    return <StatusGroupIcon bucket={leading.bucket} />;
++    return <GroupLeadingIcon leading={leading} />;
+   }
+   if (collapsed) {
+     return <ThemedChevronRight size={14} uniProps={foregroundMutedColorMapping} />;
+@@ -488,6 +491,22 @@
+   }
+ }
+ 
++/**
++ * The mark a group is known by: a status glyph, or the label's own color.
++ *
++ * A label the merged catalog cannot colour falls back to the tag outline rather than to a dot in
++ * some default colour, which would read as a colour the manager chose.
++ */
++function GroupLeadingIcon({ leading }: { leading: SidebarWorkspaceGroup["leading"] }) {
++  if (leading.kind === "label") {
++    if (leading.color === null) {
++      return <ThemedTag size={14} uniProps={foregroundMutedColorMapping} />;
++    }
++    return <WorkspaceLabelDot color={leading.color} />;
++  }
++  return <StatusGroupIcon bucket={leading.bucket} />;
++}
++
+ const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
+   workspace,
+   hostBadge,
+--- a/packages/app/src/stores/sidebar-view-store.ts
++++ b/packages/app/src/stores/sidebar-view-store.ts
+@@ -5,7 +5,7 @@
+ import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
+ import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
+ 
+-export type SidebarGroupMode = "project" | "status";
++export type SidebarGroupMode = "project" | "status" | "label";
+ 
+ const SIDEBAR_VIEW_STORAGE_KEY = "sidebar-view";
+ const LEGACY_SIDEBAR_GROUP_MODE_STORAGE_KEY = "sidebar-group-mode";
+@@ -141,7 +141,7 @@
+   }
+ 
+   return {
+-    groupMode: state.groupMode === "status" ? "status" : "project",
++    groupMode: state.groupMode ?? "project",
+     hostFilters: readHostFilters(state),
+     projectFilters: state.projectFilters ?? [],
+     labelFilter: state.labelFilter
