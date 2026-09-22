@@ -64,10 +64,10 @@ let
     {
       title = "One Worktree Per Task";
       body = ./sections/one-worktree-per-task.md;
-      sticky = "Any task that will produce commits runs in its own git worktree, never in the primary checkout. Another agent may hold that checkout.";
-      # Sticky-only: the step-by-step is a procedure invoked when starting a
-      # task; the `wt` command and the gb worktree skills carry the detail.
-      longForm = false;
+      sticky = "Any task that will produce commits runs in its own git worktree, never in the primary checkout: ask Paseo with `create_workspace` (`isolation: \"worktree\"`), which owns `~/.paseo/worktrees/`. NEVER improvise a worktree path in `$HOME` or beside the repo. Another agent may hold that checkout.";
+      # Both channels: the sticky line carries the location because that is what
+      # gets violated, and the body spells out the create_workspace call and the
+      # in-repo `.worktrees/` fallback for sessions with no Paseo tooling.
     }
     {
       title = "Nothing Leaves This Machine";
