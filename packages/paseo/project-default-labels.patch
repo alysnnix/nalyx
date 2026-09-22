@@ -1,0 +1,979 @@
+diff --git a/packages/app/src/components/sidebar-workspace-list.tsx b/packages/app/src/components/sidebar-workspace-list.tsx
+index 347315bd..323f102a 100644
+--- a/packages/app/src/components/sidebar-workspace-list.tsx
++++ b/packages/app/src/components/sidebar-workspace-list.tsx
+@@ -36,7 +36,7 @@ import { getSidebarRowBackdrop } from "@/components/sidebar/sidebar-row-backdrop
+ import { type GestureType } from "react-native-gesture-handler";
+ import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
+ import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
+-import { ExternalLink, Settings, MoreVertical, Plus, Trash2 } from "lucide-react-native";
++import { ExternalLink, Settings, MoreVertical, Plus, Tag, Trash2 } from "lucide-react-native";
+ import { NestableScrollContainer } from "react-native-draggable-flatlist";
+ import { DraggableList, type DraggableRenderItemInfo } from "./draggable-list";
+ import type { DraggableListDragHandleProps } from "./draggable-list.types";
+@@ -81,7 +81,15 @@ import {
+   DropdownMenuTrigger,
+   DropdownMenuContent,
+   DropdownMenuItem,
++  DropdownMenuSubTrigger,
+ } from "@/components/ui/dropdown-menu";
++import {
++  PROJECT_DEFAULT_LABEL_PAGE_ID,
++  useProjectDefaultLabelMenuPages,
++  type ProjectDefaultLabelTarget,
++} from "@/workspace-labels/picker";
++import { useSessionStore } from "@/stores/session-store";
++import { selectProject } from "@/stores/session-store-hooks/selectors";
+ import { ProjectLeadingVisual } from "@/components/sidebar/project-leading-visual";
+ import { useToast } from "@/contexts/toast-context";
+ import { getForgePresentation, normalizeForge } from "@/git/forge";
+@@ -163,6 +171,7 @@ const ThemedPlus = withUnistyles(Plus);
+ const ThemedMoreVertical = withUnistyles(MoreVertical);
+ const ThemedTrash2 = withUnistyles(Trash2);
+ const ThemedSettings = withUnistyles(Settings);
++const ThemedTag = withUnistyles(Tag);
+ 
+ const foregroundColorMapping = (theme: Theme) => ({
+   color: theme.colors.foreground,
+@@ -460,6 +469,31 @@ const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedC
+ const openInNewWindowLeadingIcon = (
+   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
+ );
++const labelsLeadingIcon = <ThemedTag size={14} uniProps={foregroundMutedColorMapping} />;
++
++// Frozen so the selector below returns the same empty list every time: a fresh `[]` would be a
++// new snapshot on every store notification, and the menu pages would rebuild for nothing.
++const NO_PROJECT_DEFAULT_LABELS: readonly string[] = Object.freeze([]);
++
++/**
++ * The project's default labels, for the menu pages that edit them.
++ *
++ * They live on the project descriptor rather than on the sidebar entry, which is why this row
++ * reaches into the session store instead of reading what it was handed.
++ */
++function useProjectDefaultLabelTarget(
++  target: { serverId: string; projectId: string } | null,
++): ProjectDefaultLabelTarget | null {
++  const labels = useSessionStore(
++    (state) =>
++      selectProject(state, target?.serverId ?? null, target?.projectId ?? null)?.defaultLabels ??
++      NO_PROJECT_DEFAULT_LABELS,
++  );
++  return useMemo(
++    () => (target ? { serverId: target.serverId, projectId: target.projectId, labels } : null),
++    [labels, target],
++  );
++}
+ 
+ function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
+   return (
+@@ -484,6 +518,8 @@ function ProjectKebabMenu({
+   removeProjectStatus: "idle" | "pending" | "success";
+ }) {
+   const { t } = useTranslation();
++  const labelTarget = useProjectDefaultLabelTarget(settingsTarget);
++  const pages = useProjectDefaultLabelMenuPages(labelTarget);
+   return (
+     <DropdownMenu compactMode="sheet">
+       <DropdownMenuTrigger
+@@ -495,7 +531,12 @@ function ProjectKebabMenu({
+       >
+         {renderKebabTriggerIcon}
+       </DropdownMenuTrigger>
+-      <DropdownMenuContent align="end" width={220} sheetTitle={t("sidebar.project.actions.menu")}>
++      <DropdownMenuContent
++        align="end"
++        width={220}
++        pages={pages}
++        sheetTitle={t("sidebar.project.actions.menu")}
++      >
+         <ProjectMenuItems
+           surface="dropdown"
+           projectViewKey={projectViewKey}
+@@ -579,6 +620,15 @@ function ProjectMenuItems({
+           {t("sidebar.project.actions.openNewWindow")}
+         </ProjectMenuItem>
+       ) : null}
++      {settingsTarget ? (
++        <DropdownMenuSubTrigger
++          id={PROJECT_DEFAULT_LABEL_PAGE_ID}
++          leading={labelsLeadingIcon}
++          testID={`sidebar-project-menu-labels-${projectViewKey}`}
++        >
++          {t("workspaceLabels.defaults.title")}
++        </DropdownMenuSubTrigger>
++      ) : null}
+       <OpenInFileManagerMenuItem
+         surface={surface}
+         path={projectPath}
+@@ -872,6 +922,8 @@ function ProjectHeaderRow({
+   const localDaemonServerId = useLocalDaemonServerId();
+   const projectPath = resolveSidebarProjectLocalPath(project, localDaemonServerId);
+   const settingsTarget = project.hosts[0] ?? null;
++  const labelTarget = useProjectDefaultLabelTarget(settingsTarget);
++  const pages = useProjectDefaultLabelMenuPages(labelTarget);
+   const handleBeginWorkspaceSetup = useCallback(() => {
+     if (!worktreeTarget) {
+       return;
+@@ -1029,6 +1081,7 @@ function ProjectHeaderRow({
+         align="start"
+         width={220}
+         testID={`sidebar-project-context-menu-${project.viewKey}`}
++        pages={pages}
+       >
+         <ProjectMenuItems
+           surface="context"
+diff --git a/packages/app/src/i18n/resources/ar.ts b/packages/app/src/i18n/resources/ar.ts
+index f159a46f..da0dd089 100644
+--- a/packages/app/src/i18n/resources/ar.ts
++++ b/packages/app/src/i18n/resources/ar.ts
+@@ -1021,6 +1021,9 @@ export const ar: TranslationResources = {
+       amber: "كهرماني",
+       blue: "أزرق",
+     },
++    defaults: {
++      title: "التسميات الافتراضية",
++    },
+     filter: {
+       clear: "مسح عامل التصفية",
+     },
+diff --git a/packages/app/src/i18n/resources/en.ts b/packages/app/src/i18n/resources/en.ts
+index a78f699d..5f6f105c 100644
+--- a/packages/app/src/i18n/resources/en.ts
++++ b/packages/app/src/i18n/resources/en.ts
+@@ -1030,6 +1030,9 @@ export const en = {
+       amber: "Amber",
+       blue: "Blue",
+     },
++    defaults: {
++      title: "Default labels",
++    },
+     filter: {
+       clear: "Clear filter",
+     },
+diff --git a/packages/app/src/i18n/resources/es.ts b/packages/app/src/i18n/resources/es.ts
+index eff34aac..50f680f1 100644
+--- a/packages/app/src/i18n/resources/es.ts
++++ b/packages/app/src/i18n/resources/es.ts
+@@ -1055,6 +1055,9 @@ export const es: TranslationResources = {
+       amber: "Ámbar",
+       blue: "Azul",
+     },
++    defaults: {
++      title: "Etiquetas predeterminadas",
++    },
+     filter: {
+       clear: "Borrar filtro",
+     },
+diff --git a/packages/app/src/i18n/resources/fr.ts b/packages/app/src/i18n/resources/fr.ts
+index f5c7520c..323ca507 100644
+--- a/packages/app/src/i18n/resources/fr.ts
++++ b/packages/app/src/i18n/resources/fr.ts
+@@ -1054,6 +1054,9 @@ export const fr: TranslationResources = {
+       amber: "Ambre",
+       blue: "Bleu",
+     },
++    defaults: {
++      title: "Étiquettes par défaut",
++    },
+     filter: {
+       clear: "Effacer le filtre",
+     },
+diff --git a/packages/app/src/i18n/resources/ja.ts b/packages/app/src/i18n/resources/ja.ts
+index 16960588..d6928df8 100644
+--- a/packages/app/src/i18n/resources/ja.ts
++++ b/packages/app/src/i18n/resources/ja.ts
+@@ -1032,6 +1032,9 @@ export const ja: TranslationResources = {
+       amber: "琥珀",
+       blue: "青",
+     },
++    defaults: {
++      title: "既定のラベル",
++    },
+     filter: {
+       clear: "フィルターをクリア",
+     },
+diff --git a/packages/app/src/i18n/resources/ko.ts b/packages/app/src/i18n/resources/ko.ts
+index 1f4543ee..6f89dd88 100644
+--- a/packages/app/src/i18n/resources/ko.ts
++++ b/packages/app/src/i18n/resources/ko.ts
+@@ -1028,6 +1028,9 @@ export const ko: TranslationResources = {
+       amber: "호박",
+       blue: "파랑",
+     },
++    defaults: {
++      title: "기본 레이블",
++    },
+     filter: {
+       clear: "필터 지우기",
+     },
+diff --git a/packages/app/src/i18n/resources/pt-BR.ts b/packages/app/src/i18n/resources/pt-BR.ts
+index 293f4ab0..9698fbc1 100644
+--- a/packages/app/src/i18n/resources/pt-BR.ts
++++ b/packages/app/src/i18n/resources/pt-BR.ts
+@@ -1046,6 +1046,9 @@ export const ptBR: TranslationResources = {
+       amber: "Âmbar",
+       blue: "Azul",
+     },
++    defaults: {
++      title: "Etiquetas padrão",
++    },
+     filter: {
+       clear: "Limpar filtro",
+     },
+diff --git a/packages/app/src/i18n/resources/ru.ts b/packages/app/src/i18n/resources/ru.ts
+index 0d94cf40..ad3ba3b4 100644
+--- a/packages/app/src/i18n/resources/ru.ts
++++ b/packages/app/src/i18n/resources/ru.ts
+@@ -1036,6 +1036,9 @@ export const ru: TranslationResources = {
+       amber: "Янтарный",
+       blue: "Синий",
+     },
++    defaults: {
++      title: "Метки по умолчанию",
++    },
+     filter: {
+       clear: "Очистить фильтр",
+     },
+diff --git a/packages/app/src/i18n/resources/zh-CN.ts b/packages/app/src/i18n/resources/zh-CN.ts
+index 93397806..75265a34 100644
+--- a/packages/app/src/i18n/resources/zh-CN.ts
++++ b/packages/app/src/i18n/resources/zh-CN.ts
+@@ -1013,6 +1013,9 @@ export const zhCN: TranslationResources = {
+       amber: "琥珀色",
+       blue: "蓝色",
+     },
++    defaults: {
++      title: "默认标签",
++    },
+     filter: {
+       clear: "清除筛选",
+     },
+diff --git a/packages/app/src/stores/session-store.ts b/packages/app/src/stores/session-store.ts
+index 3f1ae6ff..93d260aa 100644
+--- a/packages/app/src/stores/session-store.ts
++++ b/packages/app/src/stores/session-store.ts
+@@ -176,6 +176,7 @@ export interface ProjectDescriptor {
+   projectIconRevision?: string;
+   projectRootPath: string;
+   projectKind: WorkspaceDescriptorPayload["projectKind"];
++  defaultLabels?: string[];
+ }
+ 
+ export function normalizeProjectDescriptor(
+@@ -190,6 +191,8 @@ export function normalizeProjectDescriptor(
+     projectIconRevision: payload.projectIconRevision,
+     projectRootPath: payload.projectRootPath,
+     projectKind: payload.projectKind,
++    // COMPAT(projectDefaultLabels): old daemons omit the project's defaults.
++    defaultLabels: payload.projectDefaultLabels ?? [],
+   };
+ }
+ 
+diff --git a/packages/app/src/workspace-labels/index.ts b/packages/app/src/workspace-labels/index.ts
+index b2c46ab7..944843a5 100644
+--- a/packages/app/src/workspace-labels/index.ts
++++ b/packages/app/src/workspace-labels/index.ts
+@@ -185,6 +185,15 @@ class WorkspaceLabelsController {
+     return this.mutate(input.serverId, (client) => client.setWorkspaceLabel(input));
+   }
+ 
++  async setProjectDefaultLabel(input: {
++    serverId: string;
++    projectId: string;
++    label: WorkspaceLabelDefinition;
++    assigned: boolean;
++  }) {
++    return this.mutate(input.serverId, (client) => client.setProjectDefaultLabel(input));
++  }
++
+   async update(input: {
+     serverId: string;
+     name: string;
+diff --git a/packages/app/src/workspace-labels/picker.tsx b/packages/app/src/workspace-labels/picker.tsx
+index 7afdaeab..15a4402d 100644
+--- a/packages/app/src/workspace-labels/picker.tsx
++++ b/packages/app/src/workspace-labels/picker.tsx
+@@ -40,6 +40,10 @@ import { WorkspaceLabelDot, WorkspaceLabelSwatchRow } from "./swatch";
+ export const WORKSPACE_LABEL_PAGE_ID = "workspaceLabels";
+ const WORKSPACE_LABEL_CREATE_PAGE_ID = "workspaceLabelsCreate";
+ 
++/** The `MenuSubTrigger` on a project's menu that opens its defaults. */
++export const PROJECT_DEFAULT_LABEL_PAGE_ID = "projectDefaultLabels";
++const PROJECT_DEFAULT_LABEL_CREATE_PAGE_ID = "projectDefaultLabelsCreate";
++
+ /** The menu's own icon size, matching the trailing check on every other row. */
+ const MENU_ICON_SIZE = 14;
+ 
+@@ -61,6 +65,31 @@ export interface WorkspaceLabelTarget {
+   labels: readonly string[];
+ }
+ 
++export interface ProjectDefaultLabelTarget {
++  serverId: string;
++  projectId: string;
++  /** Label names every new workspace in the project is born with. */
++  labels: readonly string[];
++}
++
++/**
++ * What a tick on the assign page writes to. The pages know nothing else about their subject.
++ *
++ * The picker model keeps optimistic state keyed on this callback's identity, so it must stay
++ * the same function while the subject does: a label landing must not read as a new target.
++ */
++type WorkspaceLabelMutate = (input: {
++  label: WorkspaceLabelDefinition;
++  assigned: boolean;
++}) => Promise<unknown>;
++
++interface WorkspaceLabelBinding {
++  serverId: string;
++  /** Label names the subject already carries. */
++  assigned: readonly string[];
++  mutate: WorkspaceLabelMutate;
++}
++
+ const NO_PAGES: readonly MenuPageDefinition[] = [];
+ 
+ /**
+@@ -73,59 +102,103 @@ export function useWorkspaceLabelMenuPages(
+   target: WorkspaceLabelTarget | null,
+ ): readonly MenuPageDefinition[] {
+   const { t } = useTranslation();
++  const serverId = target?.serverId ?? null;
++  const workspaceId = target?.workspaceId ?? null;
++  const mutate = useMemo<WorkspaceLabelMutate | null>(
++    () =>
++      serverId && workspaceId
++        ? ({ label, assigned }) =>
++            workspaceLabels.setAssignment({ serverId, workspaceId, label, assigned })
++        : null,
++    [serverId, workspaceId],
++  );
++  return useMemo(() => {
++    if (!target || !mutate) return NO_PAGES;
++    return buildLabelMenuPages({
++      pageId: WORKSPACE_LABEL_PAGE_ID,
++      createPageId: WORKSPACE_LABEL_CREATE_PAGE_ID,
++      title: t("workspaceLabels.title"),
++      createTitle: t("workspaceLabels.create"),
++      binding: { serverId: target.serverId, assigned: target.labels, mutate },
++    });
++  }, [mutate, t, target]);
++}
++
++/**
++ * The same two pages behind a project's `Default labels` row.
++ *
++ * A project's defaults are assignments like any other, down to creating a label that does not
++ * exist yet, so they reuse the workspace pages rather than growing a second picker.
++ */
++export function useProjectDefaultLabelMenuPages(
++  target: ProjectDefaultLabelTarget | null,
++): readonly MenuPageDefinition[] {
++  const { t } = useTranslation();
++  const serverId = target?.serverId ?? null;
++  const projectId = target?.projectId ?? null;
++  const mutate = useMemo<WorkspaceLabelMutate | null>(
++    () =>
++      serverId && projectId
++        ? ({ label, assigned }) =>
++            workspaceLabels.setProjectDefaultLabel({ serverId, projectId, label, assigned })
++        : null,
++    [projectId, serverId],
++  );
+   return useMemo(() => {
+-    if (!target) return NO_PAGES;
+-    return [
+-      {
+-        id: WORKSPACE_LABEL_PAGE_ID,
+-        title: t("workspaceLabels.title"),
+-        content: (
+-          <WorkspaceLabelPickerPage
+-            serverId={target.serverId}
+-            workspaceId={target.workspaceId}
+-            assignedLabels={target.labels}
+-          />
+-        ),
+-      },
+-      {
+-        id: WORKSPACE_LABEL_CREATE_PAGE_ID,
+-        title: t("workspaceLabels.create"),
+-        // A page you type into is not one the pointer opens or dismisses on its own.
+-        hoverIntent: false,
+-        content: (
+-          <WorkspaceLabelCreatePage serverId={target.serverId} workspaceId={target.workspaceId} />
+-        ),
+-      },
+-    ];
+-  }, [t, target]);
++    if (!target || !mutate) return NO_PAGES;
++    return buildLabelMenuPages({
++      pageId: PROJECT_DEFAULT_LABEL_PAGE_ID,
++      createPageId: PROJECT_DEFAULT_LABEL_CREATE_PAGE_ID,
++      title: t("workspaceLabels.defaults.title"),
++      createTitle: t("workspaceLabels.create"),
++      binding: { serverId: target.serverId, assigned: target.labels, mutate },
++    });
++  }, [mutate, t, target]);
++}
++
++function buildLabelMenuPages(input: {
++  pageId: string;
++  createPageId: string;
++  title: string;
++  createTitle: string;
++  binding: WorkspaceLabelBinding;
++}): readonly MenuPageDefinition[] {
++  return [
++    {
++      id: input.pageId,
++      title: input.title,
++      content: (
++        <WorkspaceLabelPickerPage createPageId={input.createPageId} binding={input.binding} />
++      ),
++    },
++    {
++      id: input.createPageId,
++      title: input.createTitle,
++      // A page you type into is not one the pointer opens or dismisses on its own.
++      hoverIntent: false,
++      content: <WorkspaceLabelCreatePage binding={input.binding} />,
++    },
++  ];
+ }
+ 
+ /**
+- * Every label on the host, with the ones this workspace carries ticked.
++ * Every label on the host, with the ones its subject carries ticked.
+  *
+  * Assigning is multi-select, so a press toggles and nothing closes; the menu ends when it is
+  * dismissed. Assignment is the trailing check `MenuItem` already draws for a chosen row, and the
+  * colour goes in the leading slot, which puts both on the rails every other row in the menu uses.
+  */
+ function WorkspaceLabelPickerPage({
+-  serverId,
+-  workspaceId,
+-  assignedLabels,
++  createPageId,
++  binding,
+ }: {
+-  serverId: string;
+-  workspaceId: string;
+-  assignedLabels: readonly string[];
++  createPageId: string;
++  binding: WorkspaceLabelBinding;
+ }): ReactElement {
+   const { t } = useTranslation();
++  const { serverId, assigned: assignedLabels, mutate } = binding;
+   const { labels, targetHost: host } = useWorkspaceLabelProjection(serverId);
+-  const model = useMemo(
+-    () =>
+-      createWorkspaceLabelPickerModel({
+-        mutate: ({ label, assigned }) =>
+-          workspaceLabels.setAssignment({ serverId, workspaceId, label, assigned }),
+-      }),
+-    [serverId, workspaceId],
+-  );
++  const model = useMemo(() => createWorkspaceLabelPickerModel({ mutate }), [mutate]);
+   useEffect(() => {
+     model.sync({ labels, assigned: assignedLabels, online: host?.status === "online" });
+   }, [assignedLabels, host?.status, labels, model]);
+@@ -152,7 +225,7 @@ function WorkspaceLabelPickerPage({
+       ))}
+       {snapshot.rows.length > 0 ? <MenuSeparator /> : null}
+       <MenuSubTrigger
+-        id={WORKSPACE_LABEL_CREATE_PAGE_ID}
++        id={createPageId}
+         leading={CREATE_LEADING}
+         disabled={offline}
+         testID="workspace-label-picker-create"
+@@ -205,15 +278,11 @@ function WorkspaceLabelAssignRow({
+  *
+  * Picking a colour picks a colour: the label is created by the one row that says so, and only
+  * once the name is not empty. A failure keeps the draft and says what happened, because the
+- * alternative is retyping the name to find out whether the host is still there.
++ * alternative is retyping the name to find out whether the host is still there. The host mints
++ * the catalog entry the assignment names, so this is one call either way.
+  */
+-function WorkspaceLabelCreatePage({
+-  serverId,
+-  workspaceId,
+-}: {
+-  serverId: string;
+-  workspaceId: string;
+-}): ReactElement {
++function WorkspaceLabelCreatePage({ binding }: { binding: WorkspaceLabelBinding }): ReactElement {
++  const { serverId, mutate } = binding;
+   const { t } = useTranslation();
+   const menu = useMenuContext("WorkspaceLabelCreatePage");
+   const { targetHost: host } = useWorkspaceLabelProjection(serverId);
+@@ -228,17 +297,11 @@ function WorkspaceLabelCreatePage({
+     if (!trimmed || pending) return;
+     setPending(true);
+     setError(null);
+-    workspaceLabels
+-      .setAssignment({
+-        serverId,
+-        workspaceId,
+-        label: { name: trimmed, color },
+-        assigned: true,
+-      })
++    mutate({ label: { name: trimmed, color }, assigned: true })
+       .then(() => menu.goBack())
+       .catch((cause: unknown) => setError(workspaceLabelErrorMessage(cause)))
+       .finally(() => setPending(false));
+-  }, [color, menu, name, pending, serverId, workspaceId]);
++  }, [color, menu, mutate, name, pending]);
+ 
+   return (
+     <>
+diff --git a/packages/client/src/daemon-client.ts b/packages/client/src/daemon-client.ts
+index aa2a410a..ad6c1928 100644
+--- a/packages/client/src/daemon-client.ts
++++ b/packages/client/src/daemon-client.ts
+@@ -719,6 +719,10 @@ export type ProjectListPayload = Extract<
+   SessionOutboundMessage,
+   { type: "project.list.response" }
+ >["payload"];
++export type ProjectDefaultLabelSetPayload = Extract<
++  SessionOutboundMessage,
++  { type: "project.default_label.set.response" }
++>["payload"];
+ type ProjectListRequest = Extract<SessionInboundMessage, { type: "project.list.request" }>;
+ export type ProjectListOptions = Omit<ProjectListRequest, "type" | "requestId"> & {
+   requestId?: string;
+@@ -2706,6 +2710,31 @@ export class DaemonClient {
+     return { customName: payload.customName };
+   }
+ 
++  async setProjectDefaultLabel(input: {
++    projectId: string;
++    label: Extract<SessionInboundMessage, { type: "project.default_label.set.request" }>["label"];
++    assigned: boolean;
++    requestId?: string;
++  }): Promise<Pick<ProjectDefaultLabelSetPayload, "label" | "defaultLabels">> {
++    const payload =
++      await this.sendNamespacedCorrelatedSessionRequest<"project.default_label.set.response">({
++        requestId: input.requestId,
++        message: {
++          type: "project.default_label.set.request",
++          projectId: input.projectId,
++          label: input.label,
++          assigned: input.assigned,
++        },
++      });
++    if (!payload.accepted) {
++      throw new Error(payload.error ?? "setProjectDefaultLabel rejected");
++    }
++    return {
++      ...(payload.label ? { label: payload.label } : {}),
++      defaultLabels: payload.defaultLabels,
++    };
++  }
++
+   async setProjectIcon(
+     projectId: string,
+     source: ProjectIconSource,
+diff --git a/packages/protocol/src/messages.ts b/packages/protocol/src/messages.ts
+index 6faceb41..bcb6a813 100644
+--- a/packages/protocol/src/messages.ts
++++ b/packages/protocol/src/messages.ts
+@@ -1069,6 +1069,16 @@ export const WorkspaceLabelDeleteInspectRequestSchema = z.object({
+   name: z.string(),
+ });
+ 
++// Default labels are stamped onto every workspace the project goes on to create, so the
++// picker toggles one label per call exactly like the workspace assignment RPC above.
++export const ProjectDefaultLabelSetRequestSchema = z.object({
++  type: z.literal("project.default_label.set.request"),
++  requestId: z.string(),
++  projectId: z.string(),
++  label: WorkspaceLabelDefinitionSchema,
++  assigned: z.boolean(),
++});
++
+ export const WorkspaceRecoveryInspectRequestSchema = z.object({
+   type: z.literal("workspace.recovery.inspect.request"),
+   workspaceId: z.string(),
+@@ -1986,6 +1996,22 @@ export const ProjectRenameResponseSchema = z.object({
+   payload: ProjectRenameResponsePayloadSchema,
+ });
+ 
++export const ProjectDefaultLabelSetResponsePayloadSchema = z.object({
++  requestId: z.string(),
++  projectId: z.string(),
++  accepted: z.boolean(),
++  // Echoes the catalog entry the daemon settled on, which may differ in colour or
++  // casing from the one the client sent when the label already existed.
++  label: WorkspaceLabelDefinitionSchema.optional(),
++  defaultLabels: z.array(z.string()),
++  error: z.string().optional(),
++});
++
++export const ProjectDefaultLabelSetResponseSchema = z.object({
++  type: z.literal("project.default_label.set.response"),
++  payload: ProjectDefaultLabelSetResponsePayloadSchema,
++});
++
+ export const ProjectIconSetResponseSchema = z.object({
+   type: z.literal("project.icon.set.response"),
+   payload: z.object({
+@@ -3079,6 +3105,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
+   CloseItemsRequestMessageSchema,
+   UpdateAgentRequestMessageSchema,
+   ProjectRenameRequestSchema,
++  ProjectDefaultLabelSetRequestSchema,
+   ProjectIconSetRequestSchema,
+   ProjectRemoveRequestSchema,
+   WorkspaceTitleSetRequestSchema,
+@@ -4062,6 +4089,9 @@ export const WorkspaceProjectDescriptorPayloadSchema = z.object({
+   projectIconRevision: z.string().optional(),
+   projectRootPath: z.string(),
+   projectKind: z.enum(["git", "non_git", "directory"]),
++  // Catalog display names every new workspace under this project is born with.
++  // COMPAT(projectDefaultLabels): added in v0.8.0, remove optional after 2027-09-22.
++  projectDefaultLabels: z.array(z.string()).optional(),
+   // COMPAT(directorySync): sequence of this latest directory projection.
+   syncSeq: z.number().int().positive().optional(),
+ });
+@@ -6549,6 +6579,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
+   AgentRewindResponseMessageSchema,
+   UpdateAgentResponseMessageSchema,
+   ProjectRenameResponseSchema,
++  ProjectDefaultLabelSetResponseSchema,
+   ProjectIconSetResponseSchema,
+   ProjectRemoveResponseSchema,
+   WorkspaceTitleSetResponseSchema,
+@@ -6747,6 +6778,7 @@ export type AgentDetachResponseMessage = z.infer<typeof AgentDetachResponseMessa
+ export type AgentRewindResponseMessage = z.infer<typeof AgentRewindResponseMessageSchema>;
+ export type UpdateAgentResponseMessage = z.infer<typeof UpdateAgentResponseMessageSchema>;
+ export type ProjectRenameResponse = z.infer<typeof ProjectRenameResponseSchema>;
++export type ProjectDefaultLabelSetResponse = z.infer<typeof ProjectDefaultLabelSetResponseSchema>;
+ export type ProjectIconSetResponse = z.infer<typeof ProjectIconSetResponseSchema>;
+ export type ProjectRemoveResponse = z.infer<typeof ProjectRemoveResponseSchema>;
+ export type WorkspaceTitleSetResponse = z.infer<typeof WorkspaceTitleSetResponseSchema>;
+@@ -6765,6 +6797,9 @@ export type WorkspaceRecoveryRestoreResponse = z.infer<
+ export type WorkspaceCreateRequest = z.infer<typeof WorkspaceCreateRequestSchema>;
+ export type WorkspaceCreateResponse = z.infer<typeof WorkspaceCreateResponseSchema>;
+ export type ProjectRenameResponsePayload = z.infer<typeof ProjectRenameResponsePayloadSchema>;
++export type ProjectDefaultLabelSetResponsePayload = z.infer<
++  typeof ProjectDefaultLabelSetResponsePayloadSchema
++>;
+ export type ProjectRemoveResponsePayload = z.infer<typeof ProjectRemoveResponsePayloadSchema>;
+ export type WaitForFinishResponseMessage = z.infer<typeof WaitForFinishResponseMessageSchema>;
+ export type AgentPermissionRequestMessage = z.infer<typeof AgentPermissionRequestMessageSchema>;
+@@ -6897,6 +6932,7 @@ export type DeleteAgentRequestMessage = z.infer<typeof DeleteAgentRequestMessage
+ export type UpdateAgentRequestMessage = z.infer<typeof UpdateAgentRequestMessageSchema>;
+ export type ProjectIconSource = z.infer<typeof ProjectIconSourceSchema>;
+ export type ProjectRenameRequest = z.infer<typeof ProjectRenameRequestSchema>;
++export type ProjectDefaultLabelSetRequest = z.infer<typeof ProjectDefaultLabelSetRequestSchema>;
+ export type ProjectIconSetRequest = z.infer<typeof ProjectIconSetRequestSchema>;
+ export type ProjectRemoveRequest = z.infer<typeof ProjectRemoveRequestSchema>;
+ export type WorkspaceTitleSetRequest = z.infer<typeof WorkspaceTitleSetRequestSchema>;
+diff --git a/packages/server/src/server/authorization/operation-permissions.ts b/packages/server/src/server/authorization/operation-permissions.ts
+index 1f8b9e1d..befe197d 100644
+--- a/packages/server/src/server/authorization/operation-permissions.ts
++++ b/packages/server/src/server/authorization/operation-permissions.ts
+@@ -134,6 +134,7 @@ const INBOUND_PERMISSION = {
+   "plugin.source.update.request": "daemon.manage",
+   "project.add.request": "workspace.manage",
+   "project.create_directory.request": "workspace.manage",
++  "project.default_label.set.request": "workspace.manage",
+   "project.github.clone.request": "workspace.manage",
+   "project.icon.get.request": "workspace.read",
+   "project.icon.set.request": "workspace.manage",
+@@ -346,6 +347,7 @@ const OUTBOUND_PERMISSION = {
+   pong: "daemon.read",
+   "project.add.response": "workspace.manage",
+   "project.create_directory.response": "workspace.manage",
++  "project.default_label.set.response": "workspace.manage",
+   "project.github.clone.response": "workspace.manage",
+   "project.icon.get.response": "workspace.read",
+   "project.icon.set.response": "workspace.manage",
+diff --git a/packages/server/src/server/session.ts b/packages/server/src/server/session.ts
+index ae7a105a..c235f933 100644
+--- a/packages/server/src/server/session.ts
++++ b/packages/server/src/server/session.ts
+@@ -67,6 +67,10 @@ import { releaseWorkspaceServicePortPlan } from "./workspace-service-port-regist
+ import { getErrorMessage, getErrorMessageOr } from "@getpaseo/protocol/error-utils";
+ import { getAgentStatusPriority } from "@getpaseo/protocol/agent-state-bucket";
+ import { getParentAgentIdFromLabels } from "@getpaseo/protocol/agent-labels";
++import {
++  workspaceLabelKey,
++  type WorkspaceLabelDefinition,
++} from "@getpaseo/protocol/workspace-labels";
+ import type { WorkspaceGitRuntimeSnapshot, WorkspaceGitService } from "./workspace-git-service.js";
+ import type { ProjectUpdate } from "./workspace-reconciliation-service.js";
+ import {
+@@ -2404,6 +2408,8 @@ export class Session {
+         return this.handleUpdateAgentRequest(msg.agentId, msg.name, msg.labels, msg.requestId);
+       case "project.rename.request":
+         return this.handleProjectRenameRequest(msg.projectId, msg.customName, msg.requestId);
++      case "project.default_label.set.request":
++        return this.handleProjectDefaultLabelSetRequest(msg);
+       case "project.icon.set.request":
+         return this.handleProjectIconSetRequest(msg);
+       case "send_agent_message_request":
+@@ -3191,6 +3197,71 @@ export class Session {
+     }
+   }
+ 
++  private async handleProjectDefaultLabelSetRequest(
++    request: Extract<SessionInboundMessage, { type: "project.default_label.set.request" }>,
++  ): Promise<void> {
++    const { projectId, requestId, label, assigned } = request;
++    const reject = (error: string): void => {
++      this.emit({
++        type: "project.default_label.set.response",
++        payload: { requestId, projectId, accepted: false, defaultLabels: [], error },
++      });
++    };
++
++    try {
++      const existing = await this.projectRegistry.get(projectId);
++      if (!existing || existing.archivedAt) {
++        reject("Project not found");
++        return;
++      }
++
++      const current = existing.defaultLabels ?? [];
++      let settled: WorkspaceLabelDefinition | undefined;
++      let next: string[];
++      if (assigned) {
++        // The project picker has to be able to mint a label just like the workspace picker
++        // does, so the catalog entry comes first and its display name is what we store.
++        settled = await this.requireWorkspaceLabels().ensureDefinition(label);
++        const key = workspaceLabelKey(settled.name);
++        next = current.some((name) => workspaceLabelKey(name) === key)
++          ? [...current]
++          : [...current, settled.name];
++      } else {
++        const key = workspaceLabelKey(label.name);
++        next = current.filter((name) => workspaceLabelKey(name) !== key);
++      }
++
++      // Existing workspaces are deliberately left alone. A default is what a workspace is born
++      // with, not a rule it lives under, so changing it here must never rewrite labels a user
++      // already curated on workspaces this project created earlier.
++      const updated = {
++        ...existing,
++        defaultLabels: next.length > 0 ? next : undefined,
++        updatedAt: new Date().toISOString(),
++      };
++      await this.projectRegistry.upsert(updated);
++
++      this.emit({
++        type: "project.default_label.set.response",
++        payload: {
++          requestId,
++          projectId,
++          accepted: true,
++          ...(settled ? { label: settled } : {}),
++          defaultLabels: next,
++        },
++      });
++
++      await this.emitProjectUpdate({ kind: "upsert", project: updated });
++    } catch (error) {
++      this.sessionLogger.error(
++        { err: error, projectId, requestId },
++        "session: project.default_label.set.request error",
++      );
++      reject(getErrorMessageOr(error, "Failed to update project default labels"));
++    }
++  }
++
+   private async handleProjectIconSetRequest(
+     request: Extract<SessionInboundMessage, { type: "project.icon.set.request" }>,
+   ): Promise<void> {
+@@ -5263,6 +5334,9 @@ export class Session {
+       projectIconRevision: icon.revision,
+       projectRootPath: project.rootPath,
+       projectKind: project.kind,
++      ...(project.defaultLabels?.length
++        ? { projectDefaultLabels: [...project.defaultLabels] }
++        : {}),
+     };
+   }
+ 
+@@ -5931,11 +6005,43 @@ export class Session {
+     }
+   }
+ 
++  /**
++   * Keep project default labels in step with the catalog after a rename or a delete.
++   *
++   * This lives here rather than in the label service because the catalog store is constructed
++   * with the workspace registry alone and its journal covers workspace records only, never
++   * projects.json. Folding projects into that commit would mean widening the transaction across
++   * a store it does not own, so this is a plain follow-up write: the label operation has already
++   * succeeded, and the worst a crash in between can leave is a project default naming a label
++   * the catalog no longer has, which the picker already tolerates.
++   */
++  private async rewriteProjectDefaultLabels(fromKey: string, to: string | null): Promise<void> {
++    const projects = await this.projectRegistry.list();
++    for (const project of projects) {
++      const defaults = project.defaultLabels;
++      if (!defaults?.some((name) => workspaceLabelKey(name) === fromKey)) continue;
++      const next = defaults.flatMap((name) => {
++        if (workspaceLabelKey(name) !== fromKey) return [name];
++        return to ? [to] : [];
++      });
++      const updated = {
++        ...project,
++        defaultLabels: next.length > 0 ? next : undefined,
++        updatedAt: new Date().toISOString(),
++      };
++      await this.projectRegistry.upsert(updated);
++      await this.emitProjectUpdate({ kind: "upsert", project: updated });
++    }
++  }
++
+   private async handleWorkspaceLabelUpdate(
+     request: Extract<SessionInboundMessage, { type: "workspace.label.update.request" }>,
+   ): Promise<void> {
+     try {
+       const result = await this.requireWorkspaceLabels().update(request);
++      // Before the response, not after: a client that hears the rename and immediately reads a
++      // project would otherwise race this write and still see the name it just renamed away.
++      await this.rewriteProjectDefaultLabels(workspaceLabelKey(request.name), result.label.name);
+       this.emit({
+         type: "workspace.label.update.response",
+         payload: { requestId: request.requestId, ...result },
+@@ -5950,6 +6056,7 @@ export class Session {
+   ): Promise<void> {
+     try {
+       const result = await this.requireWorkspaceLabels().delete(request.name);
++      await this.rewriteProjectDefaultLabels(workspaceLabelKey(request.name), null);
+       this.emit({
+         type: "workspace.label.delete.response",
+         payload: { requestId: request.requestId, ...result },
+diff --git a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
+index a89e0448..536fb5fb 100644
+--- a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
++++ b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
+@@ -88,6 +88,18 @@ export class WorkspaceProvisioningError extends Error {
+   }
+ }
+ 
++// A project's default labels are stamped onto a workspace at birth and never again.
++// Inheritance is a starting state, not a rule to reconcile: once the workspace exists the
++// user owns its labels, and re-applying the defaults later would silently resurrect a label
++// they removed by hand. The paths that merely reuse or revive an existing workspace
++// (findOrCreateWorkspaceForDirectory, ensureWorkspaceRecordUnarchived, refreshWorkspaceRecord,
++// runInImportWorkspace) therefore never call this; only the two creation sites do, and they
++// share it so they cannot drift.
++function inheritedDefaultLabels(project: PersistedProjectRecord): { labels?: string[] } {
++  const defaults = project.defaultLabels;
++  return defaults && defaults.length > 0 ? { labels: [...defaults] } : {};
++}
++
+ export function createWorkspaceProvisioningService(deps: {
+   serverId?: string;
+   workspaceRegistry: WorkspaceRegistry;
+@@ -217,6 +229,7 @@ export function createWorkspaceProvisioningService(deps: {
+       title: title?.trim() || null,
+       createdAt: timestamp,
+       updatedAt: timestamp,
++      ...inheritedDefaultLabels(project),
+     });
+     await workspaceRegistry.upsert(workspace, context);
+     deps.lifecycle?.emit("workspace.created", { workspace: describeHookWorkspace(workspace) });
+@@ -250,6 +263,7 @@ export function createWorkspaceProvisioningService(deps: {
+       title: input.title,
+       createdAt: timestamp,
+       updatedAt: timestamp,
++      ...inheritedDefaultLabels(project),
+       ...(input.untrustedSource ? { untrustedSource: input.untrustedSource } : {}),
+     });
+     await workspaceRegistry.upsert(workspace, {
+diff --git a/packages/server/src/server/workspace-directory.ts b/packages/server/src/server/workspace-directory.ts
+index a50713e1..b1d0c5d3 100644
+--- a/packages/server/src/server/workspace-directory.ts
++++ b/packages/server/src/server/workspace-directory.ts
+@@ -572,6 +572,9 @@ export class WorkspaceDirectory {
+         projectCustomIconRevision: project.customIconRevision ?? null,
+         projectRootPath: project.rootPath,
+         projectKind: project.kind,
++        projectDefaultLabels: project.defaultLabels?.length
++          ? [...project.defaultLabels]
++          : undefined,
+       }));
+   }
+ 
+diff --git a/packages/server/src/server/workspace-labels/internal/service.ts b/packages/server/src/server/workspace-labels/internal/service.ts
+index f5609598..c459afb8 100644
+--- a/packages/server/src/server/workspace-labels/internal/service.ts
++++ b/packages/server/src/server/workspace-labels/internal/service.ts
+@@ -17,6 +17,11 @@ interface AssignmentCommit {
+   catalogChanged: boolean;
+ }
+ 
++interface EnsureCommit {
++  definition: WorkspaceLabelDefinition;
++  catalogChanged: boolean;
++}
++
+ interface UpdateCommit {
+   label: WorkspaceLabelDefinition;
+   affectedWorkspaceCount: number;
+@@ -121,6 +126,34 @@ export class WorkspaceLabelService {
+     });
+   }
+ 
++  /**
++   * Resolve a label to its catalog entry, creating the entry when the catalog has none.
++   *
++   * Assigning a label as a project default has to be able to mint a new label the same way
++   * assigning one to a workspace does, except there is no workspace to assign it to. An
++   * existing entry wins outright: the catalog owns the colour and the canonical casing, so a
++   * caller that guessed either differently gets the host's answer back instead of overwriting it.
++   */
++  async ensureDefinition(label: WorkspaceLabelDefinition): Promise<WorkspaceLabelDefinition> {
++    return this.exclusive(async () => {
++      const name = requireName(label.name);
++      const committed = await this.catalog.commit<EnsureCommit>((catalog) => {
++        const key = workspaceLabelKey(name);
++        const existing = catalog.find((candidate) => workspaceLabelKey(candidate.name) === key);
++        const definition = existing ?? { name, color: label.color };
++        return {
++          labels: existing ? [...catalog] : [...catalog, definition],
++          workspaceUpdates: [],
++          result: { definition, catalogChanged: existing === undefined },
++        };
++      });
++      if (committed.catalogChanged) {
++        this.sequence.publish({ kind: "upsert", label: committed.definition });
++      }
++      return committed.definition;
++    });
++  }
++
+   /**
+    * Edit a label: a new name, a new colour, or both, in one catalog commit.
+    *
+diff --git a/packages/server/src/server/workspace-registry.ts b/packages/server/src/server/workspace-registry.ts
+index b4b8d5cd..3c45d8c4 100644
+--- a/packages/server/src/server/workspace-registry.ts
++++ b/packages/server/src/server/workspace-registry.ts
+@@ -43,6 +43,10 @@ const PersistedProjectRecordSchema = z.object({
+     .nullable()
+     .optional()
+     .transform((value) => value ?? null),
++  // Catalog display names stamped onto every workspace this project creates.
++  // COMPAT(projectDefaultLabels): added in v0.8.0; absent rather than empty when
++  // the project has none, so untouched projects keep their existing JSON shape.
++  defaultLabels: z.array(z.string()).optional(),
+   createdAt: z.string(),
+   updatedAt: z.string(),
+   archivedAt: z.string().nullable(),
+@@ -648,6 +652,7 @@ export function createPersistedProjectRecord(input: {
+   customName?: string | null;
+   projectKey?: string | null;
+   customIconRevision?: string | null;
++  defaultLabels?: string[];
+   createdAt: string;
+   updatedAt: string;
+   archivedAt?: string | null;

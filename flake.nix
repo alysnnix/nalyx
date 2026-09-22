@@ -216,32 +216,46 @@
           '';
         });
 
-      # Agrupar a sidebar do Paseo pelas labels do workspace, que o upstream
-      # ainda nao faz: `SidebarGroupMode` so tem `project` e `status`, entao
-      # workspace da Seazone e workspace pessoal dividem a mesma lista ordenada
-      # por projeto e a unica separacao possivel e o filtro, que esconde em vez
-      # de agrupar.
-      #
-      # Aplicado como patch sobre o input, e nao num fork do repo, porque assim
-      # nao ha segundo lock para atualizar e o dia em que o upstream mexer
+      # Patches locais sobre o input do Paseo, aplicadas nesta ordem. Nenhuma
+      # delas vira PR upstream: sao ajustes pro uso daqui, e um fork so traria
+      # um segundo lock pra manter. Como patch, o dia em que o upstream mexer
       # nesses arquivos o build quebra alto, na hora do bump, em vez de um
-      # rebase silencioso ficar pendurado num fork. O mesmo diff vai para o
-      # upstream; quando entrar, esta funcao sai junto com os .patch.
+      # rebase silencioso ficar pendurado num fork.
       #
-      # Os dois pacotes saem do mesmo `src`, entao os dois levam o patch: o
+      # Os dois pacotes saem do mesmo `src`, entao os dois levam as patches: o
       # daemon serve a web UI e o desktop empacota a sua. O `npmDeps` e um FOD
-      # separado, montado do package-lock.json, que o patch nao toca: o hash
+      # separado, montado do package-lock.json, que patch nenhuma toca: o hash
       # continua valendo.
       #
-      # Os testes vao num arquivo separado, `sidebar-group-by-label.tests.patch`,
-      # que o Nix nao aplica: o filtro de `src` do proprio Paseo descarta todo
-      # `*.test.ts` antes do build, entao um hunk sobre eles nao acha o arquivo e
-      # derruba o patchPhase inteiro. Eles existem para o PR upstream e para
-      # rodar `npm test` num checkout de verdade, que e onde teste serve.
-      sidebarLabelGrouping =
+      # 1. sidebar-group-by-label: `SidebarGroupMode` do upstream so tem
+      #    `project` e `status`, entao workspace de trabalho e workspace pessoal
+      #    dividem a mesma lista e a unica separacao possivel e o filtro, que
+      #    esconde em vez de agrupar.
+      #
+      # 2. project-default-labels: a label so existia por workspace, e cada chat
+      #    e um workspace novo, entao marcar o que e trabalho custava uma visita
+      #    a cada chat. O projeto passa a carregar labels padrao (`defaultLabels`
+      #    em projects.json) e todo workspace criado nele ja nasce com elas;
+      #    renomear ou apagar uma label no catalogo acompanha os padroes.
+      #
+      # 3. label-manager-entry: o gerenciador de labels (renomear, recolorir,
+      #    apagar) ja existe no upstream, mas so se chega nele por dentro da
+      #    pagina de filtro, que por sua vez some quando o catalogo esta vazio.
+      #    A patch poe a entrada na raiz do menu de exibicao da sidebar.
+      #
+      # Os testes vao em arquivos `*.tests.patch` que o Nix nao aplica: o filtro
+      # de `src` do proprio Paseo descarta todo `*.test.ts` antes do build, entao
+      # um hunk sobre eles nao acha o arquivo e derruba o patchPhase inteiro.
+      # Eles existem pra rodar `npm test` num checkout de verdade, que e onde
+      # teste serve.
+      paseoLocalPatches =
         pkg:
         pkg.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ [ ./packages/paseo/sidebar-group-by-label.patch ];
+          patches = (old.patches or [ ]) ++ [
+            ./packages/paseo/sidebar-group-by-label.patch
+            ./packages/paseo/project-default-labels.patch
+            ./packages/paseo/label-manager-entry.patch
+          ];
         });
 
       claudeOverlay =
@@ -251,8 +265,8 @@
           omp = llm-agents.packages.${system}.omp;
           pi = llm-agents.packages.${system}.pi;
           herdr = inputs.herdr.packages.${system}.default;
-          paseo = fixPtyNode (sidebarLabelGrouping inputs.paseo.packages.${system}.default);
-          paseo-desktop = fixPtyNode (sidebarLabelGrouping inputs.paseo.packages.${system}.desktop);
+          paseo = fixPtyNode (paseoLocalPatches inputs.paseo.packages.${system}.default);
+          paseo-desktop = fixPtyNode (paseoLocalPatches inputs.paseo.packages.${system}.desktop);
         }
         // nixpkgs.lib.optionalAttrs hasPaseoGithub {
           paseo-github-integration = inputs.paseo-github.packages.${system}.github-integration;

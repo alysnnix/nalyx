@@ -1,0 +1,39 @@
+diff --git a/packages/app/src/components/sidebar/display-preferences/menu.tsx b/packages/app/src/components/sidebar/display-preferences/menu.tsx
+index 96ef1231..0745e09c 100644
+--- a/packages/app/src/components/sidebar/display-preferences/menu.tsx
++++ b/packages/app/src/components/sidebar/display-preferences/menu.tsx
+@@ -349,18 +349,24 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
+               </MenuSubTrigger>
+             </>
+           ) : null}
++          {/* The labels block always exists, so unlike the Host/Project pair above it always
++            carries its own separator, and only the filter row inside it is conditional. */}
++          <MenuSeparator />
+           {showLabelFilter ? (
+-            <>
+-              <MenuSeparator />
+-              <MenuSubTrigger
+-                id="labelFilter"
+-                indicator={hasActiveSidebarLabelFilter(preferences.labelFilter)}
+-                testID="sidebar-display-label-filter"
+-              >
+-                {t("workspaceLabels.title")}
+-              </MenuSubTrigger>
+-            </>
++            <MenuSubTrigger
++              id="labelFilter"
++              indicator={hasActiveSidebarLabelFilter(preferences.labelFilter)}
++              testID="sidebar-display-label-filter"
++            >
++              {t("workspaceLabels.title")}
++            </MenuSubTrigger>
+           ) : null}
++          {/* Kept as well as the copy at the foot of the filter page: that one is where you
++            already are when a label reads wrong, this one is the only way in at all when the
++            catalog is empty or every host carrying it is offline. */}
++          <MenuItem onSelect={openManager} testID="sidebar-display-label-manage">
++            {t("workspaceLabels.manage.open")}
++          </MenuItem>
+         </MenuSurface>
+       </MenuRoot>
+       <WorkspaceLabelManagerModal visible={managerOpen} onClose={closeManager} />
