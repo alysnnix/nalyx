@@ -198,9 +198,9 @@ let
   # These trees are read straight out of the store by whoever sets the overlay;
   # nothing copies them into $HOME, and they carry no `.nix-managed` marker
   # because no activation script ever prunes them.
-  personaNames = lib.unique (lib.mapAttrsToList (_: skill: skill.persona) (
-    lib.filterAttrs (_: skill: skill ? persona) skills
-  ));
+  personaNames = lib.unique (
+    lib.mapAttrsToList (_: skill: skill.persona) (lib.filterAttrs (_: skill: skill ? persona) skills)
+  );
 
   personaSkillsSrc = lib.genAttrs personaNames (
     persona:
