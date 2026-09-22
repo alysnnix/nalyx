@@ -9,7 +9,11 @@
   enabledPlugins = {
     "code-review@claude-plugins-official" = true;
     "context7@claude-plugins-official" = true;
-    "firebase@claude-plugins-official" = true;
+    # `false` e nao ausente: a ativacao mescla com `. * $managed`, entao uma
+    # chave que some daqui sobrevive no settings.json que ja esta na maquina.
+    # Apagar a linha deixaria o plugin ligado para sempre, e com ele um
+    # `firebase mcp` (~305 MiB, dois processos) por agente do Paseo.
+    "firebase@claude-plugins-official" = false;
     "impeccable@impeccable" = true;
     "playground@claude-plugins-official" = true;
     "playwright@claude-plugins-official" = true;

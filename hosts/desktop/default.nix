@@ -217,10 +217,11 @@
   modules.services.paseo.enable = true;
 
   # Teto de memoria do daemon, e nao do sistema: cada agente sobe a sua propria
-  # copia inteira dos MCP servers (firebase, sapron, posthog, nekt, growthbook,
-  # grafana, composio), sem nada compartilhado entre eles. Medido nesta maquina:
-  # 12 a 16 processos e 1,4 a 2,5 GiB por agente, e o cgroup do `paseo.service`
-  # em 16,4 GiB com uma duzia de agentes vivos depois de 35 minutos de uptime.
+  # copia dos MCP servers que ainda falam stdio, sem nada compartilhado entre
+  # eles. Medido nesta maquina antes da limpeza: 12 a 16 processos e 1,4 a 2,5
+  # GiB por agente, e o cgroup do `paseo.service` em 16,4 GiB com uma duzia de
+  # agentes vivos depois de 35 minutos de uptime. O teto continua valendo
+  # depois dela, porque o custo por agente cai mas nao vira zero.
   #
   # Sem teto isso enche a RAM, e nada corta. `oomctl` lista zero cgroups
   # monitorados, porque o systemd-oomd do NixOS so cobre as user slices e o
