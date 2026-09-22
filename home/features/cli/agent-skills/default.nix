@@ -55,12 +55,22 @@ let
   # Claude skills activation runs, which would otherwise delete these on the
   # next switch. That sweep also skips symlinks when pruning, so the two
   # activation entries are order-independent.
+  #
+  # Persona skills (`.omp-persona`, see ./sources.nix) are skipped, and the
+  # link they may have had from an earlier generation is removed. They rely on
+  # `hide: true` to stay out of the prompt until a persona agent asks for them,
+  # and Claude Code has no `hide`: linking them here would put the whole bundle
+  # back into every Claude session, which is what the persona exists to avoid.
   linkIntoClaude = ''
     CLAUDE_DST="$HOME/.claude/skills"
     mkdir -p "$CLAUDE_DST"
 
     for dir in "${agentSkillsSrc}"/*; do
       name="$(basename "$dir")"
+      if [ -e "$dir/.omp-persona" ]; then
+        [ -L "$CLAUDE_DST/$name" ] && rm -f "$CLAUDE_DST/$name"
+        continue
+      fi
       ln -sfn "../../.agents/skills/$name" "$CLAUDE_DST/$name"
     done
   '';

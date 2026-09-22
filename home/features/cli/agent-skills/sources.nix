@@ -15,6 +15,19 @@
 # is served by the installed CLI and tracks its version, not this pin. That CLI
 # is pinned by this repo too, in `packages/agent-browser.nix`.
 #
+# A skill may carry `persona = "<name>"`. That skill is still discovered by
+# every OMP session, but `hide: true` is injected into its frontmatter, so it
+# never reaches the system prompt's skill list: it costs nothing until an agent
+# that declares it (`autoloadSkills` in ~/.omp/agent/agents/<persona>.md) is
+# spawned, or until something reads `skill://<name>` on purpose. Hidden is the
+# only knob that does this. `ignoredSkills` would also silence a skill, but it
+# drops it from discovery entirely, which breaks both `autoloadSkills` and
+# `skill://`, so the persona agent would have nothing left to load.
+#
+# Persona skills are also kept out of ~/.claude/skills (see ./default.nix):
+# Claude Code has no equivalent of `hide`, so a link there would put the whole
+# bundle back in every Claude session's prompt, which is the thing this avoids.
+#
 # Bumping a pin is `nix-prefetch-url --unpack <tarball>` piped through
 # `nix hash convert`. The Orca entries below are the exception: they pin single
 # files, so bumping one is `nix store prefetch-file <url>`, which prints the SRI
@@ -86,6 +99,13 @@ let
     orca-cli = orcaSkill "orca-cli" "sha256-shubgEdcNZlrnARjebnJ+niPLTV8npF779irGzffLnc=";
     orchestration = orcaSkill "orchestration" "sha256-99oN1A2GgeKwMD+g+i9+5ONvLspklaSvV7krmFff9zI=";
 
+    # The frontend persona: the design bundle that only a UI-dedicated agent
+    # should be paying for. Three skills, three different jobs, which is why
+    # the persona carries all of them instead of picking one: `superdesign`
+    # drives the canvas tool, `frontend-design` is aesthetic direction, and
+    # `landing-page-design` is a conversion-page system with hard visual rules.
+    # Together they are ~25 KB of instructions and three long descriptions in
+    # every prompt, on every host, for sessions that mostly never touch a UI.
     superdesign = {
       src = pkgs.fetchFromGitHub {
         owner = "superdesigndev";
@@ -94,6 +114,36 @@ let
         hash = "sha256-fHenfYIsKCIkSKkyjW0t5mXjrZ4HE1NZiVmReHUsTjs=";
       };
       subdir = "skills/superdesign";
+      persona = "frontend";
+    };
+
+    # `frontend-design` used to come from the `frontend-design` entry in
+    # ~/.claude/settings.json's `enabledPlugins` (see
+    # ../claude/settings/plugins.nix, where it no longer appears). A Claude
+    # plugin cannot be hidden and its provider outranks this one in OMP, so the
+    # skill is pinned straight from the marketplace repo instead. The plugin
+    # carried nothing else: `plugins/frontend-design` is a README, a LICENSE
+    # and this one skill.
+    frontend-design = {
+      src = pkgs.fetchFromGitHub {
+        owner = "anthropics";
+        repo = "claude-plugins-official";
+        rev = "3f04a46d3aeff9f58bd4c27bcb9673ffafa4031e";
+        hash = "sha256-F/w7piZx7GoZOm5qmhT9MKAB3QsQrndEyzijWBeBIRc=";
+      };
+      subdir = "plugins/frontend-design/skills/frontend-design";
+      persona = "frontend";
+    };
+
+    landing-page-design = {
+      src = pkgs.fetchFromGitHub {
+        owner = "elayadesign";
+        repo = "ai-design-skills";
+        rev = "1c1e97cb9878e236552c772092dda7adcdddbcb2";
+        hash = "sha256-Vscb+Cd6HnUk5222xIrJZ5q/cTqir5lhPWQ+RLAQ8d4=";
+      };
+      subdir = "skills/landing-page-design";
+      persona = "frontend";
     };
   };
 
@@ -104,6 +154,13 @@ let
   #
   # An entry may carry an optional `postProcess` shell snippet, run inside its
   # own copied directory, for patching instructions that do not hold here.
+  #
+  # An entry carrying `persona` gets two more things: `hide: true` inserted
+  # into its frontmatter, and a `.omp-persona` marker naming the persona, which
+  # is what ./default.nix keys on to leave the skill out of ~/.claude/skills.
+  # The insert asserts the file opens with a `---` fence instead of assuming
+  # it: a pin bumped to a SKILL.md without frontmatter would otherwise ship a
+  # `hide: true` line in the middle of the prose and silently stay visible.
   agentSkillsSrc = pkgs.runCommandLocal "agent-skills" { } (
     "mkdir -p $out\n"
     + lib.concatStringsSep "\n" (
@@ -112,6 +169,14 @@ let
         ''
           cp -r --no-preserve=mode '${skill.src}/${skill.subdir}' "$out/${name}"
           touch "$out/${name}/.nix-managed"
+        ''
+        + lib.optionalString (skill ? persona) ''
+          if [ "$(head -n1 "$out/${name}/SKILL.md")" != "---" ]; then
+            echo "${name}: SKILL.md has no frontmatter fence, cannot hide it" >&2
+            exit 1
+          fi
+          sed -i '1a hide: true' "$out/${name}/SKILL.md"
+          printf '%s\n' '${skill.persona}' > "$out/${name}/.omp-persona"
         ''
         + lib.optionalString (skill ? postProcess) ''
           (
@@ -122,7 +187,33 @@ let
       ) skills
     )
   );
+
+  # The same skills again, per persona, without the `hide: true` line. This is
+  # the half a persona session reads: an OMP session pointed at one of these
+  # through `skills.customDirectories` (see ../omp/persona-overlays.nix) picks
+  # the unhidden copy, which overrides the same-named hidden one from the
+  # `agents` provider, so the bundle is advertised in the prompt exactly there
+  # and nowhere else.
+  #
+  # These trees are read straight out of the store by whoever sets the overlay;
+  # nothing copies them into $HOME, and they carry no `.nix-managed` marker
+  # because no activation script ever prunes them.
+  personaNames = lib.unique (
+    lib.mapAttrsToList (_: skill: skill.persona) (lib.filterAttrs (_: skill: skill ? persona) skills)
+  );
+
+  personaSkillsSrc = lib.genAttrs personaNames (
+    persona:
+    pkgs.runCommandLocal "agent-skills-persona-${persona}" { } (
+      "mkdir -p $out\n"
+      + lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (name: skill: ''
+          cp -r --no-preserve=mode '${skill.src}/${skill.subdir}' "$out/${name}"
+        '') (lib.filterAttrs (_: skill: (skill.persona or null) == persona) skills)
+      )
+    )
+  );
 in
 {
-  inherit agentSkillsSrc;
+  inherit agentSkillsSrc personaSkillsSrc;
 }
