@@ -21,10 +21,39 @@ let
   # if tailscale is momentarily down (e.g. at boot), so it survives cold boots.
   collabOverlay = "${config.home.homeDirectory}/.config/omp/collab-overlay.yml";
 
+  # Shared with modules/services/paseo.nix too, for the same reason: the
+  # derived `omp-frontend` provider there hands one of these to every session
+  # it launches. See the header of ./persona-overlays.nix.
+  personaOverlays = import ./persona-overlays.nix { inherit pkgs lib; };
+
   healClaudePlugins = import ./heal-claude-plugins.nix { inherit pkgs; };
 in
 {
   home.packages = [ healClaudePlugins ];
+
+  home.file =
+    {
+      # The frontend persona. OMP discovers user task agents from
+      # ~/.omp/agent/agents/*.md, and this one is the only consumer of the
+      # skills marked `persona = "frontend"` in ../agent-skills/sources.nix:
+      # they carry `hide: true`, so they stay out of every other session's
+      # prompt and reach this agent through its `autoloadSkills` frontmatter,
+      # which resolves against the parent session's discovered skills (hidden
+      # ones included).
+      #
+      # Dispatch it with the task tool (`agent: "frontend-builder"`), or from
+      # the Paseo side by launching a worker on the `Frontend` profile, which
+      # runs the derived `omp-frontend` provider (modules/services/paseo.nix).
+      ".omp/agent/agents/frontend-builder.md".source = ./agents/frontend-builder.md;
+    }
+    # The persona overlays, at a path a human can type. Deliberately absent
+    # from PI_CONFIG_FILES below: an overlay that is always loaded is not a
+    # persona, it is just more prompt. A terminal session opts in per launch,
+    # `PI_CONFIG_FILES="$PI_CONFIG_FILES:$HOME/.config/omp/persona-frontend.yml" omp`.
+    // lib.mapAttrs' (
+      persona: overlay:
+      lib.nameValuePair ".config/omp/persona-${persona}.yml" { source = overlay; }
+    ) personaOverlays;
 
   home.sessionVariables.PI_CONFIG_FILES =
     "${configOverlay}" + lib.optionalString isWsl ":${collabOverlay}";
