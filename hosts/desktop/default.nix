@@ -216,6 +216,27 @@
   # switch o app precisa ser reiniciado uma vez para largar a porta.
   modules.services.paseo.enable = true;
 
+  # Teto de memoria do daemon, e nao do sistema: cada agente sobe a sua propria
+  # copia inteira dos MCP servers (firebase, sapron, posthog, nekt, growthbook,
+  # grafana, composio), sem nada compartilhado entre eles. Medido nesta maquina:
+  # 12 a 16 processos e 1,4 a 2,5 GiB por agente, e o cgroup do `paseo.service`
+  # em 16,4 GiB com uma duzia de agentes vivos depois de 35 minutos de uptime.
+  #
+  # Sem teto isso enche a RAM, e nada corta. `oomctl` lista zero cgroups
+  # monitorados, porque o systemd-oomd do NixOS so cobre as user slices e o
+  # daemon e servico de sistema. O OOM killer do kernel tambem nao entra: o zram
+  # absorve a pressao dentro da propria RAM, entao a alocacao nunca chega a
+  # falhar, o reclaim gira, e a maquina trava viva em vez de perder um processo.
+  #
+  # MemoryHigh e o freio: o reclaim fica agressivo dentro do cgroup do Paseo e
+  # quem estala e ele, nao o desktop. MemoryMax e o fusivel: estourou, o kernel
+  # mata um agente ali dentro. 28 GiB cabem uns dezesseis agentes e ainda deixam
+  # mais de 30 GiB para o desktop, o Chrome e os containers.
+  systemd.services.paseo.serviceConfig = {
+    MemoryHigh = "28G";
+    MemoryMax = "36G";
+  };
+
   # Perifericos do gearhub (home/features/programs/gearhub). O daemon do
   # cooler liga aqui; o resto e acesso a hardware que os CLIs precisam.
   modules.services.openlinkhub.enable = true;
