@@ -475,7 +475,7 @@ reconhecimento em português determinístico em vez de depender de detecção.
 | `stt.provider` | `openai` | é onde `language` funciona |
 | `stt.model` | `whisper-1` | ASR puro; um modelo que segue instrução trata a fala como pedido (ver abaixo) |
 | `stt.language` | `pt` | ISO-639-1, não `pt-BR` |
-| `tts.model` | `tts-1-hd` | `gpt-4o-mini-tts` provavelmente funcionaria, mas `openai/tts.ts:11` só declara `tts-1` e `tts-1-hd` |
+| `tts.model` | `tts-1-hd` | único valor nas duas listas: o daemon valida com `z.enum(["tts-1", "tts-1-hd"])` e o projeto da chave não libera `tts-1` (403 medido). `gpt-4o-mini-tts` é mais barato e a chave o aceita, mas o enum o rejeita |
 | `tts.voice` | default `alloy` | aceita `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` |
 
 O `whisper-1` precisa estar liberado no projeto da chave. A OpenAI permite

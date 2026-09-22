@@ -195,9 +195,18 @@ in
           # inerte aqui. Ou seja, transcricao ruim chega em vez de ser
           # descartada, o que e melhor que receber um resumo do que se falou.
           #
-          # O daemon 0.8.0-beta.1 valida os modelos declarados e aceita apenas
-          # `tts-1` e `tts-1-hd`. `tts-1` preserva a opcao de menor custo entre
-          # os valores aceitos e evita derrubar o worker no boot.
+          # `tts-1-hd` e nao `tts-1`: o modelo tem que estar na intersecao de
+          # duas listas, e `tts-1` esta fora de uma delas. O daemon
+          # 0.8.0-beta.1 valida com `z.enum(["tts-1", "tts-1-hd"])`
+          # (speech/providers/openai/config.js:4), e o projeto desta chave tem
+          # allowlist de modelos onde `tts-1` nao entrou: medido contra a API,
+          # `tts-1` responde 403 "Project ... does not have access to model
+          # `tts-1`" e `tts-1-hd` responde 200. Ou seja, o voice mode ficou
+          # sem TTS nenhum enquanto isto dizia `tts-1`.
+          #
+          # `gpt-4o-mini-tts` seria mais barato e a chave o aceita (200 na
+          # mesma medicao), mas o enum do daemon o rejeita, entao `tts-1-hd` e
+          # o unico valor que as duas pontas aceitam.
           #
           # A credencial NAO vem daqui: `providers.openai.apiKey` existiria no
           # schema, mas `settings` vira JSON no /nix/store, legivel por
@@ -220,7 +229,7 @@ in
             # aqui, mesmo com o modelo novo.
             tts = {
               provider = "openai";
-              model = "tts-1";
+              model = "tts-1-hd";
             };
           };
         };
