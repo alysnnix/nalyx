@@ -41,6 +41,18 @@ let
   # omp reescreve o arquivo no setup e a chave desaparece.
   ompConfigOverlay = import ../../home/features/cli/omp/config-overlay.nix { inherit pkgs; };
 
+  # Os overlays de persona da omp. Cada um liga UM conjunto de skills que fica
+  # escondido no resto do mundo (`hide: true`, ../../home/features/cli/
+  # agent-skills/sources.nix). Aqui eles viram provider derivado: e o unico
+  # ponto do Paseo 0.8 onde da para prender env a um agente sem plugin, porque
+  # `agentProfiles` nao carrega env nem system prompt, o config do agente nao
+  # tem campo `env`, e os hooks `before` de plugin nao recebem nem label nem
+  # profile para decidir em cima. O env do provider entra em `buildOmpLaunch`
+  # antes do env da sessao, e vale em create, resume e refresh.
+  ompPersonaOverlays = import ../../home/features/cli/omp/persona-overlays.nix {
+    inherit pkgs lib;
+  };
+
   # O plugin de voz vive neste repo, em packages/paseo-tts, e nao num input:
   # ele so faz sentido junto desta configuracao de daemon (usa a mesma chave da
   # OpenAI do ditado e a mesma omp dos agentes), entao um repo separado so
@@ -299,6 +311,15 @@ in
               thinkingOptionId = "low";
               notes = "Trabalho de volume e pouca decisao: triagem de fila, varredura de logs, coleta de dados, atualizacao mecanica de registro. Rapido e barato, e e isso que se paga aqui. NAO use pra decidir arquitetura nem pra revisar codigo.";
             }
+            {
+              id = "frontend";
+              name = "Frontend";
+              provider = "omp-frontend";
+              model = "anthropic/claude-opus-5";
+              modeId = "full";
+              thinkingOptionId = "medium";
+              notes = "Construir interface: tela, componente, fluxo, landing page e o sistema visual deles. Unico perfil que carrega as skills de design (superdesign, frontend-design, landing-page-design), porque roda num provider proprio (`omp-frontend`); em qualquer outro perfil elas estao escondidas e o modelo nem sabe que existem. Use para trabalho cuja entrega e algo que alguem olha, nao para o backend que a tela consome. Roda sem pedir permissao, entao lance em workspace com isolamento de worktree.";
+            }
           ];
 
           # `enableTerminalAgentHooks` fica de fora de proposito. Ele nao e
@@ -326,6 +347,28 @@ in
           copilot.enabled = false;
           opencode.enabled = false;
           pi.enabled = false;
+
+          # A persona de frontend, como provider derivado da omp. `extends`
+          # herda binario, modos e params do pai e so mescla o que esta aqui,
+          # entao a unica diferenca e o env.
+          #
+          # PI_CONFIG_FILES repete o overlay base de proposito: o env do
+          # provider substitui a variavel inteira que o servico exporta abaixo
+          # (`environment.PI_CONFIG_FILES`), nao acrescenta a ela. Perder o
+          # overlay base custaria `enabledProviders`, ou seja o ~/.claude
+          # inteiro, que e justamente o acidente documentado la em cima.
+          #
+          # O que o segundo arquivo faz: aponta `skills.customDirectories` para
+          # a copia nao escondida das skills de frontend, que sobrescreve a
+          # copia escondida de mesmo nome. Resultado: as tres skills so
+          # aparecem no prompt das sessoes lancadas por ESTE provider.
+          omp-frontend = {
+            extends = "omp";
+            label = "OMP Frontend";
+            description = "OMP com o pacote de skills de interface carregado.";
+            enabled = true;
+            env.PI_CONFIG_FILES = "${ompConfigOverlay}:${ompPersonaOverlays.frontend}";
+          };
         };
 
         # Quem escreve mensagem de commit, nome de branch e titulo de
