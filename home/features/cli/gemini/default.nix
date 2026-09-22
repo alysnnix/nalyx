@@ -36,10 +36,21 @@ in
         fi
 
         echo "Installing Gemini MCP: $url"
-        
-        # The '|| true' ensures that even if the CLI fails (e.g., network issue),
-        # it won't break the entire system rebuild.
-        $DRY_RUN_CMD ${pkgs.gemini-cli}/bin/gemini extensions install "$url" || echo "Failed to install $repo_name, moving on..."
+
+        # `--consent` e o que impede o travamento. Sem ele o CLI abre um prompt
+        # de confirmacao no tty, e a ativacao roda dentro de
+        # home-manager-aly.service, que nao tem tty nenhum: o comando nao falha,
+        # ele espera para sempre, o systemd mata a unit no timeout de 5 min e
+        # tudo que viria depois desta activation nao roda. `--skip-settings`
+        # tira o segundo prompt, o de configuracao.
+        #
+        # O `timeout` e cinto de seguranca, nao redundancia: `|| echo` cobre
+        # comando que FALHA, e nada aqui cobria comando que PENDURA. Se uma
+        # versao futura do CLI reintroduzir uma pergunta, isto vira um aviso de
+        # dois minutos em vez de uma ativacao quebrada.
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/timeout 120 \
+          ${pkgs.gemini-cli}/bin/gemini extensions install "$url" --consent --skip-settings \
+          < /dev/null || echo "Failed to install $repo_name, moving on..."
       else
         echo "Gemini MCP $repo_name is already installed."
       fi
