@@ -1,0 +1,41 @@
+diff --git a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
+index 0dee0a08..7175544d 100644
+--- a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
++++ b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
+@@ -521,6 +521,36 @@ test("createWorkspaceForDirectory honors an explicit active project without cwd
+   expect(workspace.projectId).toBe(project.projectId);
+ });
+ 
++test("a workspace is born with its project's default labels, and bare when the project has none", async () => {
++  const labelled = await projectRegistry.getOrCreateActiveByRoot({
++    rootPath: path.join(tmpDir, "labelled"),
++    kind: "non_git",
++    displayName: "labelled",
++    timestamp: "2026-03-01T00:00:00.000Z",
++  });
++  await projectRegistry.upsert({ ...labelled, defaultLabels: ["Work", "Urgent"] });
++  const plain = await projectRegistry.getOrCreateActiveByRoot({
++    rootPath: path.join(tmpDir, "plain"),
++    kind: "non_git",
++    displayName: "plain",
++    timestamp: "2026-03-01T00:00:00.000Z",
++  });
++
++  const inherited = await provisioning.createWorkspaceForDirectory(
++    path.join(tmpDir, "labelled", "chat"),
++    null,
++    labelled.projectId,
++  );
++  const bare = await provisioning.createWorkspaceForDirectory(
++    path.join(tmpDir, "plain", "chat"),
++    null,
++    plain.projectId,
++  );
++
++  expect((await workspaceRegistry.get(inherited.workspaceId))?.labels).toEqual(["Work", "Urgent"]);
++  expect((await workspaceRegistry.get(bare.workspaceId))?.labels).toBeUndefined();
++});
++
+ test("createWorkspaceForDirectory refreshes an explicit project's stale Git kind", async () => {
+   const rootPath = path.join(tmpDir, "repo");
+   gitRoots.add(rootPath);
