@@ -230,11 +230,17 @@
   #
   # MemoryHigh e o freio: o reclaim fica agressivo dentro do cgroup do Paseo e
   # quem estala e ele, nao o desktop. MemoryMax e o fusivel: estourou, o kernel
-  # mata um agente ali dentro. 28 GiB cabem uns dezesseis agentes e ainda deixam
-  # mais de 30 GiB para o desktop, o Chrome e os containers.
+  # mata um agente ali dentro.
+  #
+  # Os valores saem da reserva, nao do teto: medido em uso normal, tudo que nao
+  # e Paseo (Chrome, traycer, a stack de containers, o GNOME) ocupa 18,6 GiB.
+  # Reservar 22 GiB cobre isso com folga para pico e page cache, e o que sobra
+  # dos 62,6 GiB e o que o daemon pode tomar: 40 GiB, uns vinte e quatro agentes
+  # no custo medido de 1,7 GiB cada. O freio entra 6 GiB antes do fusivel, que e
+  # espaco de sobra para o reclaim trabalhar sem nunca chegar a matar ninguem.
   systemd.services.paseo.serviceConfig = {
-    MemoryHigh = "28G";
-    MemoryMax = "36G";
+    MemoryHigh = "34G";
+    MemoryMax = "40G";
   };
 
   # Perifericos do gearhub (home/features/programs/gearhub). O daemon do
