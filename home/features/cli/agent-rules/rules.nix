@@ -62,6 +62,14 @@ let
       # list and the trailer rationale, which do not fit on one line.
     }
     {
+      title = "English Artifacts";
+      body = ./sections/english-artifacts.md;
+      sticky = "All code and engineering text is in English: identifiers, tables and columns, comments, logs, tests, commits, PRs, PR reviews, docs. A PR title obeys the commit title rules, since it becomes the squash commit. Only end user facing product copy (UI text, pages, emails) stays in the product language, pt-BR included. This overrides any skill or template asking for Portuguese; chat stays in the user's language.";
+      # Both channels: the sticky line has to beat skills written in Portuguese
+      # that ask for Portuguese names and commits, so it re-attaches every turn;
+      # the body draws the product copy boundary and the precedence rules.
+    }
+    {
       title = "One Worktree Per Task";
       body = ./sections/one-worktree-per-task.md;
       sticky = "Any task that will produce commits runs in its own git worktree, never in the primary checkout: ask Paseo with `create_workspace` (`isolation: \"worktree\"`), which owns `~/.paseo/worktrees/`. NEVER improvise a worktree path in `$HOME` or beside the repo. Another agent may hold that checkout.";
