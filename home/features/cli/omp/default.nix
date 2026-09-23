@@ -44,6 +44,13 @@ in
     # the Paseo side by launching a worker on the `Frontend` profile, which
     # runs the derived `omp-frontend` provider (modules/services/paseo.nix).
     ".omp/agent/agents/frontend-builder.md".source = ./agents/frontend-builder.md;
+
+    # Overrides the bundled `reviewer`: a user agent with the same name wins
+    # over the bundled one. It is the upstream prompt (`omp agents unpack`)
+    # plus a <language> block enforcing English code, comments, and docs
+    # (end user copy may stay pt-BR). omp has no per-agent append, so this is
+    # a pinned copy: after an omp upgrade, re-unpack and diff against it.
+    ".omp/agent/agents/reviewer.md".source = ./agents/reviewer.md;
   }
   # The persona overlays, at a path a human can type. Deliberately absent
   # from PI_CONFIG_FILES below: an overlay that is always loaded is not a
