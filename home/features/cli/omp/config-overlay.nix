@@ -15,6 +15,14 @@
 { pkgs }:
 let
   yamlFormat = pkgs.formats.yaml { };
+
+  # Anthropic only. Opus where the role decides or writes code, Sonnet where
+  # it reads, summarizes, or does rote work: effort trims thinking tokens but
+  # not the per-token price, and Opus costs twice what Sonnet does. Change a
+  # role here, not in `/model`: the overlay outranks the mutable config, so a
+  # role picked in the TUI is written but never wins.
+  opus = effort: "anthropic/claude-opus-5-5:${effort}";
+  sonnet = effort: "anthropic/claude-sonnet-5:${effort}";
 in
 yamlFormat.generate "omp-nix-overlay.yml" {
   # Foreign user-level discovery sources omp is allowed to read. The default
@@ -33,6 +41,35 @@ yamlFormat.generate "omp-nix-overlay.yml" {
   # toggling a user source from inside omp no longer sticks. Adding a source
   # means adding it to this list.
   enabledProviders = [ "claude" ];
+
+  # Model personas. Built-in roles first, then two custom ones (`review`,
+  # `explore`) that only exist to be targeted by the agent map below.
+  modelRoles = {
+    default = opus "high"; # the main session
+    plan = opus "xhigh"; # plan mode
+    slow = opus "max"; # `--slow`, the hard problems
+    task = opus "high"; # implementation subagents
+    advisor = opus "high"; # the turn reviewer, when enabled
+    review = opus "xhigh"; # reviewer agents
+    vision = sonnet "medium";
+    commit = sonnet "low";
+    smol = sonnet "low"; # quick one-shots, sonic, prewalk target
+    explore = sonnet "low"; # scout: read-heavy, so input tokens dominate
+    # Session titles, memory, auto-thinking classification: background
+    # chores that run on every turn, where Opus buys nothing but latency.
+    tiny = "anthropic/claude-haiku-4-5";
+  };
+
+  # Route each task agent through a role instead of its bundled default, so
+  # the table above is the single place a subagent's model is decided.
+  task.agentModelOverrides = {
+    task = "@task";
+    frontend-builder = "@task";
+    sonic = "@smol";
+    scout = "@explore";
+    reviewer = "@review";
+    security-reviewer = "@review";
+  };
 
   startup = {
     # Suppress omp's startup/status notices, including the `xd://: mounted
