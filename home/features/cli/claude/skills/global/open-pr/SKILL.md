@@ -52,24 +52,31 @@ Extract `owner/repo` from the remote URL to use with `gh` commands.
 ### 5. Build PR metadata
 
 #### Title
-Use conventional commits format based on the branch name and changes:
+The PR title follows exactly the same rules as a commit title, because on squash merge it becomes the title of the squash commit on the base branch:
+
+- English, `type(scope): description`, **50 characters max for the whole line**, `type` and `(scope)` included
+- Lowercase, imperative mood, no trailing period
+- `type` is one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+Count the characters before creating the PR. Over 50, shorten the description rather than dropping the scope.
+
 ```
-feat: short description
-fix: short description
-refactor: short description
-chore: short description
+feat(auth): add refresh token rotation
+fix(api): handle empty booking list
+refactor(db): extract reservation queries
+chore(ci): bump node to 22
 ```
 
-#### Body (write in Portuguese pt-BR)
+#### Body (write in English)
 ```markdown
 ## Summary
-- bullet points do que foi feito
+- bullet points of what was done
 
-## Alterações
-- **`path/to/file.py`**: breve descrição da mudança
+## Changes
+- **`path/to/file.py`**: short description of the change
 
 ## Test plan
-- [ ] checklist de testes necessários
+- [ ] checklist of required tests
 ```
 
 #### Labels
@@ -160,8 +167,8 @@ Do not run `gh pr ready` here. Leaving draft is the reviewer's call, not this sk
 - **NEVER** create PR with empty body
 - **NEVER** guess labels, always read the full list from the repo first
 - **ALWAYS** assign the current user as PR owner (assignee)
-- **ALWAYS** write PR body in Portuguese (pt-BR)
-- **ALWAYS** use conventional commit format for title
+- **ALWAYS** write the PR body in English
+- **ALWAYS** keep the PR title a valid commit title (conventional format, English, at most 50 characters): it becomes the squash commit
 - **ALWAYS** verify the PR was created correctly (assignee, labels, reviewers)
 - If PR template exists at `.github/PULL_REQUEST_TEMPLATE.md`, use it as body structure instead
 - **ALWAYS** create the PR as a draft (`--draft`)
