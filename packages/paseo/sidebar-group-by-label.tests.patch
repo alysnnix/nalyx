@@ -1,3 +1,5 @@
+diff --git a/packages/app/src/components/sidebar/sidebar-labels.test.ts b/packages/app/src/components/sidebar/sidebar-labels.test.ts
+index eb5abc1c2..02442704b 100644
 --- a/packages/app/src/components/sidebar/sidebar-labels.test.ts
 +++ b/packages/app/src/components/sidebar/sidebar-labels.test.ts
 @@ -1,7 +1,7 @@
@@ -9,7 +11,7 @@
  
  function workspace(
    workspaceId: string,
-@@ -67,3 +67,55 @@
+@@ -67,3 +67,55 @@ describe("sidebar label filtering", () => {
      ).toEqual(["blank"]);
    });
  });
@@ -65,9 +67,11 @@
 +    ]);
 +  });
 +});
+diff --git a/packages/app/src/components/sidebar/sidebar-projection.test.ts b/packages/app/src/components/sidebar/sidebar-projection.test.ts
+index 55882a0c4..220e2be47 100644
 --- a/packages/app/src/components/sidebar/sidebar-projection.test.ts
 +++ b/packages/app/src/components/sidebar/sidebar-projection.test.ts
-@@ -4,6 +4,7 @@
+@@ -4,6 +4,7 @@ import type {
    SidebarWorkspaceEntry,
    SidebarWorkspacePlacement,
  } from "@/hooks/use-sidebar-workspaces-list";
@@ -75,7 +79,7 @@
  import { buildSidebarProjection } from "./sidebar-projection";
  
  function makeWorkspace(
-@@ -64,7 +65,7 @@
+@@ -64,7 +65,7 @@ function makeProject(
  }
  
  function projectionInput(options?: {
@@ -84,7 +88,7 @@
    pinnedCollapsed?: boolean;
  }) {
    const pinned = makeWorkspace("pinned", "running");
-@@ -82,6 +83,11 @@
+@@ -82,6 +83,11 @@ function projectionInput(options?: {
      ]),
      projectNamesByViewKey: new Map([["project", "Project"]]),
      groupMode: options?.groupMode ?? ("project" as const),
@@ -96,7 +100,7 @@
      pinnedCollapsed: options?.pinnedCollapsed ?? false,
      collapsedProjectKeys: new Set<string>(),
      collapsedWorkspaceGroupKeys: new Set<string>(),
-@@ -92,7 +98,7 @@
+@@ -92,7 +98,7 @@ function projectionInput(options?: {
   * Two projects, one workspace each, both labelled — so every grouping mode puts rows from more
   * than one project on screen, and a mode that asked for fewer icons than it renders would show it.
   */
@@ -105,7 +109,7 @@
    const first = makeWorkspace("first", "running", ["Urgent"], "project");
    const second = makeWorkspace("second", "needs_input", ["Backend"], "other-project");
    return {
-@@ -113,7 +119,7 @@
+@@ -113,7 +119,7 @@ function twoProjectInput(groupMode: "project" | "status") {
  describe("buildSidebarProjection", () => {
    // The rule that outlived the bug it was written for: a project icon is fetched per project, so
    // whatever a mode groups by, the rows it produces can only reference projects already covered.
@@ -114,9 +118,11 @@
      it(`covers every row ${groupMode} grouping renders with a project icon target`, () => {
        const projection = buildSidebarProjection(twoProjectInput(groupMode));
        const covered = new Set(projection.projectIconTargets.map((target) => target.projectViewKey));
+diff --git a/packages/app/src/stores/sidebar-view-store.test.ts b/packages/app/src/stores/sidebar-view-store.test.ts
+index b9df715fa..0fe788e3c 100644
 --- a/packages/app/src/stores/sidebar-view-store.test.ts
 +++ b/packages/app/src/stores/sidebar-view-store.test.ts
-@@ -127,6 +127,15 @@
+@@ -127,6 +127,15 @@ describe("sidebar view store", () => {
      });
    });
  

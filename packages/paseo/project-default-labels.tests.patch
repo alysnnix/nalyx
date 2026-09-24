@@ -1,5 +1,5 @@
 diff --git a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
-index 0dee0a08..7175544d 100644
+index 0dee0a08d..7175544d0 100644
 --- a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
 +++ b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.test.ts
 @@ -521,6 +521,36 @@ test("createWorkspaceForDirectory honors an explicit active project without cwd

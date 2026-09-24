@@ -596,15 +596,16 @@
         "nixpkgs": "nixpkgs_6"
       },
       "locked": {
-        "lastModified": 1788867621,
-        "narHash": "sha256-gSeJJ3X1g8RNWpmIlDH+D+E25inc/v8syq3dP94l2rY=",
+        "lastModified": 1790102053,
+        "narHash": "sha256-5pjFV28DmKsptnAajWEWeOAvkur3QkJAHSJZyfiqRh4=",
         "owner": "getpaseo",
         "repo": "paseo",
-        "rev": "da8c1b5c94e752b01d451645e5fa52aba2c1b2f0",
+        "rev": "81865852011df86aa0ad0ae411cb2f5e4078153f",
         "type": "github"
       },
       "original": {
         "owner": "getpaseo",
+        "ref": "v0.9.1",
         "repo": "paseo",
         "type": "github"
       }

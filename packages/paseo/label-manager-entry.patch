@@ -1,5 +1,5 @@
 diff --git a/packages/app/src/components/sidebar/display-preferences/menu.tsx b/packages/app/src/components/sidebar/display-preferences/menu.tsx
-index 96ef1231..0745e09c 100644
+index 96ef12313..0745e09c1 100644
 --- a/packages/app/src/components/sidebar/display-preferences/menu.tsx
 +++ b/packages/app/src/components/sidebar/display-preferences/menu.tsx
 @@ -349,18 +349,24 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
