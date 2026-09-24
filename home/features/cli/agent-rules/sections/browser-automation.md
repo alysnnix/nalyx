@@ -26,6 +26,11 @@ so the profile is always the user's choice, never the agent's:
   when the user already named the profile in this conversation.
 - Work that needs no login (localhost, a public page, a fresh test account)
   runs without `--profile`, in a clean browser, and needs no question.
+- Pin the launch flags for the whole session through the environment, in the
+  same shell call as the commands:
+  `AGENT_BROWSER_SESSION=<name> AGENT_BROWSER_PROFILE="<profile>" AGENT_BROWSER_HEADED=1`.
+  A later command without the same `--profile`/`--headed` makes the daemon
+  relaunch a clean browser, and the page silently turns into `about:blank`.
 
 ### Showing the work
 
