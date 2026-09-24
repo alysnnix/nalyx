@@ -8,6 +8,9 @@
   isServer ? false,
   ...
 }:
+let
+  agentBrowser = pkgs.callPackage ../../../packages/agent-browser.nix { };
+in
 {
   imports = [
     ./zsh
@@ -75,6 +78,22 @@
       #
       # Kept on terminal-only hosts on purpose: it has no window of its own, and
       # it is the one browser tool every agent is standardized on.
-      (pkgs.callPackage ../../../packages/agent-browser.nix { })
+      agentBrowser
     ];
+
+  # The agent-browser dashboard (http://localhost:4848), up from login so the
+  # agents' sessions can be watched without anyone starting it by hand.
+  # `dashboard start` forks its server and exits, hence oneshot plus
+  # RemainAfterExit: the forked server stays in the unit's cgroup, and stop
+  # runs the CLI's own `dashboard stop`.
+  systemd.user.services.agent-browser-dashboard = lib.mkIf (!isServer) {
+    Unit.Description = "agent-browser observability dashboard";
+    Service = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${lib.getExe agentBrowser} dashboard start";
+      ExecStop = "${lib.getExe agentBrowser} dashboard stop";
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
 }

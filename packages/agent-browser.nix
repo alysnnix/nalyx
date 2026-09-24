@@ -53,9 +53,27 @@ pkgs.stdenv.mkDerivation {
     runHook postInstall
   '';
 
+  # `--profile` reuses a copy of a real Chrome profile, whose cookies are
+  # encrypted with the session keyring (gnome-keyring, `v11` cookies). Chrome
+  # then needs two things a service like the Paseo daemon does not have: the
+  # session D-Bus, and `--password-store=gnome-libsecret`, since it only
+  # auto-detects the keyring from XDG_CURRENT_DESKTOP and Hyprland is not on its
+  # list. Without them the profile opens logged out. Both are added only when
+  # they apply: the bus only if unset and the socket exists, the store only
+  # when gnome-keyring is running, so hosts without a keyring (WSL, servers)
+  # keep Chrome's own default. Prepended to AGENT_BROWSER_ARGS so an explicit
+  # `--password-store` from the caller comes later and wins.
   postFixup = ''
     wrapProgram $out/bin/agent-browser \
-      --set-default AGENT_BROWSER_EXECUTABLE_PATH ${lib.getExe chrome}
+      --set-default AGENT_BROWSER_EXECUTABLE_PATH ${lib.getExe chrome} \
+      --run '_ab_rt="''${XDG_RUNTIME_DIR:-/run/user/$UID}"
+    if [ -z "''${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -S "$_ab_rt/bus" ]; then
+      export DBUS_SESSION_BUS_ADDRESS="unix:path=$_ab_rt/bus"
+    fi
+    if [ -S "$_ab_rt/keyring/control" ]; then
+      export AGENT_BROWSER_ARGS="--password-store=gnome-libsecret''${AGENT_BROWSER_ARGS:+,$AGENT_BROWSER_ARGS}"
+    fi
+    unset _ab_rt'
   '';
 
   meta = {
