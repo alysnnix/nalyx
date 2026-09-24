@@ -56,6 +56,22 @@ in
         todo handshake de WebSocket, inclusive de mesma origem).
       '';
     };
+
+    extraAllowedOrigins = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [ "https://other-host.tailnet-name.ts.net" ];
+      description = ''
+        Origens alem da propria que o daemon aceita no handshake de WebSocket.
+
+        Uma UI do Paseo servida por outro no (a web UI de outra maquina que
+        adiciona este daemon como host) manda o Origin dela, nao o deste no, e
+        o daemon fecha o socket com "Rejected connection from origin". O app
+        nativo nao passa por isso porque manda `paseo://app`. Mesma opcao que
+        `modules.cli.paseo.tailnetServe.extraAllowedOrigins` do lado
+        home-manager; os valores nomeiam a tailnet e vem da camada privada.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -94,7 +110,7 @@ in
       # recusado, com "Rejected connection from origin" no daemon.log. Sem
       # WebSocket o app nao completa o autoconnect e cai na tela /welcome, que
       # parece "a publicacao nao funcionou".
-      settings.daemon.cors.allowedOrigins = [ "https://${cfg.fqdn}" ];
+      settings.daemon.cors.allowedOrigins = [ "https://${cfg.fqdn}" ] ++ cfg.extraAllowedOrigins;
     };
 
     systemd.services.paseo-tailnet-serve = {
