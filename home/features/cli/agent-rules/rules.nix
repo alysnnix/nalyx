@@ -87,6 +87,14 @@ let
       longForm = false;
     }
     {
+      title = "Browser Automation";
+      body = ./sections/browser-automation.md;
+      sticky = "Drive the browser only with the `agent-browser` CLI, never the Paseo `browser_*` tools, the omp `browser` object, or Playwright, unless the user names one. NEVER open the `Default` Chrome profile (personal) nor attach to the user's running Chrome; when a login is needed, ask which of the other profiles from `agent-browser profiles` to use.";
+      # Both channels: opening the personal profile hands the agent every
+      # personal account, which cannot be undone, so the imperative re-attaches
+      # every turn; the body carries the tool list and the no-login case.
+    }
+    {
       title = "Writing Style";
       body = ./sections/writing-style.md;
       sticky = "NEVER write em-dashes or en-dashes in any output, including code, docs, commits, and chat. Use commas, periods, parentheses, or rephrase.";
