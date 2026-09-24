@@ -1,6 +1,8 @@
+diff --git a/packages/app/src/components/sidebar/display-preferences/menu.tsx b/packages/app/src/components/sidebar/display-preferences/menu.tsx
+index 018c8cc37..96ef12313 100644
 --- a/packages/app/src/components/sidebar/display-preferences/menu.tsx
 +++ b/packages/app/src/components/sidebar/display-preferences/menu.tsx
-@@ -89,6 +89,7 @@
+@@ -89,6 +89,7 @@ type OptionIcon = ComponentType<{
  const GROUPING_ICONS: Record<SidebarGroupMode, OptionIcon> = {
    project: withUnistyles(Folder),
    status: withUnistyles(CircleDashed),
@@ -8,7 +10,7 @@
  };
  
  const TITLE_SOURCE_ICONS: Record<WorkspaceTitleSource, OptionIcon> = {
-@@ -120,13 +121,14 @@
+@@ -120,13 +121,14 @@ const TRAILING_ICONS: Record<SidebarTrailingChoice, OptionIcon> = {
    timestamp: withUnistyles(Clock),
  };
  
@@ -24,6 +26,8 @@
  };
  
  const TITLE_SOURCE_LABEL_KEYS: Record<WorkspaceTitleSource, string> = {
+diff --git a/packages/app/src/components/sidebar/sidebar-labels.ts b/packages/app/src/components/sidebar/sidebar-labels.ts
+index 0472d27a5..86b9cc5e8 100644
 --- a/packages/app/src/components/sidebar/sidebar-labels.ts
 +++ b/packages/app/src/components/sidebar/sidebar-labels.ts
 @@ -1,13 +1,29 @@
@@ -58,7 +62,7 @@
  }
  
  export function statusWorkspaceGroups(groups: readonly StatusGroup[]): SidebarWorkspaceGroup[] {
-@@ -19,6 +35,93 @@
+@@ -19,6 +35,93 @@ export function statusWorkspaceGroups(groups: readonly StatusGroup[]): SidebarWo
    }));
  }
  
@@ -152,6 +156,8 @@
  /**
   * Applies the Labels page's selection to the sidebar.
   *
+diff --git a/packages/app/src/components/sidebar/sidebar-model.tsx b/packages/app/src/components/sidebar/sidebar-model.tsx
+index 9399a3bd1..65583eca3 100644
 --- a/packages/app/src/components/sidebar/sidebar-model.tsx
 +++ b/packages/app/src/components/sidebar/sidebar-model.tsx
 @@ -1,4 +1,5 @@
@@ -160,7 +166,7 @@
  import {
    useSidebarWorkspacesList,
    type SidebarProjectEntry,
-@@ -54,12 +55,13 @@
+@@ -54,12 +55,13 @@ export function SidebarModelProvider({
    active?: boolean;
    children: ReactNode;
  }) {
@@ -175,7 +181,7 @@
    const collapsedProjectKeys = useSidebarCollapsedSectionsStore(
      (state) => state.collapsedProjectKeys,
    );
-@@ -139,6 +141,7 @@
+@@ -139,6 +141,7 @@ export function SidebarModelProvider({
      visibleWorkspaceKeys,
    ]);
    const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
@@ -183,7 +189,7 @@
    const projectionInput = useMemo(
      () => ({
        projects: filteredProjects,
-@@ -150,16 +153,20 @@
+@@ -150,16 +153,20 @@ export function SidebarModelProvider({
        pinnedCollapsed,
        collapsedProjectKeys,
        collapsedWorkspaceGroupKeys,
@@ -204,6 +210,8 @@
        filteredWorkspaceEntriesByKey,
      ],
    );
+diff --git a/packages/app/src/components/sidebar/sidebar-projection.ts b/packages/app/src/components/sidebar/sidebar-projection.ts
+index c67042b45..75cdcaf10 100644
 --- a/packages/app/src/components/sidebar/sidebar-projection.ts
 +++ b/packages/app/src/components/sidebar/sidebar-projection.ts
 @@ -1,3 +1,4 @@
@@ -211,7 +219,7 @@
  import { buildStatusGroups } from "@/hooks/sidebar-status-view-model";
  import {
    splitPinnedSidebarGroups,
-@@ -18,7 +19,11 @@
+@@ -18,7 +19,11 @@ import {
    type SidebarShortcutModel,
    type SidebarShortcutSection,
  } from "@/utils/sidebar-shortcuts";
@@ -224,7 +232,7 @@
  
  export interface SidebarProjection {
    pinnedGroups: PinnedSidebarGroups;
-@@ -45,6 +50,10 @@
+@@ -45,6 +50,10 @@ export interface SidebarProjectionInput {
    pinnedCollapsed: boolean;
    collapsedProjectKeys: ReadonlySet<string>;
    collapsedWorkspaceGroupKeys: ReadonlySet<string>;
@@ -235,7 +243,7 @@
  }
  
  export function buildSidebarProjection(input: SidebarProjectionInput): SidebarProjection {
-@@ -90,7 +99,9 @@
+@@ -90,7 +99,9 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
    };
  }
  
@@ -246,7 +254,7 @@
  function buildWorkspaceGroups(
    input: SidebarProjectionInput,
    unpinnedWorkspaces: SidebarWorkspaceEntry[],
-@@ -102,5 +113,11 @@
+@@ -102,5 +113,11 @@ function buildWorkspaceGroups(
        return statusWorkspaceGroups(
          buildStatusGroups(unpinnedWorkspaces, input.projectNamesByViewKey),
        );
@@ -258,9 +266,11 @@
 +      });
    }
  }
+diff --git a/packages/app/src/components/sidebar/sidebar-status-list.tsx b/packages/app/src/components/sidebar/sidebar-status-list.tsx
+index 051121fd3..a051cab0e 100644
 --- a/packages/app/src/components/sidebar/sidebar-status-list.tsx
 +++ b/packages/app/src/components/sidebar/sidebar-status-list.tsx
-@@ -38,7 +38,9 @@
+@@ -38,7 +38,9 @@ import {
    CircleCheck,
    CircleDot,
    CircleX,
@@ -270,7 +280,7 @@
  import { useToast } from "@/contexts/toast-context";
  import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
  import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
-@@ -105,6 +107,7 @@
+@@ -106,6 +108,7 @@ const ThemedCircleAlert = withUnistyles(CircleAlert);
  const ThemedCircleCheck = withUnistyles(CircleCheck);
  const ThemedCircleDot = withUnistyles(CircleDot);
  const ThemedCircleX = withUnistyles(CircleX);
@@ -278,7 +288,7 @@
  const EMPTY_SHORTCUT_INDEX = new Map<string, number>();
  
  function statusWorkspaceKeyExtractor(workspace: SidebarWorkspaceEntry): string {
-@@ -465,7 +468,7 @@
+@@ -466,7 +469,7 @@ function StatusGroupLeadingVisual({
    showChevron: boolean;
  }) {
    if (!showChevron) {
@@ -287,7 +297,7 @@
    }
    if (collapsed) {
      return <ThemedChevronRight size={14} uniProps={foregroundMutedColorMapping} />;
-@@ -488,6 +491,22 @@
+@@ -489,6 +492,22 @@ function StatusGroupIcon({ bucket }: { bucket: StatusBucket }) {
    }
  }
  
@@ -310,9 +320,11 @@
  const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
    workspace,
    hostBadge,
+diff --git a/packages/app/src/stores/sidebar-view-store.ts b/packages/app/src/stores/sidebar-view-store.ts
+index 19f559c89..744252032 100644
 --- a/packages/app/src/stores/sidebar-view-store.ts
 +++ b/packages/app/src/stores/sidebar-view-store.ts
-@@ -5,7 +5,7 @@
+@@ -5,7 +5,7 @@ import { z } from "zod";
  import { workspaceLabelKey } from "@getpaseo/protocol/workspace-labels";
  import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
  
@@ -321,7 +333,7 @@
  
  const SIDEBAR_VIEW_STORAGE_KEY = "sidebar-view";
  const LEGACY_SIDEBAR_GROUP_MODE_STORAGE_KEY = "sidebar-group-mode";
-@@ -141,7 +141,7 @@
+@@ -141,7 +141,7 @@ export function migrateSidebarViewState(persistedState: unknown): SidebarViewPer
    }
  
    return {

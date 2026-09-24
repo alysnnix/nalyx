@@ -46,8 +46,11 @@
 
     # paseo: self-hosted daemon for AI coding agents.
     # Not following nixpkgs: consume its pinned npm-deps hash to avoid a rebuild.
+    # Pinned to a release tag, not the default branch: the local patches in
+    # packages/paseo/ are regenerated against one exact tree, so a bump is a
+    # deliberate edit here, never a side effect of `nix flake update`.
     paseo = {
-      url = "github:getpaseo/paseo";
+      url = "github:getpaseo/paseo/v0.9.1";
     };
 
     # paseo-github: o plugin de integracao com o GitHub para o Paseo, repo
@@ -159,9 +162,11 @@
       # O build Nix do Paseo perde o addon nativo do node-pty.
       # `scripts/trace-daemon.mjs` monta o closure por tracing estatico e
       # precisa listar a mao o que e carregado por path computado; a linha que
-      # cobre o node-pty aponta para `node_modules/node-pty/prebuilds/...`, mas
-      # o npm aninha o pacote em `packages/server/node_modules/node-pty` e nao
-      # existe copia na raiz. Nenhum `pty.node` chega ao $out.
+      # cobre o node-pty (em 0.9.1, um glob por
+      # `node_modules/node-pty/prebuilds/<plat>-<arch>/**`) aponta para a raiz,
+      # mas o npm aninha o pacote em `packages/server/node_modules/node-pty` e
+      # nao existe copia na raiz. O glob casa zero arquivos sem erro nenhum, e
+      # nenhum `pty.node` chega ao $out.
       #
       # O daemon sobe assim mesmo, porque o terminal roda em processo separado:
       # o worker morre no import, o supervisor sobrevive, e o sintoma so
@@ -258,6 +263,21 @@
           ];
         });
 
+      # O `nix/npm-deps.hash` da tag v0.9.1 ficou para tras: o commit de
+      # release mexeu no package-lock.json (bump de versao) e o hash nao foi
+      # regenerado, entao o FOD do upstream falha com hash mismatch mesmo com
+      # o nixpkgs dele. O `.override { npmDepsHash }` e a porta que o proprio
+      # nix/package.nix abre para isso. O desktop reusa o `npmDeps` do daemon
+      # (`inherit (paseo) npmDeps`), entao recebe o daemon corrigido em vez de
+      # um hash seu. Num bump, apague o override primeiro: se o hash do
+      # upstream bater, ele nao faz mais falta.
+      paseoUpstream = inputs.paseo.packages.${system}.default.override {
+        npmDepsHash = "sha256-9UWtpZrCdyYyGq3HGNgSpU1+2Imu3oYqtSumq2DtANc=";
+      };
+      paseoDesktopUpstream = inputs.paseo.packages.${system}.desktop.override {
+        paseo = paseoUpstream;
+      };
+
       claudeOverlay =
         _: _:
         {
@@ -265,8 +285,8 @@
           omp = llm-agents.packages.${system}.omp;
           pi = llm-agents.packages.${system}.pi;
           herdr = inputs.herdr.packages.${system}.default;
-          paseo = fixPtyNode (paseoLocalPatches inputs.paseo.packages.${system}.default);
-          paseo-desktop = fixPtyNode (paseoLocalPatches inputs.paseo.packages.${system}.desktop);
+          paseo = fixPtyNode (paseoLocalPatches paseoUpstream);
+          paseo-desktop = fixPtyNode (paseoLocalPatches paseoDesktopUpstream);
         }
         // nixpkgs.lib.optionalAttrs hasPaseoGithub {
           paseo-github-integration = inputs.paseo-github.packages.${system}.github-integration;

@@ -1,5 +1,5 @@
 diff --git a/packages/app/src/components/sidebar-workspace-list.tsx b/packages/app/src/components/sidebar-workspace-list.tsx
-index 347315bd..323f102a 100644
+index 4275099cf..172f5ee85 100644
 --- a/packages/app/src/components/sidebar-workspace-list.tsx
 +++ b/packages/app/src/components/sidebar-workspace-list.tsx
 @@ -36,7 +36,7 @@ import { getSidebarRowBackdrop } from "@/components/sidebar/sidebar-row-backdrop
@@ -35,7 +35,7 @@ index 347315bd..323f102a 100644
  
  const foregroundColorMapping = (theme: Theme) => ({
    color: theme.colors.foreground,
-@@ -460,6 +469,31 @@ const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedC
+@@ -461,6 +470,31 @@ const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedC
  const openInNewWindowLeadingIcon = (
    <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
  );
@@ -67,7 +67,7 @@ index 347315bd..323f102a 100644
  
  function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
    return (
-@@ -484,6 +518,8 @@ function ProjectKebabMenu({
+@@ -485,6 +519,8 @@ function ProjectKebabMenu({
    removeProjectStatus: "idle" | "pending" | "success";
  }) {
    const { t } = useTranslation();
@@ -76,7 +76,7 @@ index 347315bd..323f102a 100644
    return (
      <DropdownMenu compactMode="sheet">
        <DropdownMenuTrigger
-@@ -495,7 +531,12 @@ function ProjectKebabMenu({
+@@ -496,7 +532,12 @@ function ProjectKebabMenu({
        >
          {renderKebabTriggerIcon}
        </DropdownMenuTrigger>
@@ -90,7 +90,7 @@ index 347315bd..323f102a 100644
          <ProjectMenuItems
            surface="dropdown"
            projectViewKey={projectViewKey}
-@@ -579,6 +620,15 @@ function ProjectMenuItems({
+@@ -580,6 +621,15 @@ function ProjectMenuItems({
            {t("sidebar.project.actions.openNewWindow")}
          </ProjectMenuItem>
        ) : null}
@@ -106,7 +106,7 @@ index 347315bd..323f102a 100644
        <OpenInFileManagerMenuItem
          surface={surface}
          path={projectPath}
-@@ -872,6 +922,8 @@ function ProjectHeaderRow({
+@@ -876,6 +926,8 @@ function ProjectHeaderRow({
    const localDaemonServerId = useLocalDaemonServerId();
    const projectPath = resolveSidebarProjectLocalPath(project, localDaemonServerId);
    const settingsTarget = project.hosts[0] ?? null;
@@ -115,7 +115,7 @@ index 347315bd..323f102a 100644
    const handleBeginWorkspaceSetup = useCallback(() => {
      if (!worktreeTarget) {
        return;
-@@ -1029,6 +1081,7 @@ function ProjectHeaderRow({
+@@ -1033,6 +1085,7 @@ function ProjectHeaderRow({
          align="start"
          width={220}
          testID={`sidebar-project-context-menu-${project.viewKey}`}
@@ -124,10 +124,10 @@ index 347315bd..323f102a 100644
          <ProjectMenuItems
            surface="context"
 diff --git a/packages/app/src/i18n/resources/ar.ts b/packages/app/src/i18n/resources/ar.ts
-index f159a46f..da0dd089 100644
+index 2f4925572..6862bf36a 100644
 --- a/packages/app/src/i18n/resources/ar.ts
 +++ b/packages/app/src/i18n/resources/ar.ts
-@@ -1021,6 +1021,9 @@ export const ar: TranslationResources = {
+@@ -1053,6 +1053,9 @@ export const ar: TranslationResources = {
        amber: "كهرماني",
        blue: "أزرق",
      },
@@ -138,10 +138,10 @@ index f159a46f..da0dd089 100644
        clear: "مسح عامل التصفية",
      },
 diff --git a/packages/app/src/i18n/resources/en.ts b/packages/app/src/i18n/resources/en.ts
-index a78f699d..5f6f105c 100644
+index 671aeeaf3..7a59aed7e 100644
 --- a/packages/app/src/i18n/resources/en.ts
 +++ b/packages/app/src/i18n/resources/en.ts
-@@ -1030,6 +1030,9 @@ export const en = {
+@@ -1061,6 +1061,9 @@ export const en = {
        amber: "Amber",
        blue: "Blue",
      },
@@ -152,10 +152,10 @@ index a78f699d..5f6f105c 100644
        clear: "Clear filter",
      },
 diff --git a/packages/app/src/i18n/resources/es.ts b/packages/app/src/i18n/resources/es.ts
-index eff34aac..50f680f1 100644
+index ccbc3dcc9..e2be7bf36 100644
 --- a/packages/app/src/i18n/resources/es.ts
 +++ b/packages/app/src/i18n/resources/es.ts
-@@ -1055,6 +1055,9 @@ export const es: TranslationResources = {
+@@ -1089,6 +1089,9 @@ export const es: TranslationResources = {
        amber: "Ámbar",
        blue: "Azul",
      },
@@ -166,10 +166,10 @@ index eff34aac..50f680f1 100644
        clear: "Borrar filtro",
      },
 diff --git a/packages/app/src/i18n/resources/fr.ts b/packages/app/src/i18n/resources/fr.ts
-index f5c7520c..323ca507 100644
+index 261565b86..4d0bd1625 100644
 --- a/packages/app/src/i18n/resources/fr.ts
 +++ b/packages/app/src/i18n/resources/fr.ts
-@@ -1054,6 +1054,9 @@ export const fr: TranslationResources = {
+@@ -1088,6 +1088,9 @@ export const fr: TranslationResources = {
        amber: "Ambre",
        blue: "Bleu",
      },
@@ -180,10 +180,10 @@ index f5c7520c..323ca507 100644
        clear: "Effacer le filtre",
      },
 diff --git a/packages/app/src/i18n/resources/ja.ts b/packages/app/src/i18n/resources/ja.ts
-index 16960588..d6928df8 100644
+index db698b6e8..cdb48977c 100644
 --- a/packages/app/src/i18n/resources/ja.ts
 +++ b/packages/app/src/i18n/resources/ja.ts
-@@ -1032,6 +1032,9 @@ export const ja: TranslationResources = {
+@@ -1066,6 +1066,9 @@ export const ja: TranslationResources = {
        amber: "琥珀",
        blue: "青",
      },
@@ -194,10 +194,10 @@ index 16960588..d6928df8 100644
        clear: "フィルターをクリア",
      },
 diff --git a/packages/app/src/i18n/resources/ko.ts b/packages/app/src/i18n/resources/ko.ts
-index 1f4543ee..6f89dd88 100644
+index 44902af66..25b47e074 100644
 --- a/packages/app/src/i18n/resources/ko.ts
 +++ b/packages/app/src/i18n/resources/ko.ts
-@@ -1028,6 +1028,9 @@ export const ko: TranslationResources = {
+@@ -1060,6 +1060,9 @@ export const ko: TranslationResources = {
        amber: "호박",
        blue: "파랑",
      },
@@ -208,10 +208,10 @@ index 1f4543ee..6f89dd88 100644
        clear: "필터 지우기",
      },
 diff --git a/packages/app/src/i18n/resources/pt-BR.ts b/packages/app/src/i18n/resources/pt-BR.ts
-index 293f4ab0..9698fbc1 100644
+index ff76c70b4..02836671e 100644
 --- a/packages/app/src/i18n/resources/pt-BR.ts
 +++ b/packages/app/src/i18n/resources/pt-BR.ts
-@@ -1046,6 +1046,9 @@ export const ptBR: TranslationResources = {
+@@ -1079,6 +1079,9 @@ export const ptBR: TranslationResources = {
        amber: "Âmbar",
        blue: "Azul",
      },
@@ -222,10 +222,10 @@ index 293f4ab0..9698fbc1 100644
        clear: "Limpar filtro",
      },
 diff --git a/packages/app/src/i18n/resources/ru.ts b/packages/app/src/i18n/resources/ru.ts
-index 0d94cf40..ad3ba3b4 100644
+index 59eafaf09..bf9eac805 100644
 --- a/packages/app/src/i18n/resources/ru.ts
 +++ b/packages/app/src/i18n/resources/ru.ts
-@@ -1036,6 +1036,9 @@ export const ru: TranslationResources = {
+@@ -1070,6 +1070,9 @@ export const ru: TranslationResources = {
        amber: "Янтарный",
        blue: "Синий",
      },
@@ -236,10 +236,10 @@ index 0d94cf40..ad3ba3b4 100644
        clear: "Очистить фильтр",
      },
 diff --git a/packages/app/src/i18n/resources/zh-CN.ts b/packages/app/src/i18n/resources/zh-CN.ts
-index 93397806..75265a34 100644
+index b2513843c..106547ff7 100644
 --- a/packages/app/src/i18n/resources/zh-CN.ts
 +++ b/packages/app/src/i18n/resources/zh-CN.ts
-@@ -1013,6 +1013,9 @@ export const zhCN: TranslationResources = {
+@@ -1045,6 +1045,9 @@ export const zhCN: TranslationResources = {
        amber: "琥珀色",
        blue: "蓝色",
      },
@@ -250,7 +250,7 @@ index 93397806..75265a34 100644
        clear: "清除筛选",
      },
 diff --git a/packages/app/src/stores/session-store.ts b/packages/app/src/stores/session-store.ts
-index 3f1ae6ff..93d260aa 100644
+index dd5469df2..fa59d2a38 100644
 --- a/packages/app/src/stores/session-store.ts
 +++ b/packages/app/src/stores/session-store.ts
 @@ -176,6 +176,7 @@ export interface ProjectDescriptor {
@@ -271,10 +271,10 @@ index 3f1ae6ff..93d260aa 100644
  }
  
 diff --git a/packages/app/src/workspace-labels/index.ts b/packages/app/src/workspace-labels/index.ts
-index b2c46ab7..944843a5 100644
+index 49a2e6b1a..77fc4762e 100644
 --- a/packages/app/src/workspace-labels/index.ts
 +++ b/packages/app/src/workspace-labels/index.ts
-@@ -185,6 +185,15 @@ class WorkspaceLabelsController {
+@@ -205,6 +205,15 @@ class WorkspaceLabelsController {
      return this.mutate(input.serverId, (client) => client.setWorkspaceLabel(input));
    }
  
@@ -291,7 +291,7 @@ index b2c46ab7..944843a5 100644
      serverId: string;
      name: string;
 diff --git a/packages/app/src/workspace-labels/picker.tsx b/packages/app/src/workspace-labels/picker.tsx
-index 7afdaeab..15a4402d 100644
+index 7afdaeabe..15a4402d0 100644
 --- a/packages/app/src/workspace-labels/picker.tsx
 +++ b/packages/app/src/workspace-labels/picker.tsx
 @@ -40,6 +40,10 @@ import { WorkspaceLabelDot, WorkspaceLabelSwatchRow } from "./swatch";
@@ -530,10 +530,10 @@ index 7afdaeab..15a4402d 100644
    return (
      <>
 diff --git a/packages/client/src/daemon-client.ts b/packages/client/src/daemon-client.ts
-index aa2a410a..ad6c1928 100644
+index 260a0e9be..9fd4f3b24 100644
 --- a/packages/client/src/daemon-client.ts
 +++ b/packages/client/src/daemon-client.ts
-@@ -719,6 +719,10 @@ export type ProjectListPayload = Extract<
+@@ -754,6 +754,10 @@ export type ProjectListPayload = Extract<
    SessionOutboundMessage,
    { type: "project.list.response" }
  >["payload"];
@@ -544,7 +544,7 @@ index aa2a410a..ad6c1928 100644
  type ProjectListRequest = Extract<SessionInboundMessage, { type: "project.list.request" }>;
  export type ProjectListOptions = Omit<ProjectListRequest, "type" | "requestId"> & {
    requestId?: string;
-@@ -2706,6 +2710,31 @@ export class DaemonClient {
+@@ -2929,6 +2933,31 @@ export class DaemonClient {
      return { customName: payload.customName };
    }
  
@@ -577,10 +577,10 @@ index aa2a410a..ad6c1928 100644
      projectId: string,
      source: ProjectIconSource,
 diff --git a/packages/protocol/src/messages.ts b/packages/protocol/src/messages.ts
-index 6faceb41..bcb6a813 100644
+index 1c6882223..341f2deac 100644
 --- a/packages/protocol/src/messages.ts
 +++ b/packages/protocol/src/messages.ts
-@@ -1069,6 +1069,16 @@ export const WorkspaceLabelDeleteInspectRequestSchema = z.object({
+@@ -1024,6 +1024,16 @@ export const WorkspaceLabelDeleteInspectRequestSchema = z.object({
    name: z.string(),
  });
  
@@ -597,7 +597,7 @@ index 6faceb41..bcb6a813 100644
  export const WorkspaceRecoveryInspectRequestSchema = z.object({
    type: z.literal("workspace.recovery.inspect.request"),
    workspaceId: z.string(),
-@@ -1986,6 +1996,22 @@ export const ProjectRenameResponseSchema = z.object({
+@@ -2022,6 +2032,22 @@ export const ProjectRenameResponseSchema = z.object({
    payload: ProjectRenameResponsePayloadSchema,
  });
  
@@ -620,7 +620,7 @@ index 6faceb41..bcb6a813 100644
  export const ProjectIconSetResponseSchema = z.object({
    type: z.literal("project.icon.set.response"),
    payload: z.object({
-@@ -3079,6 +3105,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
+@@ -3172,6 +3198,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
    CloseItemsRequestMessageSchema,
    UpdateAgentRequestMessageSchema,
    ProjectRenameRequestSchema,
@@ -628,7 +628,7 @@ index 6faceb41..bcb6a813 100644
    ProjectIconSetRequestSchema,
    ProjectRemoveRequestSchema,
    WorkspaceTitleSetRequestSchema,
-@@ -4062,6 +4089,9 @@ export const WorkspaceProjectDescriptorPayloadSchema = z.object({
+@@ -4173,6 +4200,9 @@ export const WorkspaceProjectDescriptorPayloadSchema = z.object({
    projectIconRevision: z.string().optional(),
    projectRootPath: z.string(),
    projectKind: z.enum(["git", "non_git", "directory"]),
@@ -638,7 +638,7 @@ index 6faceb41..bcb6a813 100644
    // COMPAT(directorySync): sequence of this latest directory projection.
    syncSeq: z.number().int().positive().optional(),
  });
-@@ -6549,6 +6579,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
+@@ -6843,6 +6873,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
    AgentRewindResponseMessageSchema,
    UpdateAgentResponseMessageSchema,
    ProjectRenameResponseSchema,
@@ -646,7 +646,7 @@ index 6faceb41..bcb6a813 100644
    ProjectIconSetResponseSchema,
    ProjectRemoveResponseSchema,
    WorkspaceTitleSetResponseSchema,
-@@ -6747,6 +6778,7 @@ export type AgentDetachResponseMessage = z.infer<typeof AgentDetachResponseMessa
+@@ -7042,6 +7073,7 @@ export type AgentDetachResponseMessage = z.infer<typeof AgentDetachResponseMessa
  export type AgentRewindResponseMessage = z.infer<typeof AgentRewindResponseMessageSchema>;
  export type UpdateAgentResponseMessage = z.infer<typeof UpdateAgentResponseMessageSchema>;
  export type ProjectRenameResponse = z.infer<typeof ProjectRenameResponseSchema>;
@@ -654,7 +654,7 @@ index 6faceb41..bcb6a813 100644
  export type ProjectIconSetResponse = z.infer<typeof ProjectIconSetResponseSchema>;
  export type ProjectRemoveResponse = z.infer<typeof ProjectRemoveResponseSchema>;
  export type WorkspaceTitleSetResponse = z.infer<typeof WorkspaceTitleSetResponseSchema>;
-@@ -6765,6 +6797,9 @@ export type WorkspaceRecoveryRestoreResponse = z.infer<
+@@ -7060,6 +7092,9 @@ export type WorkspaceRecoveryRestoreResponse = z.infer<
  export type WorkspaceCreateRequest = z.infer<typeof WorkspaceCreateRequestSchema>;
  export type WorkspaceCreateResponse = z.infer<typeof WorkspaceCreateResponseSchema>;
  export type ProjectRenameResponsePayload = z.infer<typeof ProjectRenameResponsePayloadSchema>;
@@ -664,7 +664,7 @@ index 6faceb41..bcb6a813 100644
  export type ProjectRemoveResponsePayload = z.infer<typeof ProjectRemoveResponsePayloadSchema>;
  export type WaitForFinishResponseMessage = z.infer<typeof WaitForFinishResponseMessageSchema>;
  export type AgentPermissionRequestMessage = z.infer<typeof AgentPermissionRequestMessageSchema>;
-@@ -6897,6 +6932,7 @@ export type DeleteAgentRequestMessage = z.infer<typeof DeleteAgentRequestMessage
+@@ -7192,6 +7227,7 @@ export type DeleteAgentRequestMessage = z.infer<typeof DeleteAgentRequestMessage
  export type UpdateAgentRequestMessage = z.infer<typeof UpdateAgentRequestMessageSchema>;
  export type ProjectIconSource = z.infer<typeof ProjectIconSourceSchema>;
  export type ProjectRenameRequest = z.infer<typeof ProjectRenameRequestSchema>;
@@ -673,18 +673,18 @@ index 6faceb41..bcb6a813 100644
  export type ProjectRemoveRequest = z.infer<typeof ProjectRemoveRequestSchema>;
  export type WorkspaceTitleSetRequest = z.infer<typeof WorkspaceTitleSetRequestSchema>;
 diff --git a/packages/server/src/server/authorization/operation-permissions.ts b/packages/server/src/server/authorization/operation-permissions.ts
-index 1f8b9e1d..befe197d 100644
+index 490cf872c..9ab4c9694 100644
 --- a/packages/server/src/server/authorization/operation-permissions.ts
 +++ b/packages/server/src/server/authorization/operation-permissions.ts
-@@ -134,6 +134,7 @@ const INBOUND_PERMISSION = {
-   "plugin.source.update.request": "daemon.manage",
+@@ -141,6 +141,7 @@ const INBOUND_PERMISSION = {
+   "plugin.source.update.apply.request": "daemon.manage",
    "project.add.request": "workspace.manage",
    "project.create_directory.request": "workspace.manage",
 +  "project.default_label.set.request": "workspace.manage",
    "project.github.clone.request": "workspace.manage",
    "project.icon.get.request": "workspace.read",
    "project.icon.set.request": "workspace.manage",
-@@ -346,6 +347,7 @@ const OUTBOUND_PERMISSION = {
+@@ -364,6 +365,7 @@ const OUTBOUND_PERMISSION = {
    pong: "daemon.read",
    "project.add.response": "workspace.manage",
    "project.create_directory.response": "workspace.manage",
@@ -693,10 +693,10 @@ index 1f8b9e1d..befe197d 100644
    "project.icon.get.response": "workspace.read",
    "project.icon.set.response": "workspace.manage",
 diff --git a/packages/server/src/server/session.ts b/packages/server/src/server/session.ts
-index ae7a105a..c235f933 100644
+index 5dbcb6373..cd280c50c 100644
 --- a/packages/server/src/server/session.ts
 +++ b/packages/server/src/server/session.ts
-@@ -67,6 +67,10 @@ import { releaseWorkspaceServicePortPlan } from "./workspace-service-port-regist
+@@ -76,6 +76,10 @@ import { releaseWorkspaceServicePortPlan } from "./workspace-service-port-regist
  import { getErrorMessage, getErrorMessageOr } from "@getpaseo/protocol/error-utils";
  import { getAgentStatusPriority } from "@getpaseo/protocol/agent-state-bucket";
  import { getParentAgentIdFromLabels } from "@getpaseo/protocol/agent-labels";
@@ -707,7 +707,7 @@ index ae7a105a..c235f933 100644
  import type { WorkspaceGitRuntimeSnapshot, WorkspaceGitService } from "./workspace-git-service.js";
  import type { ProjectUpdate } from "./workspace-reconciliation-service.js";
  import {
-@@ -2404,6 +2408,8 @@ export class Session {
+@@ -2715,6 +2719,8 @@ export class Session {
          return this.handleUpdateAgentRequest(msg.agentId, msg.name, msg.labels, msg.requestId);
        case "project.rename.request":
          return this.handleProjectRenameRequest(msg.projectId, msg.customName, msg.requestId);
@@ -716,7 +716,7 @@ index ae7a105a..c235f933 100644
        case "project.icon.set.request":
          return this.handleProjectIconSetRequest(msg);
        case "send_agent_message_request":
-@@ -3191,6 +3197,71 @@ export class Session {
+@@ -3502,6 +3508,71 @@ export class Session {
      }
    }
  
@@ -788,7 +788,7 @@ index ae7a105a..c235f933 100644
    private async handleProjectIconSetRequest(
      request: Extract<SessionInboundMessage, { type: "project.icon.set.request" }>,
    ): Promise<void> {
-@@ -5263,6 +5334,9 @@ export class Session {
+@@ -5785,6 +5856,9 @@ export class Session {
        projectIconRevision: icon.revision,
        projectRootPath: project.rootPath,
        projectKind: project.kind,
@@ -798,7 +798,7 @@ index ae7a105a..c235f933 100644
      };
    }
  
-@@ -5931,11 +6005,43 @@ export class Session {
+@@ -6444,11 +6518,43 @@ export class Session {
      }
    }
  
@@ -842,7 +842,7 @@ index ae7a105a..c235f933 100644
        this.emit({
          type: "workspace.label.update.response",
          payload: { requestId: request.requestId, ...result },
-@@ -5950,6 +6056,7 @@ export class Session {
+@@ -6463,6 +6569,7 @@ export class Session {
    ): Promise<void> {
      try {
        const result = await this.requireWorkspaceLabels().delete(request.name);
@@ -851,10 +851,10 @@ index ae7a105a..c235f933 100644
          type: "workspace.label.delete.response",
          payload: { requestId: request.requestId, ...result },
 diff --git a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
-index a89e0448..536fb5fb 100644
+index ecd338ff4..8598ef744 100644
 --- a/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
 +++ b/packages/server/src/server/session/workspace-provisioning/workspace-provisioning-service.ts
-@@ -88,6 +88,18 @@ export class WorkspaceProvisioningError extends Error {
+@@ -89,6 +89,18 @@ export class WorkspaceProvisioningError extends Error {
    }
  }
  
@@ -873,7 +873,7 @@ index a89e0448..536fb5fb 100644
  export function createWorkspaceProvisioningService(deps: {
    serverId?: string;
    workspaceRegistry: WorkspaceRegistry;
-@@ -217,6 +229,7 @@ export function createWorkspaceProvisioningService(deps: {
+@@ -218,6 +230,7 @@ export function createWorkspaceProvisioningService(deps: {
        title: title?.trim() || null,
        createdAt: timestamp,
        updatedAt: timestamp,
@@ -881,7 +881,7 @@ index a89e0448..536fb5fb 100644
      });
      await workspaceRegistry.upsert(workspace, context);
      deps.lifecycle?.emit("workspace.created", { workspace: describeHookWorkspace(workspace) });
-@@ -250,6 +263,7 @@ export function createWorkspaceProvisioningService(deps: {
+@@ -251,6 +264,7 @@ export function createWorkspaceProvisioningService(deps: {
        title: input.title,
        createdAt: timestamp,
        updatedAt: timestamp,
@@ -890,10 +890,10 @@ index a89e0448..536fb5fb 100644
      });
      await workspaceRegistry.upsert(workspace, {
 diff --git a/packages/server/src/server/workspace-directory.ts b/packages/server/src/server/workspace-directory.ts
-index a50713e1..b1d0c5d3 100644
+index 13b999648..05b95cc3e 100644
 --- a/packages/server/src/server/workspace-directory.ts
 +++ b/packages/server/src/server/workspace-directory.ts
-@@ -572,6 +572,9 @@ export class WorkspaceDirectory {
+@@ -579,6 +579,9 @@ export class WorkspaceDirectory {
          projectCustomIconRevision: project.customIconRevision ?? null,
          projectRootPath: project.rootPath,
          projectKind: project.kind,
@@ -904,7 +904,7 @@ index a50713e1..b1d0c5d3 100644
    }
  
 diff --git a/packages/server/src/server/workspace-labels/internal/service.ts b/packages/server/src/server/workspace-labels/internal/service.ts
-index f5609598..c459afb8 100644
+index aad0ea204..2209d67af 100644
 --- a/packages/server/src/server/workspace-labels/internal/service.ts
 +++ b/packages/server/src/server/workspace-labels/internal/service.ts
 @@ -17,6 +17,11 @@ interface AssignmentCommit {
@@ -919,7 +919,7 @@ index f5609598..c459afb8 100644
  interface UpdateCommit {
    label: WorkspaceLabelDefinition;
    affectedWorkspaceCount: number;
-@@ -121,6 +126,34 @@ export class WorkspaceLabelService {
+@@ -127,6 +132,34 @@ export class WorkspaceLabelService {
      });
    }
  
@@ -955,7 +955,7 @@ index f5609598..c459afb8 100644
     * Edit a label: a new name, a new colour, or both, in one catalog commit.
     *
 diff --git a/packages/server/src/server/workspace-registry.ts b/packages/server/src/server/workspace-registry.ts
-index b4b8d5cd..3c45d8c4 100644
+index 64f6f1e4a..2dcd18e76 100644
 --- a/packages/server/src/server/workspace-registry.ts
 +++ b/packages/server/src/server/workspace-registry.ts
 @@ -43,6 +43,10 @@ const PersistedProjectRecordSchema = z.object({
