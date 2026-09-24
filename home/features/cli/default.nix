@@ -74,7 +74,7 @@
       # on servers: it drives a real Chrome, and the package pins one in.
       #
       # Kept on terminal-only hosts on purpose: it has no window of its own, and
-      # the gb-slack and gb-calendar skills are built on top of it.
+      # it is the one browser tool every agent is standardized on.
       (pkgs.callPackage ../../../packages/agent-browser.nix { })
     ];
 }

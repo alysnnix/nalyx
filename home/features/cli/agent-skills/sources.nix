@@ -62,8 +62,8 @@ let
       src = pkgs.fetchFromGitHub {
         owner = "vercel-labs";
         repo = "agent-browser";
-        rev = "fbd046c23a2c1156891bda294aaaee715c23b3f1";
-        hash = "sha256-uz60SvvQYdUCjLJAcuCtQyGd0yNc82m+GYruMnn5CD4=";
+        rev = "aff6125c023b810ea3f2e5deec5379e9a4270bdc"; # v0.38.1
+        hash = "sha256-C+XplCHOdFDQGPUnrCDuq7U4LkAX0QB3fC4uVA8o11w=";
       };
       subdir = "skills/agent-browser";
 

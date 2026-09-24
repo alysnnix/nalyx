@@ -16,7 +16,9 @@
     "firebase@claude-plugins-official" = false;
     "impeccable@impeccable" = true;
     "playground@claude-plugins-official" = true;
-    "playwright@claude-plugins-official" = true;
+    # Disabled, not deleted, for the same merge reason as firebase above.
+    # Browser automation is standardized on agent-browser.
+    "playwright@claude-plugins-official" = false;
     "posthog@claude-plugins-official" = true;
     "pyright-lsp@claude-plugins-official" = true;
     "ralph-loop@claude-plugins-official" = true;
