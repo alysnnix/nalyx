@@ -5,8 +5,6 @@ before the first command.
 Other browser surfaces are still reachable in some sessions, and none of them
 is used unless the user names it in this conversation:
 
-- the Paseo browser tools (`browser_new_tab`, `browser_snapshot`,
-  `browser_click`, and the rest of `browser_*`);
 - the omp built-in `browser` object in eval (`browser.open`, `tab.*`), even
   where the harness prompt suggests it for UI verification;
 - Playwright in any form (MCP, `playwright-core`, `npx playwright`).
