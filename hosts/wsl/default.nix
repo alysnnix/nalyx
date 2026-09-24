@@ -185,7 +185,6 @@
         "--user-data-dir=/home/${vars.user.name}/.chrome-profile"
       ];
     })
-    playwright
   ];
 
   systemd.services.pritunl-client = {
@@ -197,13 +196,6 @@
       Restart = "always";
     };
   };
-
-  # Create Playwright's expected Chrome path structure
-  # Playwright expects /opt/google/chrome/chrome (directory with chrome symlink inside)
-  systemd.tmpfiles.rules = [
-    "d /opt/google/chrome 0755 root root -"
-    "L+ /opt/google/chrome/chrome - - - - ${pkgs.google-chrome}/bin/google-chrome"
-  ];
 
   users.users.${vars.user.name} = {
     isNormalUser = true;
@@ -249,7 +241,7 @@
     '';
   };
 
-  # Playwright browser dependencies (X11/GUI libs for WSLg)
+  # GL for WSLg GUI apps (Chrome, agent-browser in headed mode)
   hardware.graphics.enable = true;
 
   # Link the Windows-side WSL driver libs (/usr/lib/wsl/lib) into
@@ -280,7 +272,7 @@
     dconf.enable = true;
     nix-ld.enable = true;
     nix-ld.libraries = with pkgs; [
-      # Playwright/Chromium dependencies
+      # Runtime libs for prebuilt Chromium/Electron binaries run through nix-ld
       libx11
       libxcomposite
       libxdamage

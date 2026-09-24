@@ -4,8 +4,6 @@ result-*
 .envrc
 AI_WORKFLOW.md
 
-.playwright-mcp
-
 # Superpowers generated docs (specs/plans)
 docs/superpowers/
 

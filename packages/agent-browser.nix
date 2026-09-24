@@ -14,16 +14,16 @@
 }:
 
 let
-  version = "0.35.1";
+  version = "0.38.1";
 
   assets = {
     x86_64-linux = {
       name = "agent-browser-linux-x64";
-      sha256 = "sha256-IYdLevvhKiJdAcfz99Y1wsL3QGYPbvXnkWc3xgxPH68=";
+      sha256 = "sha256-UQAUmhkDIRyIneTlRb822QgDdAzqT5mqImUWSfkgXqE=";
     };
     aarch64-linux = {
       name = "agent-browser-linux-arm64";
-      sha256 = "sha256-TCTx+i9wSGWgxNb5Br+BFpMYiGgXQrvwgMA9zrFHrJ4=";
+      sha256 = "sha256-k3sxXuB2Hopi95UN3P75s9PY6NXrnJ0r+eI+VyVmRRE=";
     };
   };
 

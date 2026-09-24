@@ -246,12 +246,11 @@ in
             injectIntoAgents = true;
           };
 
-          # Ferramentas de browser para os agentes. Depende de
-          # `mcp.injectIntoAgents` acima e de um host desktop conectado, senao
-          # as tools respondem `browser_disabled` / `browser_no_host`. O
-          # browser em si e do app Electron, nao do daemon, e por isso nao ha
-          # o que declarar aqui para "ligar o browser": so o acesso a ele.
-          browserTools.enabled = true;
+          # Browser tools for agents, off on purpose: every agent drives the
+          # browser through the `agent-browser` CLI instead (see the Browser
+          # Automation agent rule). The Paseo app's own browser is unaffected,
+          # this only removes the agents' access to it.
+          browserTools.enabled = false;
 
           autoArchiveAfterMerge = true;
 

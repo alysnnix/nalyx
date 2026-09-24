@@ -90,7 +90,7 @@ The homelab still carries the personal key as a decryption fallback, so it can c
 | Host | Description | Desktop | Extras |
 |------|-------------|---------|--------|
 | `desktop` | Main PC | Hyprland/GNOME | NVIDIA, Steam, Gaming |
-| `wsl` | WSL2 | None | Docker, Pritunl, Playwright |
+| `wsl` | WSL2 | None | Docker, Pritunl |
 | `vm` | Test VM | Hyprland/GNOME | QEMU, Waydroid |
 | `homelab` | Server | None | Tailscale, Syncthing (encrypted), restic |
 
