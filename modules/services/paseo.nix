@@ -44,7 +44,7 @@ let
   # Os overlays de persona da omp. Cada um liga UM conjunto de skills que fica
   # escondido no resto do mundo (`hide: true`, ../../home/features/cli/
   # agent-skills/sources.nix). Aqui eles viram provider derivado: e o unico
-  # ponto do Paseo 0.8 onde da para prender env a um agente sem plugin, porque
+  # ponto do Paseo 0.9 onde da para prender env a um agente sem plugin, porque
   # `agentProfiles` nao carrega env nem system prompt, o config do agente nao
   # tem campo `env`, e os hooks `before` de plugin nao recebem nem label nem
   # profile para decidir em cima. O env do provider entra em `buildOmpLaunch`
@@ -118,28 +118,13 @@ in
       # Menos superficie e menos dependencia externa.
       relay.enable = false;
 
-      # A web UI embutida, ligada pela variavel de ambiente e nao so pelo
-      # `settings` abaixo, porque em 0.8.0-beta.1 a settings sozinha e inerte:
-      # `resolveWebUiConfig` decide por
-      # `cli?.webUiEnabled ?? env.PASEO_WEB_UI_ENABLED ?? persisted...`, e o
-      # parser de `paseo-server` entrega `webUiEnabled = false` em vez de
-      # undefined quando a flag `--web-ui` nao vem, entao o valor persistido
-      # nunca e alcancado. Medido com o pacote desta geracao: sem isto `GET /`
-      # e 404 ("web UI disabled or missing dist directory") e o browser do
-      # celular nao acha nada, so a API. O `cfg.environment` do modulo do
-      # upstream e aplicado por ultimo, entao ganha de tudo.
-      #
-      # As duas ficam: o env e o que liga, a settings e o que documenta (e o
-      # que volta a valer quando o upstream consertar a precedencia).
-      environment.PASEO_WEB_UI_ENABLED = "true";
-
       # Herdado por todo agente omp que o daemon spawna. Ver o comentario do
       # `ompConfigOverlay` no let, que e onde o motivo esta escrito.
       environment.PI_CONFIG_FILES = "${ompConfigOverlay}";
 
       # O prompt que vai junto de todo audio de ditado. O default do daemon e
       # uma instrucao em ingles ("Transcribe only what the speaker says...",
-      # dictation/dictation-stream-manager.ts:175), e ele e ruim duas vezes:
+      # dictation/dictation-stream-manager.ts:189), e ele e ruim duas vezes:
       # num modelo que segue instrucao a fala passa a ser lida como pedido, e
       # no whisper, onde `prompt` e bias de estilo e nao instrucao, um texto em
       # ingles enxerta ingles na transcricao de quem fala portugues. Nao ha
@@ -185,6 +170,12 @@ in
       # ou outra, nao as duas.
       settings = {
         features = {
+          # A web UI embutida. So a settings liga: ate 0.8.0-beta.1 o parser do
+          # `paseo-server` entregava `webUiEnabled = false` sem a flag
+          # `--web-ui` e a settings ficava inerte, entao um env
+          # `PASEO_WEB_UI_ENABLED` segurava isso. Em 0.9.1 o parser so define o
+          # valor quando a flag vem (`daemon-worker.ts:118`), e o persistido
+          # volta a ser alcancado: medido sem o env, `GET /` responde 200.
           webUi.enabled = true;
 
           # Voz pela OpenAI, e nao pelos modelos locais, por um motivo que
@@ -209,8 +200,8 @@ in
           #
           # `tts-1-hd` e nao `tts-1`: o modelo tem que estar na intersecao de
           # duas listas, e `tts-1` esta fora de uma delas. O daemon
-          # 0.8.0-beta.1 valida com `z.enum(["tts-1", "tts-1-hd"])`
-          # (speech/providers/openai/config.js:4), e o projeto desta chave tem
+          # 0.9.1 valida com `z.enum(["tts-1", "tts-1-hd"])`
+          # (speech/providers/openai/config.ts:17), e o projeto desta chave tem
           # allowlist de modelos onde `tts-1` nao entrou: medido contra a API,
           # `tts-1` responde 403 "Project ... does not have access to model
           # `tts-1`" e `tts-1-hd` responde 200. Ou seja, o voice mode ficou
@@ -271,14 +262,16 @@ in
           # listar os 89 modelos do provider e chutar, que foi o que aconteceu
           # antes disto existir.
           #
-          # Revisao usa outra familia de modelo de proposito, e nao por gosto:
-          # revisor da mesma familia de quem escreveu herda o mesmo ponto cego.
+          # So modelos atuais da Anthropic: Opus 5.5 onde se decide ou escreve
+          # codigo, Haiku 4.5 no trabalho de volume. Os perfis mudam no modo e
+          # no effort, alinhados com os papeis do omp em
+          # home/features/cli/omp/config-overlay.nix.
           agentProfiles = [
             {
               id = "planejamento";
               name = "Planejamento";
               provider = "omp";
-              model = "anthropic/claude-opus-5";
+              model = "anthropic/claude-opus-5-5";
               modeId = "ask";
               thinkingOptionId = "high";
               notes = "Arquitetura, investigacao de causa raiz, comparacao de abordagens e refinamento de demanda. Use quando a decisao ainda nao esta tomada e o custo de errar e alto. Nao implementa: o modo pede aprovacao pra escrever, de proposito, porque plano que ja comecou a editar deixou de ser plano.";
@@ -287,19 +280,19 @@ in
               id = "implementacao";
               name = "Implementacao";
               provider = "omp";
-              model = "anthropic/claude-opus-5";
+              model = "anthropic/claude-opus-5-5";
               modeId = "full";
-              thinkingOptionId = "medium";
+              thinkingOptionId = "high";
               notes = "Escrever codigo com contrato ja fechado: fatia de backlog, bug com causa conhecida, migracao mecanica de callsites. Roda sem pedir permissao, entao lance sempre em workspace com isolamento de worktree, nunca no checkout principal.";
             }
             {
               id = "revisao";
               name = "Revisao";
               provider = "omp";
-              model = "anthropic/claude-opus-4-8";
+              model = "anthropic/claude-opus-5-5";
               modeId = "ask";
-              thinkingOptionId = "high";
-              notes = "Revisao independente de diff: correcao, caso de borda faltando, teste ausente, complexidade sem funcao. Nao edita. Use SEMPRE um modelo diferente do que implementou: revisor igual ao autor herda o mesmo ponto cego. Aqui isso e geracao diferente (4.8 revisa o que o 5 escreveu), e nao familia diferente: o unico outro provider configurado autentica com a chave pessoal do usuario, e trabalho nao se paga com ela.";
+              thinkingOptionId = "xhigh";
+              notes = "Revisao independente de diff: correcao, caso de borda faltando, teste ausente, complexidade sem funcao. Nao edita. Mesmo modelo de quem implementou (so modelos atuais da Anthropic entram aqui, por decisao do usuario), entao o que separa revisor de autor e o effort mais alto e a sessao limpa: nunca revise na mesma sessao que escreveu o codigo.";
             }
             {
               id = "triagem";
@@ -314,9 +307,9 @@ in
               id = "frontend";
               name = "Frontend";
               provider = "omp-frontend";
-              model = "anthropic/claude-opus-5";
+              model = "anthropic/claude-opus-5-5";
               modeId = "full";
-              thinkingOptionId = "medium";
+              thinkingOptionId = "high";
               notes = "Construir interface: tela, componente, fluxo, landing page e o sistema visual deles. Unico perfil que carrega as skills de design (superdesign, frontend-design, landing-page-design), porque roda num provider proprio (`omp-frontend`); em qualquer outro perfil elas estao escondidas e o modelo nem sabe que existem. Use para trabalho cuja entrega e algo que alguem olha, nao para o backend que a tela consome. Roda sem pedir permissao, entao lance em workspace com isolamento de worktree.";
             }
           ];
@@ -383,19 +376,12 @@ in
         # que ja concentra todos os backends) e mantem a tarefa em modelos
         # pequenos, que e o tamanho certo para escrever uma linha.
         #
-        # Haiku primeiro por seguir formato apertado melhor que um nano; o
-        # mini da OpenAI como rede. `thinkingOptionId` fica de fora de
-        # proposito: um valor invalido para o modelo cai no default dele
-        # (`resolveThinkingOptionId`), e nao ha ganho em raciocinio longo
+        # Haiku primeiro por seguir formato apertado e ser o mais rapido; o
+        # Sonnet 5 como rede, ainda na Anthropic, que e a unica familia de
+        # modelo que este usuario quer nos agentes. `thinkingOptionId` fica de
+        # fora de proposito: um valor invalido para o modelo cai no default
+        # dele (`resolveThinkingOptionId`), e nao ha ganho em raciocinio longo
         # para uma frase.
-        #
-        # O mini autentica com OPENAI_API_KEY, que e a chave pessoal do usuario
-        # vinda do SOPS da camada pessoal, e isso esta certo aqui: e a mesma
-        # chave que ele ja usa para ditado e voz, e a tarefa e uma linha de
-        # texto que so roda quando o Haiku falha. O que NAO pode usar essa
-        # chave e trabalho de volume, tipo um perfil de revisao lendo diff
-        # inteiro em thinking high: por isso o perfil de revisao e anthropic e
-        # esta rede nao.
         agents.metadataGeneration.providers = [
           {
             provider = "omp";
@@ -403,7 +389,7 @@ in
           }
           {
             provider = "omp";
-            model = "openai/gpt-5.4-mini";
+            model = "anthropic/claude-sonnet-5";
           }
         ];
 

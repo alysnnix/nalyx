@@ -122,15 +122,12 @@ ficam acessíveis por um proxy interno em hostnames determinísticos no formato
 
 ### Web UI, no navegador do Windows
 
-Já está ligada, mas não por `settings.features.webUi.enabled`: em
-0.8.0-beta.1 essa chave é inerte. `resolveWebUiConfig` decide por
-`cli?.webUiEnabled ?? env.PASEO_WEB_UI_ENABLED ?? persisted...`, e o parser do
-`paseo-server` entrega `webUiEnabled = false` em vez de undefined quando a
-flag `--web-ui` não vem, então o valor persistido nunca é alcançado. Quem liga
-de fato é `services.paseo.environment.PASEO_WEB_UI_ENABLED = "true"`, em
-`modules/services/paseo.nix`; a settings fica ao lado, documentando a
-intenção. Sem o env, `GET /` responde 404 com
-"web UI disabled or missing dist directory" no log, e só a API atende. Abra:
+Já está ligada, por `settings.features.webUi.enabled` em
+`modules/services/paseo.nix`. Até 0.8.0-beta.1 essa chave era inerte (o parser
+do `paseo-server` entregava `webUiEnabled = false` sem a flag `--web-ui`) e um
+env `PASEO_WEB_UI_ENABLED` fazia o trabalho; em 0.9.1 o bug foi corrigido e o
+env saiu. Se `GET /` voltar a responder 404 com
+"web UI disabled or missing dist directory" no log, é esse o lugar. Abra:
 
 ```
 http://localhost:6767
@@ -420,7 +417,7 @@ O que está declarado hoje em `modules/services/paseo.nix`, para os dois hosts:
 
 | Chave | Efeito |
 |---|---|
-| `features.webUi.enabled` | intenção declarada, inerte em 0.8.0-beta.1; quem serve a UI é `environment.PASEO_WEB_UI_ENABLED` |
+| `features.webUi.enabled` | serve a web UI embutida |
 | `daemon.mcp.injectIntoAgents` | entrega as ferramentas do Paseo ao agente |
 | `daemon.browserTools.enabled` | dá acesso às ferramentas de browser |
 | `daemon.autoArchiveAfterMerge` | arquiva workspace quando o PR é mergeado |
@@ -487,7 +484,7 @@ ditado aparece como `STT transcription failed`.
 
 O daemon manda, junto de todo áudio de ditado, uma instrução em inglês
 (`"Transcribe only what the speaker says..."`,
-`dictation/dictation-stream-manager.ts:175`). Num modelo multimodal que segue
+`dictation/dictation-stream-manager.ts:189`). Num modelo multimodal que segue
 instrução isso deixa a porta aberta para ele tratar a fala como pedido e
 devolver resposta ou resumo em vez da transcrição. No `whisper-1` o campo
 `prompt` é só bias de estilo e vocabulário, nunca instrução, mas aí um texto em
