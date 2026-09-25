@@ -410,7 +410,10 @@ REBUILD_RC=0
 # laptop, Ubuntu WSL) the system layer belongs to the distro and nix owns the
 # userland only, so the target is the homeConfiguration of the same name.
 if [ -e /etc/NIXOS ]; then
-  sudo nixos-rebuild switch --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUILD_RC=$?
+  # Evaluate and build as the user, elevate only the activation. Under `sudo`
+  # the flake is fetched as root, which has no GitHub key, so any git+ssh input
+  # of a project layer fails with "Permission denied (publickey)".
+  nixos-rebuild switch --sudo --flake "$FLAKE_DIR#$HOST" "${EXTRA_ARGS[@]}" || REBUILD_RC=$?
 
   echo "  pruning old generations (keeping last 5)..."
   sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations +5

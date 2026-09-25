@@ -115,7 +115,11 @@
     capSysAdmin = true;
   };
 
-  boot.kernelModules = [ "wireguard" ];
+  boot.kernelModules = [
+    "wireguard"
+    # The udev rule below switches the SSD to it; see the agents slice.
+    "bfq"
+  ];
   # Track the newest kernel packaged by this nixpkgs pin.  The NVIDIA driver
   # below follows this same kernel package set, keeping the module ABI aligned.
   boot.kernelPackages = pkgs.linuxPackages_latest;
@@ -201,6 +205,32 @@
   # notice instead of as a surprise.
   services.smartd.enable = true;
   environment.systemPackages = [ pkgs.smartmontools ];
+
+  # Agents and everything they spawn (test runs, dev servers, headless
+  # browsers, containers) are background work: they get the machine when the
+  # desktop is idle and yield it the moment the desktop needs it. Weights are
+  # work-conserving, so an idle desktop costs agents nothing.
+  #
+  # On 2026-09-24 agent test runs and the desktop shared the SSD queue on
+  # equal terms, and the desktop froze.
+  systemd.slices.agents = {
+    description = "Background agent workloads";
+    sliceConfig = {
+      CPUWeight = 20;
+      IOWeight = 20;
+      # Above this the slice is throttled and reclaimed first, so agents
+      # never push the desktop into a reclaim storm. Not a kill limit.
+      MemoryHigh = "40G";
+    };
+  };
+  systemd.services.paseo.serviceConfig.Slice = "agents.slice";
+  # Containers an agent starts (test databases) land in the same slice.
+  virtualisation.docker.daemon.settings.cgroup-parent = "agents.slice";
+
+  # IOWeight is only enforced by BFQ (mq-deadline ignores cgroup weights). BFQ
+  # also favours interactive IO on its own, which is what a SATA SSD without
+  # DRAM needs under a burst of background writes. The udev rule that selects
+  # it lives in the services.udev.extraRules block further down.
 
   networking.hostName = "desktop";
 
@@ -296,6 +326,9 @@
   # navegador), que precisa de acesso ao hidraw do dispositivo sem root.
   services.udev.extraRules = ''
     KERNEL=="hidraw*", ATTRS{idVendor}=="3434", TAG+="uaccess"
+
+    # BFQ on SATA SSDs, so the agents slice IOWeight is enforced.
+    ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="bfq"
   '';
 
   # O androidenv se recusa a avaliar sem aceitação explícita da licença do SDK
