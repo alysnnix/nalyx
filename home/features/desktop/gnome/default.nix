@@ -67,6 +67,35 @@
         color-scheme = "prefer-dark";
         gtk-theme = "adw-gtk3-dark";
       };
+
+      # localsearch defaults to crawling $HOME recursively, which on a dev box
+      # means every worktree, node_modules, Go module cache, Android SDK and
+      # wine prefix (88k files measured). Each clone or `npm install` then
+      # triggers a re-crawl that competes with the desktop for the SSD. Index
+      # only the XDG user dirs, where the documents search is actually for.
+      "org/freedesktop/tracker/miner/files" = {
+        index-recursive-directories = [
+          "&DESKTOP"
+          "&DOCUMENTS"
+          "&DOWNLOAD"
+          "&MUSIC"
+          "&PICTURES"
+          "&VIDEOS"
+        ];
+        # Defaults plus build and dependency trees, for the odd project that
+        # lands in Downloads or Documents.
+        ignored-directories = [
+          "po"
+          "CVS"
+          "core-dumps"
+          "lost+found"
+          "node_modules"
+          ".venv"
+          "target"
+          "dist"
+          "build"
+        ];
+      };
     };
 
     home.packages = with pkgs; [

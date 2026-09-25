@@ -13,7 +13,9 @@
         "nix-command"
         "flakes"
       ];
-      auto-optimise-store = true;
+      # No auto-optimise-store: it hashes and hard-links every path as it is
+      # written, adding IO to each build. optimise.automatic below does the
+      # same dedup once, on a timer.
 
       # llm-agents.nix builds codex, omp and gemini-cli from source and pushes
       # them to its own cache daily. Its flake declares this substituter under

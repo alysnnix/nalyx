@@ -169,6 +169,39 @@
     "vm.dirty_bytes" = 1024 * 1024 * 1024;
   };
 
+  # Measured 2026-09-24: load 20 with the CPU 88% idle and io pressure "full"
+  # at 52%, i.e. the desktop froze waiting on the A400, not on RAM or CPU. The
+  # settings below cut writes the desktop never needed and push background IO
+  # behind interactive IO.
+
+  # relatime still writes an atime update on the first read after each
+  # modification, which is every file a dev server or indexer touches.
+  fileSystems."/".options = [ "noatime" ];
+
+  # Builds, GC and store optimisation yield the disk to the desktop instead of
+  # stalling it. mq-deadline honours the idle IO class.
+  nix.daemonIOSchedClass = "idle";
+  nix.daemonCPUSchedPolicy = "idle";
+
+  # Keep at least 20 GiB free by collecting garbage mid-build. A DRAM-less SSD
+  # near full has little spare area left, so every write amplifies.
+  nix.settings = {
+    min-free = 20 * 1024 * 1024 * 1024;
+    max-free = 60 * 1024 * 1024 * 1024;
+  };
+
+  # Build scratch and app temp files live and die in RAM (62 GiB, zram behind
+  # it) instead of being written to the SSD just to be deleted.
+  boot.tmp.useTmpfs = true;
+
+  # The journal had grown to 1.9 GiB of rotating writes.
+  services.journald.settings.Journal.SystemMaxUse = "1G";
+
+  # Watch SSD wear and reallocated sectors, so a dying A400 shows up as a wall
+  # notice instead of as a surprise.
+  services.smartd.enable = true;
+  environment.systemPackages = [ pkgs.smartmontools ];
+
   networking.hostName = "desktop";
 
   # SSH só acessível via Tailscale: porta 22 fechada nas demais interfaces,
