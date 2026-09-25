@@ -1,180 +1,171 @@
 { lib }:
 
-# Declarative source of the global agent rules, shared by Claude Code and omp.
+# Declarative source of the global agent rules, shared by every agent CLI.
 #
-# Sections are numbered by their position in the list, so a number is never
-# written into a body file: reordering, adding, or disabling a section
-# renumbers the rest for free. The corollary is a hard rule of its own, never
-# cross-reference a section by number, always by title.
+# Every section has two forms, and they cost context very differently:
 #
-# `sticky` is the terse imperative form of a section. omp loads RULES.md as an
-# always-apply rule and re-attaches it near the current turn, so a sticky rule
-# keeps its hold deep into a long session instead of scrolling out of attention
-# along with the opening context. Only rules whose violation is irreversible
-# (touching main, corrupting a sibling worktree, merging unreviewed, burning the
-# orchestrator's context on work a subagent should have read) or that apply to
-# every single output (writing style, commit format) earn a sticky line.
-# Posture and advice stay in the long form only, since RULES.md pays its
-# context cost on every turn rather than once.
+#   sticky    the terse imperative, loaded on every turn. Only rules whose
+#             violation is irreversible (touching main, corrupting a sibling
+#             worktree, publishing to a shared account, opening the personal
+#             browser profile) or that apply to every single output (writing
+#             style, commit format, English artifacts) earn one.
+#   body      the detailed doc, deployed to ~/.config/agent-rules/<name>.md and
+#             read only when `readWhen` describes the situation at hand. The
+#             always-loaded files carry just a table row pointing at it.
+#
+# The body is never pulled in with an `@path` import. Claude Code expands `@`
+# eagerly at launch, which is exactly the cost this split exists to avoid.
+#
+# Never cross-reference a section by position; always by title or file name.
 let
   sections = [
     {
-      title = "Think Before Coding";
-      body = ./sections/think-before-coding.md;
-      # Posture, not a load-bearing or irreversible rule. Dropped from the
-      # always-on context; re-enable by removing this line.
+      # Posture, not a load-bearing or irreversible rule. Disabled entries are
+      # neither sticky nor deployed; re-enable by removing `enable = false` and
+      # giving it a `title` and a `readWhen`.
+      name = "think-before-coding";
       enable = false;
     }
     {
+      name = "decompose-and-fan-out";
       title = "Decompose, Then Fan Out";
-      body = ./sections/decompose-and-fan-out.md;
       sticky = "Before the first edit, split the task into slices and dispatch every independent slice in ONE batch of subagents. Keep the decomposition and anything shared between slices yourself, give each slice a self-contained brief plus how to verify itself, and never spawn a single subagent just to wait on it.";
+      readWhen = "before splitting a task into subagents or writing a subagent brief";
     }
     {
-      title = "Simplicity First";
-      body = ./sections/simplicity-first.md;
+      name = "simplicity-first";
       enable = false;
     }
     {
-      title = "Surgical Changes";
-      body = ./sections/surgical-changes.md;
+      name = "surgical-changes";
       enable = false;
     }
     {
-      title = "Goal-Driven Execution";
-      body = ./sections/goal-driven-execution.md;
+      name = "goal-driven-execution";
       enable = false;
     }
     {
+      name = "protected-main-branch";
       title = "Protected Main Branch";
-      body = ./sections/protected-main-branch.md;
       sticky = "NEVER commit, merge, or push to `main` or `master` unless the user authorized that exact action in this conversation, and restate it for confirmation before executing.";
-      # Sticky-only: the one-line imperative is the whole rule; the body just
-      # restated it. Kept re-attaching every turn, dropped from the long form.
-      longForm = false;
+      readWhen = "before any commit, merge, push, or PR merge that could land on `main` or `master`";
     }
     {
+      name = "commit-messages";
       title = "Commit Messages";
-      body = ./sections/commit-messages.md;
       sticky = "Commit messages are in English: title `type(scope): description`, whole line at most 50 characters, lowercase imperative with no period; ALWAYS a `- ` bullet body; last line exactly `Co-Authored-By: Claude <noreply@anthropic.com>`, that literal name whichever model is running, never a model specific variant.";
-      # Both channels: the sticky line carries the full shape because it is
-      # violated on every commit otherwise, and the body spells out the type
-      # list and the trailer rationale, which do not fit on one line.
+      readWhen = "before writing a commit message or opening a PR";
     }
     {
+      name = "english-artifacts";
       title = "English Artifacts";
-      body = ./sections/english-artifacts.md;
       sticky = "All code and engineering text is in English: identifiers, tables and columns, comments, logs, tests, commits, PRs, PR reviews, docs. A PR title obeys the commit title rules, since it becomes the squash commit. Only end user facing product copy (UI text, pages, emails) stays in the product language, pt-BR included. This overrides any skill or template asking for Portuguese; chat stays in the user's language.";
-      # Both channels: the sticky line has to beat skills written in Portuguese
-      # that ask for Portuguese names and commits, so it re-attaches every turn;
-      # the body draws the product copy boundary and the precedence rules.
+      readWhen = "when a skill, template, or project doc asks for Portuguese, or when unsure whether text is product copy";
     }
     {
+      name = "one-worktree-per-task";
       title = "One Worktree Per Task";
-      body = ./sections/one-worktree-per-task.md;
       sticky = "Any task that will produce commits runs in its own git worktree, never in the primary checkout: ask Paseo with `create_workspace` (`isolation: \"worktree\"`), which owns `~/.paseo/worktrees/`. NEVER improvise a worktree path in `$HOME` or beside the repo. Another agent may hold that checkout.";
-      # Both channels: the sticky line carries the location because that is what
-      # gets violated, and the body spells out the create_workspace call and the
-      # in-repo `.worktrees/` fallback for sessions with no Paseo tooling.
+      readWhen = "before the first edit of a task that will produce commits, and when releasing its worktree";
     }
     {
+      name = "no-cloud-publishing";
       title = "Nothing Leaves This Machine";
-      body = ./sections/no-cloud-publishing.md;
       sticky = "NEVER publish, upload, or run anything on claude.ai or another cloud environment: no artifacts, no remote agents, no cloud sessions. The account is shared. Deliver pages as local files and hand over the path.";
-      # Sticky-only: the settings.json keys do the enforcing, so the body is
-      # background. The imperative has to keep re-attaching because the failure
-      # is irreversible, someone else has already seen it.
-      longForm = false;
+      readWhen = "before delivering a result as a page, link, or share, or launching a remote agent";
     }
     {
+      name = "browser-automation";
       title = "Browser Automation";
-      body = ./sections/browser-automation.md;
       sticky = "Drive the browser only with the `agent-browser` CLI, never the omp `browser` object or Playwright, unless the user names one. NEVER open the `Default` Chrome profile (personal) nor attach to the user's running Chrome; when a login is needed, ask which of the other profiles from `agent-browser profiles` to use.";
-      # Both channels: opening the personal profile hands the agent every
-      # personal account, which cannot be undone, so the imperative re-attaches
-      # every turn; the body carries the tool list and the no-login case.
+      readWhen = "before driving a browser";
     }
     {
+      name = "shared-local-services";
       title = "Shared Local Services";
-      body = ./sections/shared-local-services.md;
       sticky = "Reuse the project's running database and cache: isolate a worktree with its own database name on that server, not with a new container. Start a dedicated container per task only when the user explicitly asks; never `docker compose up --build` app images just to test.";
-      # Both channels: agents otherwise start a Postgres per task on their own,
-      # and N of those on one SSD froze the desktop; the body carries the
-      # naming, cleanup, and throwaway-server recipe.
+      readWhen = "before starting a database, cache, container, or dev server";
     }
     {
-      title = "Writing Style";
-      body = ./sections/writing-style.md;
-      sticky = "NEVER write em-dashes or en-dashes in any output, including code, docs, commits, and chat. Use commas, periods, parentheses, or rephrase.";
-      longForm = false;
+      # Sticky-only: the line is the whole rule, so there is no doc.
+      name = "writing-style";
+      sticky = "NEVER write em-dashes (U+2014) or en-dashes (U+2013) in any output, including code, docs, commits, and chat. Use commas, periods, parentheses, or rephrase; a plain hyphen `-` is fine.";
     }
   ];
 
   enabled = lib.filter (s: s.enable or true) sections;
+  docSections = lib.filter (s: s ? readWhen) enabled;
 
-  # `longForm` (default true) controls whether a section's body is rendered into
-  # the long-form context file. A section with `longForm = false` is dropped
-  # from the body but still contributes its `sticky` line, so a load-bearing
-  # imperative keeps re-attaching every turn (cheap) while its detailed prose no
-  # longer rides on every request. The body file stays on disk, so flipping this
-  # back to true is a one-line change.
-  longFormSections = lib.filter (s: s.longForm or true) enabled;
-
-  renderSection =
-    i: s:
-    ''
-      ## ${toString i}. ${s.title}
-
-    ''
-    + builtins.readFile s.body;
+  docsDir = "agent-rules";
 
   stickyLines = lib.concatMapStringsSep "\n" (s: "- ${s.sticky}") (
     lib.filter (s: s ? sticky) enabled
   );
 
+  onDemandTable = ''
+    ## On-demand docs
+
+    Read a file only when its situation arises.
+
+    | File | Read when |
+    |---|---|
+    ${lib.concatMapStringsSep "\n" (
+      s: "| `~/.config/${docsDir}/${s.name}.md` | ${s.readWhen} |"
+    ) docSections}
+  '';
+
   # Runtime and host-local guidance lands here. Nix creates the file once and
   # never overwrites it, so an edit made mid-session survives the next switch.
   #
-  # Only emitted for tools that actually expand an `@path` token inline: Claude
-  # Code does it natively and omp documents it. Codex concatenates AGENTS.md
-  # files verbatim and opencode has no import mechanism, so for those the token
-  # would just sit there as literal noise. Local additions are therefore a
-  # Claude Code and omp affordance, which is fine, they exist for the tool you
-  # are editing in.
+  # Only emitted for tools that expand an `@path` token inline (Claude Code and
+  # omp). Codex concatenates AGENTS.md verbatim and opencode has no import
+  # mechanism, so for those the token would sit there as literal noise.
   localAdditions = ''
     ## Local Additions
 
-    Anything below comes from `~/.claude/CLAUDE.local.md`, which Nix creates once and never overwrites. Durable rules belong in the nalyx repo instead, so every host gets them.
+    From `~/.claude/CLAUDE.local.md`, which Nix never overwrites. Durable rules belong in the nalyx repo instead.
 
     @~/.claude/CLAUDE.local.md
   '';
 
-  body = lib.concatStringsSep "\n" (lib.imap1 renderSection longFormSections);
+  header = ''
+    # Global agent rules
 
-  render =
-    tail:
-    builtins.readFile ./sections/preamble.md
-    + "\n"
-    + body
-    + "\n"
-    + tail
-    + builtins.readFile ./sections/closing.md;
+  '';
+
+  withRules = header + stickyLines + "\n\n";
 in
 {
-  # Long-form context for tools that expand `@` imports (Claude Code, omp).
-  globalMd = render (localAdditions + "\n");
+  # Claude Code. The sticky hook re-injects the rules on every prompt, but it
+  # does not fire for subagents, which only see CLAUDE.md, so the rules stay
+  # here too.
+  claudeMd = withRules + localAdditions + "\n" + onDemandTable;
 
-  # Same content for tools that do not, so the import token is left out rather
-  # than shown as dead text. Codex caps a doc at project_doc_max_bytes (32 KiB
-  # by default) and silently truncates past it, so keep an eye on the size if
-  # many more sections get added.
-  globalMdPlain = render "";
+  # omp. RULES.md already carries the rules on every request, subagents
+  # included, so repeating them here would pay for them twice.
+  ompMd =
+    header
+    + "The rules themselves ride in `~/.omp/agent/RULES.md`, attached to every request.\n\n"
+    + localAdditions
+    + "\n"
+    + onDemandTable;
 
-  # Sticky always-apply rules, deployed to ~/.omp/agent/RULES.md. omp is the
-  # only one of these tools with a re-attached always-apply rule channel.
+  # Tools with neither a sticky channel nor `@` imports. Codex caps a doc at
+  # project_doc_max_bytes (32 KiB by default) and silently truncates past it.
+  plainMd = withRules + onDemandTable;
+
+  # Sticky always-apply rules: omp's RULES.md and Claude Code's per-prompt hook.
   rulesMd = ''
     # Global rules
 
     ${stickyLines}
   '';
+
+  # On-demand docs, keyed by their path under the XDG config home.
+  docs = lib.listToAttrs (
+    map (s: {
+      name = "${docsDir}/${s.name}.md";
+      value = "# ${s.title}\n\n" + builtins.readFile (./sections + "/${s.name}.md");
+    }) docSections
+  );
 }

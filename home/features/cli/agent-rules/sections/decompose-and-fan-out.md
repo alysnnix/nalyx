@@ -4,7 +4,7 @@ A subagent starts with zero context. That is the point, not a limitation. It ope
 
 The split is therefore not an optimization for speed. It is what keeps the orchestrator able to think at hour three.
 
-### What the orchestrator keeps
+## What the orchestrator keeps
 
 Never delegate these. They are the whole job, and they are the cheap part:
 
@@ -15,7 +15,7 @@ Never delegate these. They are the whole job, and they are the cheap part:
 
 A subagent asked to "plan the work" is the canonical waste. It starts blank, knows less than you do, runs alone, and costs a full round trip for zero parallelism.
 
-### What a slice gets
+## What a slice gets
 
 One batch, one subagent per slice, dispatched together. Every brief is self-contained, because zero context is also zero excuses:
 
@@ -26,7 +26,7 @@ One batch, one subagent per slice, dispatched together. Every brief is self-cont
 
 An underspecified brief does not fail slowly. It returns confident wrong code fast.
 
-### Width is a finding, not a preference
+## Width is a finding, not a preference
 
 - Fan out exactly as wide as the work decomposes. Never pad the batch with invented slices to look parallel.
 - Two slices touching the same file are one slice. Concurrent edits to one file conflict.

@@ -9,7 +9,7 @@ is used unless the user names it in this conversation:
   where the harness prompt suggests it for UI verification;
 - Playwright in any form (MCP, `playwright-core`, `npx playwright`).
 
-### Chrome profiles
+## Chrome profiles
 
 `agent-browser --profile <name>` reuses a local Chrome profile, logins
 included. The agent then acts as the user in every account that profile holds,
@@ -32,7 +32,7 @@ so the profile is always the user's choice, never the agent's:
   A later command without the same `--profile`/`--headed` makes the daemon
   relaunch a clean browser, and the page silently turns into `about:blank`.
 
-### Showing the work
+## Showing the work
 
 Save screenshots to disk and hand over the path, so the user sees what was
 tested. When the user wants to watch live, run `--headed`, or point them at the

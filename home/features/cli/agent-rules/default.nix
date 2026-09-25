@@ -18,20 +18,23 @@
 # Each tool reads a different path, and none of them read another's, so a rule
 # that is not written to a tool's own path simply does not exist for that tool:
 #
-#   ~/.omp/agent/AGENTS.md          omp, `native` provider
+#   ~/.omp/agent/AGENTS.md          omp, `native` provider (index only)
 #   ~/.omp/agent/RULES.md           omp, sticky always-apply channel
 #   ~/.claude/CLAUDE.md             Claude Code, and omp's `claude` provider
 #   ~/.codex/AGENTS.md              Codex CLI
 #   ~/.gemini/GEMINI.md             Gemini CLI
 #   ~/.config/opencode/AGENTS.md    opencode
 #   ~/.pi/agent/AGENTS.md           pi
+#   ~/.config/agent-rules/*.md      on-demand docs, read by any of them
 #
-# Why AGENTS.md as well as CLAUDE.md for omp: omp keeps exactly ONE user-level
-# context file, and its `native` provider (priority 100) shadows the `claude`
-# one (priority 80). With no AGENTS.md the CLAUDE.md wins by default, which
-# works right up until something drops a file at the native path and silently
-# shadows every global rule. Writing both with identical content makes the
-# outcome deterministic either way.
+# omp keeps exactly ONE user-level context file, and its `native` provider
+# (priority 100) shadows the `claude` one (priority 80). AGENTS.md is always
+# written, so omp deterministically gets the omp variant, which leaves the
+# rules to RULES.md instead of paying for them twice. Should CLAUDE.md ever win
+# instead, it is a superset, so nothing is lost either way.
+#
+# The on-demand docs are plain read-only store symlinks: agents read them when
+# the index says so and have no business editing them.
 #
 # Codex is detected at activation instead of gated on a flag. It is installed
 # from the private repo (llm-agents.nix), so the public repo cannot know
@@ -52,15 +55,13 @@ let
 
   home = config.home.homeDirectory;
 
-  importAwareFile = pkgs.writeText "agent-rules-md" rules.globalMd;
-  plainFile = pkgs.writeText "agent-rules-plain-md" rules.globalMdPlain;
+  claudeFile = pkgs.writeText "agent-rules-claude-md" rules.claudeMd;
+  ompFile = pkgs.writeText "agent-rules-omp-md" rules.ompMd;
+  plainFile = pkgs.writeText "agent-rules-plain-md" rules.plainMd;
   stickyFile = pkgs.writeText "agent-rules-sticky-md" rules.rulesMd;
 
-  # Tools that expand an `@path` token, so they get the CLAUDE.local.md import.
-  importAwareTargets = [
-    "${home}/.omp/agent/AGENTS.md"
-  ]
-  ++ lib.optional enableClaude "${home}/.claude/CLAUDE.md";
+  claudeTargets = lib.optional enableClaude "${home}/.claude/CLAUDE.md";
+  ompTargets = [ "${home}/.omp/agent/AGENTS.md" ];
 
   # Tools that take the markdown verbatim.
   plainTargets =
@@ -74,6 +75,8 @@ let
     src: targets: lib.concatMapStringsSep "\n" (t: ''deploy_managed "${src}" "${t}"'') targets;
 in
 {
+  xdg.configFile = lib.mapAttrs (_: text: { inherit text; }) rules.docs;
+
   home.activation.agentRules = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         PATH="${pkgs.coreutils}/bin:$PATH"
 
@@ -114,7 +117,8 @@ in
           printf '%s\n' "$new_hash" > "$sidecar"
         }
 
-        ${deployLines "${importAwareFile}" importAwareTargets}
+        ${deployLines "${claudeFile}" claudeTargets}
+        ${deployLines "${ompFile}" ompTargets}
         ${deployLines "${plainFile}" plainTargets}
         ${deployLines "${stickyFile}" stickyTargets}
 

@@ -1,8 +1,3 @@
----
-paths:
-  - "**/*"
----
-
 # Quality Rules
 
 ## CRITICAL: Validation Before Commit

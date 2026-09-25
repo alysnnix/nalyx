@@ -1,10 +1,3 @@
----
-paths:
-  - "**/*.nix"
-  - "flake.nix"
-  - "flake.lock"
----
-
 # Nix Coding Rules
 
 ## Module Structure
@@ -251,3 +244,22 @@ nix flake update
 # Update a specific one
 nix flake lock --update-input nixpkgs
 ```
+
+## Nalyx Conventions
+
+- Module pattern: `{ pkgs, vars, lib, config, ... }:`
+- Conditional imports: `lib.optional (vars.desktop == "hyprland") ./hyprland`
+- HM special args: `isWsl`, `isServer`, `terminalOnly`, `enableClaude`, `enableGemini`, `enableOpencode`, `enablePi`. Every one is passed at all four `extraSpecialArgs` sites (`fnMountSystem`, the two home profiles, `generators/`); the `? default` in each module signature is documentation, not a fallback that fires
+- Directories: `kebab-case`, main files: `default.nix`
+- Host helper: `fnMountSystem` in `flake.nix` builds each host config
+- Pre-commit hooks: `nixfmt`, `statix`, `deadnix`, activated automatically with `nix develop`
+
+## Key Variables (`vars.nix`)
+
+- `vars.user.name`, `vars.user.email`, `vars.user.publicKey`
+- `vars.user.publicKey` is the personal key alone, and feeds `authorizedKeys` on the personal hosts
+- `vars.user.signers` is the list of identities to verify commit signatures from, written to `~/.ssh/allowed_signers`. Principals are ssh-keygen patterns, so a project layer registers `*@employer.example` through `modules.cli.git.extraSigners` without the address landing here
+- `vars.desktop`: `"hyprland"`, `"gnome"`, or `null` (headless)
+- `vars.shell`: `"caelestia"` or `"waybar"` (Hyprland shell choice)
+- `vars.terminal`, `vars.editor`
+- `vars.homelab.address`

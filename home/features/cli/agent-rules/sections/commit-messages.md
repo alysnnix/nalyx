@@ -11,7 +11,7 @@ type(scope): short description
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-### Title
+## Title
 
 - ALWAYS English, regardless of the language used in the conversation.
 - 50 characters maximum for the whole line, `type` and `(scope)` included.
@@ -19,13 +19,13 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - `type` is one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
 - `(scope)` is the module, feature, or area touched. Optional in form, expected in practice: omit it only when the change genuinely spans no single area.
 
-### Body
+## Body
 
 - ALWAYS present. A title-only commit is never acceptable, however small the diff is.
 - `- ` bullets, lowercase, saying what changed and why. Short, but complete enough to stand alone in `git log`.
 - One bullet per distinct change. A bullet that needs an "and" is usually two bullets.
 
-### Trailer
+## Trailer
 
 - The last line is exactly this, byte for byte:
 

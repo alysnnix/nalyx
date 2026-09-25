@@ -3,7 +3,7 @@ multiplies WAL, checkpoints, image layers, and volumes by the number of agents,
 and that write load is what freezes the desktop. Local services are therefore
 shared, and a task isolates itself with a database name, not with a container.
 
-### Databases and caches
+## Databases and caches
 
 - Before starting anything, look for what is already running:
   `docker ps --format '{{.Names}} {{.Image}} {{.Ports}}'`. If the project's
@@ -25,14 +25,14 @@ shared, and a task isolates itself with a database name, not with a container.
   `-c fsync=off -c synchronous_commit=off -c full_page_writes=off`. Remove it
   when the run ends.
 
-### Apps and images
+## Apps and images
 
 - Run the app on the host with the repo's own dev server (`pnpm dev` and the
   like). Do not `docker compose up --build` the app images just to test a
   change; build images only when the task is about the image itself.
 - Stop the dev servers and containers the task started before finishing.
 
-### Dependencies
+## Dependencies
 
 - Install with the package manager the repo pins (`packageManager`, lockfile).
   pnpm hardlinks from one shared store, so a pnpm worktree costs almost no
