@@ -104,8 +104,7 @@
     ];
 
     # ~/.local/bin is where tools that install per-user binaries land, and this
-    # config ships one that does: `uv tool install` symlinks its shims there,
-    # and Orca registers a launcher there on the WSL host.
+    # config ships one that does: `uv tool install` symlinks its shims there.
     #
     # home/features/cli/zsh already puts the directory on PATH through
     # `home.sessionPath`, but that only reaches shells via hm-session-vars.sh,

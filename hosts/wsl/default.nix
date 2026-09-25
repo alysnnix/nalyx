@@ -161,8 +161,8 @@
   # cliente e sempre remoto, pelos tres caminhos que este host oferece: o
   # browser do Windows em http://localhost:6767 (loopback compartilhado pelo
   # networkingMode=mirrored), o build Windows do app desktop tunelando com
-  # `ssh -W` (o mesmo desenho que o Orca ja usa, ver a chave orca-windows em
-  # authorizedKeys abaixo), e a tailnet pelo vhost do `paseoProxy`, que a
+  # `ssh -W` (ver a chave da maquina Windows em authorizedKeys abaixo), e a
+  # tailnet pelo vhost do `paseoProxy`, que a
   # camada privada liga.
   #
   # O conteudo do daemon (settings, providers, voz) e compartilhado com o
@@ -218,8 +218,8 @@
     openssh.authorizedKeys.keys = [
       vars.user.publicKey
 
-      # Cliente do Orca. A GUI roda no Windows e disca em localhost:22 (modo
-      # espelhado), então a chave privada tem que morar do lado NTFS e não pode
+      # Cliente Windows (app desktop do Paseo). A GUI roda no Windows e disca
+      # em localhost:22 (modo espelhado), então a chave privada tem que morar do lado NTFS e não pode
       # ser a de ~/.ssh daqui de dentro. Chave da máquina cliente, não uma
       # segunda identidade, e por isso fora de vars.user.publicKey, que é a
       # identidade pessoal sozinha.
@@ -258,10 +258,7 @@
     # Ligar lá cobre desktop, vm e homelab, e não alcança este. Nenhuma
     # das duas cópias é redundante.
     #
-    # O motivo está em modules/core; aqui o gatilho concreto é o Orca, que
-    # registra um launcher em ~/.local/bin quando conecta neste host (wrapper
-    # que atravessa a interop até o orca.exe do Windows) e avisa que o diretório
-    # não está no PATH em NixOS. Está certo: quem o põe lá hoje é o
+    # O motivo está em modules/core: quem põe ~/.local/bin no PATH hoje é o
     # `home.sessionPath` do home-manager, que só chega via hm-session-vars.sh,
     # carregado apenas pelo ~/.zshenv.
     localBinInPath = true;

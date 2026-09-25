@@ -152,7 +152,7 @@ host remoto:
 
 Funciona porque o modo espelhado faz `localhost:22` do Windows chegar no sshd do
 WSL, e porque `hosts/wsl/default.nix` já autoriza a chave da máquina Windows nas
-`authorizedKeys` (a mesma que o Orca usa).
+`authorizedKeys`.
 
 O transporte é `ssh -T -o BatchMode=yes ... -W 127.0.0.1:6767`. O `BatchMode=yes`
 é a pegadinha: **não existe prompt de senha**. A chave precisa estar sem

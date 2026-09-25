@@ -20,7 +20,6 @@
     # Imported unconditionally like ./syncthing: it declares an option and
     # gates its own config on it, so a host that does not want it pays nothing
     # and no `imports` position ever reads a specialArg.
-    ./orca
     # Same shape: a static path in `imports`, and the module itself reads the
     # host-shape specialArgs from `config` positions only.
     ./paseo

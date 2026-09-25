@@ -200,13 +200,6 @@ in
       # list for a folder it is never going to sync.
       syncthing.enable = false;
 
-      # Orca itself comes from the distro (`apt install ./orca-ide_*.deb`), like
-      # every other window on this machine. This only fixes the launcher, so the
-      # app finds the agents in the nix profile. A graphical exception that costs
-      # nothing, since it ships no window of its own: it is a desktop entry and
-      # a two-line wrapper.
-      orca.enable = true;
-
       # The agent-browser dashboard at https://<node>:4848, watched from the
       # personal desktop. Served from the user unit, with the same one-time
       # operator grant the Paseo serve needs (`paseo-tailnet-operator-setup`).
