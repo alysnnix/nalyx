@@ -7,7 +7,8 @@
   # outranks the `agents` one, so the visible copy would shadow the hidden pin
   # in both harnesses.
   enabledPlugins = {
-    "code-review@claude-plugins-official" = true;
+    # Disabled, not deleted, for the same merge reason as firebase above.
+    "code-review@claude-plugins-official" = false;
     "context7@claude-plugins-official" = true;
     # `false` e nao ausente: a ativacao mescla com `. * $managed`, entao uma
     # chave que some daqui sobrevive no settings.json que ja esta na maquina.
@@ -21,9 +22,11 @@
     "playwright@claude-plugins-official" = false;
     "posthog@claude-plugins-official" = true;
     "pyright-lsp@claude-plugins-official" = true;
-    "ralph-loop@claude-plugins-official" = true;
+    # Disabled, not deleted, for the same merge reason as firebase above.
+    "ralph-loop@claude-plugins-official" = false;
     "security-guidance@claude-plugins-official" = true;
-    "skill-creator@claude-plugins-official" = true;
+    # Disabled, not deleted, for the same merge reason as firebase above.
+    "skill-creator@claude-plugins-official" = false;
     "stripe@claude-plugins-official" = true;
     "supabase@claude-plugins-official" = true;
     "superpowers@claude-plugins-official" = true;

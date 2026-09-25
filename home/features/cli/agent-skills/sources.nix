@@ -29,34 +29,8 @@
 # bundle back in every Claude session's prompt, which is the thing this avoids.
 #
 # Bumping a pin is `nix-prefetch-url --unpack <tarball>` piped through
-# `nix hash convert`. The Orca entries below are the exception: they pin single
-# files, so bumping one is `nix store prefetch-file <url>`, which prints the SRI
-# hash directly.
+# `nix hash convert`.
 let
-  # Orca's skills are pinned file by file rather than with fetchFromGitHub, and
-  # this is a deliberate break from the shape above. Each of them is a single
-  # SKILL.md of a few kilobytes, while stablyai/orca is a ~730 MB repo (it is a
-  # whole Electron IDE), so a tarball fetch would trade 6 KB of instructions for
-  # a download of that size on every host that switches. The raw endpoint at a
-  # pinned commit serves the same immutable bytes the tarball would carry.
-  #
-  # One rev for both, since they are read together and drift between two halves
-  # of the same registry is not worth the second knob.
-  orcaRev = "12f2c6b991dc80973827464bee3f629ebc0fc753";
-
-  orcaSkill = name: hash: {
-    src = pkgs.runCommandLocal "orca-skill-${name}" { } ''
-      mkdir -p "$out/skills/${name}"
-      cp ${
-        pkgs.fetchurl {
-          url = "https://raw.githubusercontent.com/stablyai/orca/${orcaRev}/skills/${name}/SKILL.md";
-          inherit hash;
-        }
-      } "$out/skills/${name}/SKILL.md"
-    '';
-    subdir = "skills/${name}";
-  };
-
   skills = {
     agent-browser = {
       src = pkgs.fetchFromGitHub {
@@ -81,31 +55,12 @@ let
       '';
     };
 
-    # Orca's two orchestration stubs. Both are discovery stubs: they only tell
-    # the agent to resolve Orca's own executable and load the version matched
-    # guide from it, so no `postProcess` is needed. Their resolution order is
-    # already right on these machines, and notably warns the agent off bare
-    # `orca`, which on Linux is the GNOME screen reader.
-    #
-    # Nothing installs an Orca CLI here on purpose. On a host reached over SSH,
-    # Orca exports ORCA_CLI_COMMAND into the terminals it opens itself, which is
-    # the only path in that resolution order that exists on a machine where the
-    # GUI lives elsewhere.
-    #
-    # computer-use, the third skill in that registry, is deliberately absent: it
-    # drives a desktop, and on the WSL host the desktop is Windows'. Orca's own
-    # browser skill is absent too, because agent-browser above already owns that
-    # job and its instructions say to prefer it over other browser tooling.
-    orca-cli = orcaSkill "orca-cli" "sha256-shubgEdcNZlrnARjebnJ+niPLTV8npF779irGzffLnc=";
-    orchestration = orcaSkill "orchestration" "sha256-99oN1A2GgeKwMD+g+i9+5ONvLspklaSvV7krmFff9zI=";
-
     # The frontend persona: the design bundle that only a UI-dedicated agent
-    # should be paying for. Three skills, three different jobs, which is why
-    # the persona carries all of them instead of picking one: `superdesign`
-    # drives the canvas tool, `frontend-design` is aesthetic direction, and
-    # `landing-page-design` is a conversion-page system with hard visual rules.
-    # Together they are ~25 KB of instructions and three long descriptions in
-    # every prompt, on every host, for sessions that mostly never touch a UI.
+    # should be paying for. Two skills, two different jobs, which is why the
+    # persona carries both instead of picking one: `superdesign` drives the
+    # canvas tool and `frontend-design` is aesthetic direction. Together they
+    # are long instructions and two long descriptions in every prompt, on every
+    # host, for sessions that mostly never touch a UI.
     superdesign = {
       src = pkgs.fetchFromGitHub {
         owner = "superdesigndev";
@@ -132,17 +87,6 @@ let
         hash = "sha256-F/w7piZx7GoZOm5qmhT9MKAB3QsQrndEyzijWBeBIRc=";
       };
       subdir = "plugins/frontend-design/skills/frontend-design";
-      persona = "frontend";
-    };
-
-    landing-page-design = {
-      src = pkgs.fetchFromGitHub {
-        owner = "elayadesign";
-        repo = "ai-design-skills";
-        rev = "1c1e97cb9878e236552c772092dda7adcdddbcb2";
-        hash = "sha256-Vscb+Cd6HnUk5222xIrJZ5q/cTqir5lhPWQ+RLAQ8d4=";
-      };
-      subdir = "skills/landing-page-design";
       persona = "frontend";
     };
   };
