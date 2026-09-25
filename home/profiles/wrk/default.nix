@@ -197,6 +197,11 @@ in
       # a two-line wrapper.
       orca.enable = true;
 
+      # The agent-browser dashboard at https://<node>:4848, watched from the
+      # personal desktop. Served from the user unit, with the same one-time
+      # operator grant the Paseo serve needs (`paseo-tailnet-operator-setup`).
+      agentBrowser.dashboard.tailnet.enable = true;
+
       # The Paseo daemon as a user service, published on this node's own
       # MagicDNS name so the personal desktop can open it in a browser. Off
       # NixOS there is no `services.paseo` to declare it, and the AppImage's

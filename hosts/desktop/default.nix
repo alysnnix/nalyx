@@ -17,6 +17,8 @@
     # publicacao dele na tailnet. Ligados mais abaixo.
     ../../modules/services/paseo.nix
     ../../modules/services/paseo-tailnet.nix
+    # The agent-browser dashboard on the tailnet (:4848). Enabled below.
+    ../../modules/services/agent-browser-tailnet.nix
     # Daemon do cooler Corsair (iCUE LINK), consumido pelo gearhub via HTTP.
     ../../modules/services/openlinkhub.nix
     # Trava o áudio Bluetooth em A2DP: sem isto o fone cai para HSP/HFP e o som
@@ -215,6 +217,10 @@
   # dele, porque dois daemons nao dividem a porta 6767. Depois do primeiro
   # switch o app precisa ser reiniciado uma vez para largar a porta.
   modules.services.paseo.enable = true;
+
+  # The agent-browser dashboard at https://<node>:4848, watched from the work
+  # laptop. Who reaches the port is the tailnet ACL's call.
+  modules.services.agentBrowserTailnet.enable = true;
 
   # Teto de memoria do daemon, e nao do sistema: cada agente sobe a sua propria
   # copia dos MCP servers que ainda falam stdio, sem nada compartilhado entre
