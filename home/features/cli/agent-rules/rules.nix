@@ -95,6 +95,14 @@ let
       # every turn; the body carries the tool list and the no-login case.
     }
     {
+      title = "Shared Local Services";
+      body = ./sections/shared-local-services.md;
+      sticky = "Reuse the project's running database and cache: isolate a worktree with its own database name on that server, not with a new container. Start a dedicated container per task only when the user explicitly asks; never `docker compose up --build` app images just to test.";
+      # Both channels: agents otherwise start a Postgres per task on their own,
+      # and N of those on one SSD froze the desktop; the body carries the
+      # naming, cleanup, and throwaway-server recipe.
+    }
+    {
       title = "Writing Style";
       body = ./sections/writing-style.md;
       sticky = "NEVER write em-dashes or en-dashes in any output, including code, docs, commits, and chat. Use commas, periods, parentheses, or rephrase.";
