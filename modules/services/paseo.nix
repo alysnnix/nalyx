@@ -449,5 +449,20 @@ in
     # systemd nao dispara restart. O que volta e so a saida do proprio
     # processo.
     systemd.services.paseo.serviceConfig.Restart = lib.mkForce "always";
+
+    # The Claude account pool (home/features/cli/claude/account-pool.nix) needs
+    # nothing in this service's environment: it rides in the `claude` binary on
+    # the home-manager profile, which is the one the `claude` provider resolves
+    # through PATH, and a daemon-wide ANTHROPIC_BASE_URL would reroute the omp
+    # agents as well, since omp reads that variable too. What it does need is
+    # to be running. It is a user service, and a user service only runs while
+    # the user manager does, which without lingering means after the first
+    # login. This daemon starts at boot and is reached from the phone with
+    # nobody logged in, so without this every claude agent it spawned would
+    # get connection refused until someone opened a session.
+    users.users.${vars.user.name}.linger =
+      lib.mkIf
+        (config.home-manager.users.${vars.user.name}.modules.cli.claude.accountPool.enable or false)
+        true;
   };
 }

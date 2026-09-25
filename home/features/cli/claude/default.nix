@@ -31,6 +31,8 @@ let
   };
 in
 {
+  imports = [ ./account-pool.nix ];
+
   programs.zsh.initContent = scripts.wrapper;
 
   home = {

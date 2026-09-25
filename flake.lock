@@ -763,6 +763,7 @@
         "paseo-github": "paseo-github",
         "private": "private",
         "sops-nix": "sops-nix",
+        "teamclaude": "teamclaude",
         "wrk": "wrk"
       }
     },
@@ -877,6 +878,26 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "teamclaude": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789865714,
+        "narHash": "sha256-quMSn/mx3uKgU27dbrJOEwgkcRTwZv9UMAenQCTpEB4=",
+        "owner": "KarpelesLab",
+        "repo": "teamclaude",
+        "rev": "3d5bb6f12148cdcfb7a97b6b9c2737ff89a80bed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "KarpelesLab",
+        "repo": "teamclaude",
         "type": "github"
       }
     },

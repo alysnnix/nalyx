@@ -92,6 +92,15 @@
       url = "github:crmne/fastpotify";
     };
 
+    # teamclaude: local rotating reverse proxy that pools several Claude
+    # subscriptions behind one ANTHROPIC_BASE_URL (home/features/cli/claude/
+    # account-pool.nix). Follows nixpkgs: the package is a copy of plain JS
+    # sources run by nodejs_24, so there is no build or dependency hash to keep.
+    teamclaude = {
+      url = "github:KarpelesLab/teamclaude";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     caelestia = {
       url = "github:caelestia-dots/shell/v1.5.2";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -278,6 +287,20 @@
         paseo = paseoUpstream;
       };
 
+      # teamclaude with one local fix, same reasoning as the Paseo patches: a
+      # fork would be one more lock to keep, and a patch breaks loudly on the
+      # bump that touches the file. hold-retry-refused-accounts: with
+      # `holdSeconds` set, a request that was itself refused by every account
+      # is held but never retried, because the accounts that refused it stay in
+      # its per-request `tried` set, so it waits out the whole budget even when
+      # a window resets a minute later. That request is the running agent's
+      # current turn, so the bug turns a reset into a stall of `holdSeconds`.
+      # Reproduced against a mock upstream (one 429, reset 12s later, the proxy
+      # never asked again in 150s); upstream's own suite passes with it.
+      teamclaude = inputs.teamclaude.packages.${system}.teamclaude.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ ./packages/teamclaude/hold-retry-refused-accounts.patch ];
+      });
+
       claudeOverlay =
         _: _:
         {
@@ -287,6 +310,7 @@
           herdr = inputs.herdr.packages.${system}.default;
           paseo = fixPtyNode (paseoLocalPatches paseoUpstream);
           paseo-desktop = fixPtyNode (paseoLocalPatches paseoDesktopUpstream);
+          inherit teamclaude;
         }
         // nixpkgs.lib.optionalAttrs hasPaseoGithub {
           paseo-github-integration = inputs.paseo-github.packages.${system}.github-integration;
