@@ -25,5 +25,8 @@
     dbeaver-bin
     postgresql
     pritunl-client
+    # Integrates AppImages: moves them to one folder, writes the desktop entry
+    # and icon, and uninstalls them from its own UI.
+    gearlever
   ];
 }
