@@ -96,8 +96,11 @@
     # subscriptions behind one ANTHROPIC_BASE_URL (home/features/cli/claude/
     # account-pool.nix). Follows nixpkgs: the package is a copy of plain JS
     # sources run by nodejs_24, so there is no build or dependency hash to keep.
+    # Pinned to the exact audited rev, not the default branch: the proxy holds
+    # every account's OAuth tokens, so a bump has to be a deliberate edit here
+    # with the src/ diff reviewed, never a side effect of `nix flake update`.
     teamclaude = {
-      url = "github:KarpelesLab/teamclaude";
+      url = "github:KarpelesLab/teamclaude/3d5bb6f12148cdcfb7a97b6b9c2737ff89a80bed";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -296,7 +299,9 @@
       # a window resets a minute later. That request is the running agent's
       # current turn, so the bug turns a reset into a stall of `holdSeconds`.
       # Reproduced against a mock upstream (one 429, reset 12s later, the proxy
-      # never asked again in 150s); upstream's own suite passes with it.
+      # never asked again in 150s); upstream's own suite passes with it. Only
+      # quota and transient refusals are let back, never a 401/403, so a dead
+      # credential is not asked again on every poll of a hold.
       teamclaude = inputs.teamclaude.packages.${system}.teamclaude.overrideAttrs (old: {
         patches = (old.patches or [ ]) ++ [ ./packages/teamclaude/hold-retry-refused-accounts.patch ];
       });

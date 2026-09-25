@@ -1,19 +1,25 @@
 --- a/src/server.js
 +++ b/src/server.js
-@@ -2403,5 +2403,15 @@
+@@ -2403,5 +2403,21 @@
        await waitForRetry(waitMs, ctx.signal);
        if (clientGone(res)) { ctx.abandoned = true; return; }
 -      return forwardRequest(req, res, body, accountManager, upstream, retryCount, hooks, reqId, ctx, logDir, sx, route);
 +      // Every account this request was refused by is in ctx.tried, and the
-+      // hold exists precisely for those refusals to lapse. Left in place, the
-+      // set bars them from selection for the rest of the request, so an
++      // hold exists for quota refusals to lapse. Left in place, the set bars
++      // those accounts from selection for the rest of the request, so an
 +      // account whose window reset during the hold is never asked again and
-+      // the request sits out the whole budget before it gets its 429. Clearing
-+      // it is safe: a refused account is still skipped as throttled until its
-+      // retry-after passes, so this reaches upstream only once one is back.
-+      // The retry count starts over with it, since it bounds one walk of the
-+      // fleet and the budget is what bounds the hold.
-+      ctx.tried.clear();
++      // the request sits out the whole budget before it gets its 429. So the
++      // set is emptied of everything except credential refusals (401/403,
++      // recorded in ctx.credentialRejected): waiting does not repair a
++      // credential, and asking again every poll would only pile refusals onto
++      // that account. What is let back is still gated by the manager: a quota
++      // refusal stays throttled until its retry-after passes, so it reaches
++      // upstream only once it is back, and a transport error or 5xx gets one
++      // attempt per poll. The retry count starts over too, since it bounds one
++      // walk of the fleet and the budget is what bounds the hold.
++      for (const index of [...ctx.tried]) {
++        if (!ctx.credentialRejected?.has(accountManager.accounts[index]?.name)) ctx.tried.delete(index);
++      }
 +      return forwardRequest(req, res, body, accountManager, upstream, 0, hooks, reqId, ctx, logDir, sx, route);
      }
  

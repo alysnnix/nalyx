@@ -78,19 +78,40 @@ let
   # The config file holds every account's OAuth tokens and the proxy key, and
   # teamclaude rewrites it whenever it refreshes a token, so it is mutable state
   # written by `teamclaude login` and never a store path. What this module owns
-  # is three keys inside it, set before every start through teamclaude's own
-  # `atomicConfigUpdate`: that honours the advisory lock the CLI and the server
-  # take on the file, writes it atomically at 0600, and creates the default
-  # config (with a random proxy key) when there is none yet. Importing a module
-  # from the package's source tree is not a published API, so an upstream rename
-  # fails the unit loudly at start, which is the right way for it to break.
+  # is a handful of keys inside it, set before every start through teamclaude's
+  # own `atomicConfigUpdate`: that honours the advisory lock the CLI and the
+  # server take on the file, writes it atomically at 0600, and creates the
+  # default config (with a random proxy key) when there is none yet. Importing
+  # a module from the package's source tree is not a published API, so an
+  # upstream rename fails the unit loudly at start, which is the right way for
+  # it to break.
+  #
+  # Besides the routing knobs, it re-closes every surface that reaches past
+  # this host or acts on its own, so a TUI or hand edit cannot keep one open
+  # across a restart: the npm self-updater (the package wrapper already sets
+  # TEAMCLAUDE_DISABLE_AUTOUPDATE, but an empty inherited value would undo
+  # it), the MCP control plane, the sx.org residential egress, and the quota
+  # probe and keep-warm, which make calls with nobody at the keyboard. The
+  # client mode goes to base-URL so a manual `teamclaude run` or `env` never
+  # hands a child the MITM CA.
+  #
+  # `proxy.trustLoopback` stays at its default (true) on purpose: this is a
+  # single-user host, and the exemption is what lets claude reach the pool
+  # without carrying the proxy key. A shared host would need it false.
   managedSettings = pkgs.writeText "teamclaude-managed-settings.mjs" ''
     import { atomicConfigUpdate } from "${pkgs.teamclaude}/share/teamclaude/src/config.js";
 
     await atomicConfigUpdate((config) => {
       config.proxy = { ...config.proxy, port: ${toString port} };
+      delete config.proxy.mcp;
       config.switchThreshold = ${builtins.toJSON switchThreshold};
       config.holdSeconds = ${toString holdSeconds};
+      config.autoUpdate = false;
+      config.defaultClientMode = "base-url";
+      delete config.sx;
+      config.quotaProbeSeconds = 0;
+      config.warmupSeconds = 0;
+      delete config.warmupSchedule;
     });
   '';
 
