@@ -31,6 +31,71 @@
 # Bumping a pin is `nix-prefetch-url --unpack <tarball>` piped through
 # `nix hash convert`.
 let
+  # HyperFrames (heygen-com/hyperframes) renders video from HTML. Upstream ships
+  # one router, `hyperframes`, plus twenty domain and workflow skills it loads
+  # by name. Only the router is advertised: its description is what catches
+  # "make me a video", so it stays in every prompt. Everything else rides the
+  # `video` persona, hidden in OMP and kept out of ~/.claude/skills, so a
+  # session that never makes a video pays for one description, not twenty-one.
+  #
+  # All workflows are pinned up front instead of letting the router run
+  # `npx hyperframes skills update <workflow>` to fetch them lazily, so the
+  # instructions it reads are the ones reviewed here.
+  hyperframesSrc = pkgs.fetchFromGitHub {
+    owner = "heygen-com";
+    repo = "hyperframes";
+    rev = "02147b8d152ffaccc5357a48f1f87e4569792f70";
+    hash = "sha256-DPHRTglMnoUn5m3eEXc500uS30YgdXwIZdmJE0j5E3U=";
+  };
+
+  hyperframesHidden = [
+    "embedded-captions"
+    "faceless-explainer"
+    "figma"
+    "general-video"
+    "hyperframes-animation"
+    "hyperframes-audio"
+    "hyperframes-cli"
+    "hyperframes-core"
+    "hyperframes-creative"
+    "hyperframes-keyframes"
+    "hyperframes-registry"
+    "hyperframes-studio"
+    "media-use"
+    "motion-graphics"
+    "music-to-video"
+    "product-launch-video"
+    "pr-to-video"
+    "remotion-to-hyperframes"
+    "slideshow"
+    "talking-head-recut"
+  ];
+
+  hyperframesSkills =
+    lib.genAttrs hyperframesHidden (name: {
+      src = hyperframesSrc;
+      subdir = "skills/${name}";
+      persona = "video";
+    })
+    // {
+      # The hidden siblings are not invocable as skills in Claude Code, so the
+      # router is told where to read them instead. Its own relative references
+      # (`../media-use/...`) already resolve, since ~/.claude/skills/hyperframes
+      # links into ~/.agents/skills next to them.
+      hyperframes = {
+        src = hyperframesSrc;
+        subdir = "skills/hyperframes";
+        postProcess = ''
+          cat >> SKILL.md <<'NOTE'
+
+          ## Loading sibling skills on this machine
+
+          Every other HyperFrames skill is installed but hidden from the skill list. When this file says to load `/<name>`, read `~/.agents/skills/<name>/SKILL.md` (and its `references/`) directly. All workflows are already installed and pinned by Nix, so skip `npx hyperframes skills update`.
+          NOTE
+        '';
+      };
+    };
+
   skills = {
     agent-browser = {
       src = pkgs.fetchFromGitHub {
@@ -89,7 +154,8 @@ let
       subdir = "plugins/frontend-design/skills/frontend-design";
       persona = "frontend";
     };
-  };
+  }
+  // hyperframesSkills;
 
   # Collect every pinned skill into one directory tree. Each top-level skill
   # directory also gets a `.nix-managed` marker, the same contract the Claude
