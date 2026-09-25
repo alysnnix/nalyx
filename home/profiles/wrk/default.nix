@@ -63,6 +63,16 @@ let
         ]
         (builtins.readFile ./scripts/gpu-setup.sh);
   };
+
+  # Not root-only like the three above, so it runs as a user unit below.
+  lidBlank = pkgs.writeShellApplication {
+    name = "wrk-lid-blank";
+    runtimeInputs = [
+      pkgs.glib
+      pkgs.systemd
+    ];
+    text = builtins.readFile ./scripts/lid-blank.sh;
+  };
 in
 {
   # Languages are listed one by one rather than pulling ../../features/languages,
@@ -236,6 +246,21 @@ in
         };
         tailnetServe.enable = true;
       };
+    };
+
+    # Lid closed on AC: stay up, locked, panel off. See scripts/lid-blank.sh.
+    # Tied to the graphical session because it talks to gnome-shell and mutter.
+    systemd.user.services.lid-blank = {
+      Unit = {
+        Description = "Blank the panel when the lid closes on AC";
+        PartOf = [ "graphical-session.target" ];
+        After = [ "graphical-session.target" ];
+      };
+      Service = {
+        ExecStart = lib.getExe lidBlank;
+        Restart = "on-failure";
+      };
+      Install.WantedBy = [ "graphical-session.target" ];
     };
 
     # Not NixOS, so nothing sets up the session for a nix profile. This exports
