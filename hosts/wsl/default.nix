@@ -49,10 +49,43 @@
     ];
   };
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  # Replicado de modules/core, que este host não importa: aquele módulo traz
+  # systemd-boot e drivers que não fazem sentido no WSL. Sem esta cópia o GC
+  # simplesmente nunca rodou aqui, e o store acumulou 138 GiB de paths mortos.
+  nix = {
+    settings = {
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+
+      # Fazem o daemon coletar lixo DURANTE o build, quando o livre cai abaixo
+      # de 10 GiB, liberando até 50 GiB. É o que impede o store de explodir
+      # entre dois ticks do timer, ainda mais num VHDX que não devolve espaço
+      # ao Windows sozinho.
+      min-free = 10 * 1024 * 1024 * 1024; # 10 GiB
+      max-free = 50 * 1024 * 1024 * 1024; # 50 GiB
+    };
+    # O rollback que se usa de verdade é o de ontem, e aqui não existe nem boot
+    # menu para escolher geração: guardar três semanas de gerações é só custo.
+    optimise = {
+      automatic = true;
+      # Nunca diário: varre o store inteiro fazendo hash e hard link, caro
+      # demais num VHDX de 278 GB.
+      dates = [ "weekly" ];
+    };
+    gc = {
+      automatic = true;
+      dates = "daily";
+      options = "--delete-older-than 3d";
+      # `persistent` é true por default, e este host passa a maior parte do
+      # tempo desligado, então dispara a tarefa perdida assim que sobe. Sem o
+      # atraso aleatório, todo start frio começaria com um GC pesado
+      # competindo com o shell.
+      randomizedDelaySec = "45min";
+    };
+  };
+
   nixpkgs.config.allowUnfree = true;
 
   # O hostname do SO NAO pode mudar: modules/services/syncthing.nix usa
