@@ -14,13 +14,14 @@
     ../../modules/services/syncthing.nix
     ../../modules/services/omp-collab.nix
     ../../modules/services/ollama.nix
-    # So opcoes, desligado: o vhost TLS na frente do daemon Paseo precisa de um
-    # FQDN, do IP da tailnet deste no e de credenciais de DNS, e nenhum dos tres
-    # pode morar num repo publico sem dizer de quem e a infraestrutura. A camada
-    # privada e que preenche os valores e liga
-    # `modules.services.paseoProxy.enable`. Enquanto isso este host segue
+    # So opcoes, desligado: o `tailscale serve` na frente do daemon Paseo
+    # termina o TLS com certificado que o proprio tailscaled emite para o nome
+    # MagicDNS deste no, entao nao ha ACME, dominio nem credencial de DNS. O
+    # unico valor privado que sobra e o FQDN, que nomeia a tailnet e por isso
+    # nao pode morar num repo publico. A camada privada e que preenche e liga
+    # `modules.services.paseoTailnet.enable`. Enquanto isso este host segue
     # exatamente como antes, com o Paseo so no loopback.
-    ../../modules/services/paseo-proxy.nix
+    ../../modules/services/paseo-tailnet.nix
     # Options only: the private layer owns the repository password, so it is
     # also what sets `enable`. This host is the fleet's single backup source,
     # since Syncthing converges the other peers anyway.
@@ -162,8 +163,7 @@
   # browser do Windows em http://localhost:6767 (loopback compartilhado pelo
   # networkingMode=mirrored), o build Windows do app desktop tunelando com
   # `ssh -W` (ver a chave da maquina Windows em authorizedKeys abaixo), e a
-  # tailnet pelo vhost do `paseoProxy`, que a
-  # camada privada liga.
+  # tailnet pelo `tailscale serve` do `paseoTailnet`, que a camada privada liga.
   #
   # O conteudo do daemon (settings, providers, voz) e compartilhado com o
   # desktop em modules/services/paseo.nix.

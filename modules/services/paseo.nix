@@ -12,8 +12,8 @@
 # local e nada e sincronizado do cliente para ele (`--cwd` e um path no host do
 # daemon). Entao cada host que guarda repos hospeda o seu, e o cliente (browser
 # ou app) e que vai atras. Este modulo e so o daemon; publicar na rede e
-# decisao separada, em modules/services/paseo-proxy.nix (nginx + ACME, dominio
-# proprio) ou modules/services/paseo-tailnet.nix (`tailscale serve`).
+# decisao separada, em modules/services/paseo-tailnet.nix (`tailscale serve`),
+# que e o caminho unico de publicacao da frota.
 #
 # O bloco nasceu dentro de hosts/wsl/default.nix e saiu de la quando o desktop
 # passou a rodar o seu: as duas copias seriam identicas, menos por qual
@@ -66,8 +66,8 @@ in
     o daemon do Paseo neste host, em 127.0.0.1, com as settings pessoais.
 
     Traz o modulo do flake do proprio Paseo e preenche `services.paseo`. Sem
-    nenhuma porta publicada: quem expoe o daemon e `modules.services.paseoProxy`
-    ou `modules.services.paseoTailnet`.
+    nenhuma porta publicada: quem expoe o daemon e
+    `modules.services.paseoTailnet`.
   '';
 
   options.modules.services.paseo.dictationVocabulary = lib.mkOption {

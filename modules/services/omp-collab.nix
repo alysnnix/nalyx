@@ -12,11 +12,11 @@
 #
 # The serve port is 443 by default, which is what makes the URL a bare
 # https://<node>.<tailnet>.ts.net with nothing to remember. It is an option
-# rather than a constant because `tailscale serve` makes tailscaled own the
-# bind of <tailnet-ip>:443 on this node, so anything else that wants real TLS
-# on that address (see modules/services/paseo-proxy.nix) can only coexist by
-# moving one of the two. Guests here get a URL handed to them anyway, so this
-# is the side that moves.
+# rather than a constant because tailscaled serves one handler per port, so
+# another `tailscale serve` on the same node (see
+# modules/services/paseo-tailnet.nix) can only coexist by sitting on a
+# different port. Guests here get a URL handed to them anyway, so this is the
+# side that moves.
 #
 # Wire the omp host at it with `collab.relayUrl` (see home/features/cli/omp).
 {
@@ -40,7 +40,7 @@ in
 
       443 by default so the guest URL carries no port at all. Only move it when
       something else on this node needs 443 on the tailnet address, since
-      tailscaled holding that bind is what keeps nginx off it.
+      tailscaled serves a single handler per port.
     '';
   };
 
