@@ -28,12 +28,32 @@
       extra-trusted-public-keys = [
         "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
       ];
+
+      # Fazem o daemon coletar lixo DURANTE o build, quando o livre cai abaixo
+      # de 10 GiB, liberando até 50 GiB. É o que impede o store de explodir
+      # entre dois ticks do timer. mkDefault porque é um piso da frota, e o
+      # desktop levanta o dele (SSD sem DRAM sofre mais perto de cheio).
+      min-free = lib.mkDefault (10 * 1024 * 1024 * 1024); # 10 GiB
+      max-free = lib.mkDefault (50 * 1024 * 1024 * 1024); # 50 GiB
     };
-    optimise.automatic = true;
+    # O rollback que se usa de verdade é o de ontem, não o de três semanas
+    # atrás, e o store cresce muito mais rápido do que o timer semanal
+    # coletava: 138 GiB de paths mortos se acumularam entre dois ticks.
+    optimise = {
+      automatic = true;
+      # Nunca diário: varre o store inteiro fazendo hash e hard link, caro
+      # demais para pagar todo dia só pela deduplicação.
+      dates = [ "weekly" ];
+    };
     gc = {
       automatic = true;
-      dates = "weekly";
-      options = "--delete-older-than 30d";
+      dates = "daily";
+      options = "--delete-older-than 3d";
+      # `persistent` é true por default, então um host que fica desligado
+      # (wsl, vm) dispara a tarefa perdida assim que sobe. Sem o atraso
+      # aleatório, todo start frio começaria com um GC pesado competindo com
+      # o shell.
+      randomizedDelaySec = "45min";
     };
   };
 
@@ -47,7 +67,7 @@
       systemd-boot = {
         enable = lib.mkDefault true;
         editor = false;
-        configurationLimit = 5;
+        configurationLimit = 3;
       };
       efi.canTouchEfiVariables = true;
       timeout = 10;
