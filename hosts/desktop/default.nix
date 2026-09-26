@@ -260,11 +260,11 @@
   # O daemon fica no loopback e a publicacao e so na tailnet, com o TLS que o
   # proprio tailscaled emite para o nome MagicDNS deste no: assim o celular e
   # um laptop abrem a UI no navegador, sem porta publicada em nenhuma outra
-  # interface e sem dominio a manter (o outro caminho, nginx com ACME, e o que
-  # o wsl usa).
+  # interface e sem dominio a manter. E o unico caminho de publicacao da frota:
+  # o wsl faz igual, com o nome MagicDNS dele.
   #
-  # `paseoTailnet` entra importado e desligado, mesmo padrao do `paseoProxy` no
-  # wsl: ligar exige o nome MagicDNS deste no, que nomeia a tailnet e nao pode
+  # `paseoTailnet` entra importado e desligado, mesmo padrao do wsl: ligar
+  # exige o nome MagicDNS deste no, que nomeia a tailnet e nao pode
   # aparecer aqui, e a assertion do modulo (de proposito, senao a publicacao
   # ficaria muda) derrubaria a avaliacao da CI, que roda sem camada privada.
   # Entao a camada privada e que liga e preenche:

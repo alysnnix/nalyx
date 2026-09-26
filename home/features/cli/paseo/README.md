@@ -2,9 +2,8 @@
 
 Daemon self-hosted para agentes de código. Este documento é sobre **operar** o
 Paseo nesta config: adicionar projetos, escolher cliente, e publicar o daemon
-fora do loopback, num domínio próprio ou na tailnet. Para o porquê de cada
-decisão de empacotamento, os comentários em prosa nos arquivos `.nix` citados
-abaixo são a fonte.
+fora do loopback, na tailnet. Para o porquê de cada decisão de empacotamento,
+os comentários em prosa nos arquivos `.nix` citados abaixo são a fonte.
 
 ## A regra que explica todo o resto
 
@@ -18,15 +17,15 @@ desktop e o laptop de trabalho. No WSL o cliente é sempre remoto, e é só uma
 janela; no desktop a janela é local, e mesmo ali o app Electron é apontado para
 o daemon do host em vez de subir o próprio.
 
-Nenhuma das três abre o daemon na rede. O que muda entre elas é quem publica a
-porta 443 do nó:
+Nenhuma das três abre o daemon na rede, e as três publicam a porta 443 do nó do
+mesmo jeito, com `tailscale serve`:
 
 ```
 WSL (nixos-wsl)              desktop (NixOS)         laptop sem NixOS
   daemon :6767                 daemon :6767            daemon :6767
    ^ browser do Windows          ^ app Electron local    ^ browser local
    ^ app desktop, ssh -W         |                       |
-  nginx :443, TLS ACME         tailscale serve :443    tailscale serve :443
+  tailscale serve :443         tailscale serve :443    tailscale serve :443
    ^                             ^                       ^
    +-----------------------------+-----------------------+
              celular e os outros nós, pela tailnet
@@ -39,15 +38,14 @@ WSL (nixos-wsl)              desktop (NixOS)         laptop sem NixOS
 | `flake.nix` | o input `paseo`, e o overlay `fixPtyNode` que conserta os pacotes |
 | `modules/services/paseo.nix` | `services.paseo`: o daemon como serviço systemd em `127.0.0.1:6767` e todo o bloco `settings`, na forma que wsl e desktop compartilham |
 | `modules/services/paseo-tailnet.nix` | publica esse daemon na tailnet com `tailscale serve`, desligado por padrão |
-| `modules/services/paseo-proxy.nix` | o nginx com TLS para um domínio próprio, desligado por padrão |
-| `hosts/wsl/default.nix` | liga o daemon compartilhado e importa o `paseoProxy`, que quem liga é a camada privada, dona dos valores |
-| `hosts/desktop/default.nix` | liga o daemon compartilhado e importa o `paseoTailnet`, que quem liga é a camada privada, dona do FQDN |
+| `hosts/wsl/default.nix` | liga o daemon compartilhado e importa o `paseoTailnet`, que quem liga é a camada privada, dona do FQDN |
+| `hosts/desktop/default.nix` | o mesmo: daemon compartilhado e `paseoTailnet`, ligado pela camada privada |
 | `home/features/cli/paseo/` | o CLI em todo host, o app desktop só onde há janela, e `modules.cli.paseo.daemon` / `tailnetServe` para um host sem NixOS |
 
 O bloco `services.paseo` morava em `hosts/wsl/default.nix`. Ele saiu de lá para
 `modules/services/paseo.nix` quando o desktop passou a querer o mesmo daemon:
 são dois hosts com os mesmos repositórios em disco e a mesma resposta, então a
-forma do serviço é uma só, e cada host decide apenas quem publica a porta.
+forma do serviço é uma só, e cada host só traz o seu FQDN.
 
 ## Projetos e workspaces
 
@@ -170,10 +168,10 @@ não vai deixar claro que a causa foi essa.
 
 `Settings` → `Add host` → `Direct connection`, com a URL publicada do host, não
 com `100.x:6767`: o daemon nunca escuta fora do loopback. Quem publica é o
-nginx do `paseoProxy` no wsl e o `tailscale serve` do `paseoTailnet` no
-desktop, as duas seções logo abaixo. Nos dois casos o endereço é `https://`, e
-o certificado existe justamente para isso: sem contexto seguro o navegador
-recusa parte das APIs que a UI usa.
+`tailscale serve` do `paseoTailnet`, em todo host, e a URL é o nome do nó na
+tailnet, `https://<nó>.<tailnet>.ts.net`. O endereço é sempre `https://`, e o
+certificado existe justamente para isso: sem contexto seguro o navegador recusa
+parte das APIs que a UI usa.
 
 ## Fora do NixOS: o daemon no perfil `wrk`
 
@@ -191,9 +189,9 @@ a tailnet aparecem no repositório, e as duas checagens do daemon (`hostnames`
 e `cors.allowedOrigins`) são preenchidas a partir dele. Quem alcança a 443 é a
 ACL da tailnet, como no wsl e no desktop.
 
-É a mesma forma do `modules.services.paseoTailnet` do desktop, um nível abaixo:
-lá a unidade é de sistema e o FQDN é declarado pela camada privada; aqui é
-serviço de usuário e o FQDN é descoberto em runtime.
+É a mesma forma do `modules.services.paseoTailnet` dos hosts NixOS, um nível
+abaixo: lá a unidade é de sistema e o FQDN é declarado pela camada privada;
+aqui é serviço de usuário e o FQDN é descoberto em runtime.
 
 Um passo manual, uma vez só: `paseo-tailnet-operator-setup`. `tailscale serve`
 só aceita ordem de root ou do operador, e isso é
@@ -209,49 +207,66 @@ UI. O app precisa ser reiniciado para largar o daemon que já subiu.
 `systemctl --user status paseo paseo-tailnet-serve` mostra os dois; o segundo
 imprime a URL final no log.
 
-## Domínio próprio
+## Na tailnet: `tailscale serve` em todo host
 
-`modules/services/paseo-proxy.nix` põe um nginx com TLS na frente do daemon, que
-continua em `127.0.0.1:6767`. Só o proxy fica exposto, o que é bem melhor do que
-abrir o daemon.
+O wsl e o desktop são hosts NixOS pessoais com os repositórios em disco, então
+os dois querem o mesmo daemon, e é literalmente o mesmo:
+`modules/services/paseo.nix` carrega o módulo do flake do Paseo e concentra a
+forma que eles compartilham (package, user, grupo, `127.0.0.1:6767`, relay
+desligado e todo o bloco `settings`). Serviço de **sistema**, e não o serviço de
+usuário que o laptop sem NixOS usa.
 
-O módulo nasce **desligado**, e o repositório público não carrega nenhum valor:
-o FQDN, o IP da tailnet e as credenciais de DNS são dados pessoais e vêm da
-camada privada, seguindo a regra de "o público oferece a opção, o privado liga".
+Publicar é `tailscale serve`, e é a única forma. Ele entrega TLS e nome de uma
+vez: o certificado é emitido pelo próprio `tailscaled` e o nome é o MagicDNS do
+nó. Não existe domínio próprio, registro DNS, credencial de emissão nem passo
+manual de primeira emissão, e nada é publicado fora da tailnet. O que resta de
+configuração é uma porta.
+
+Cada host importa o módulo e liga o daemon; a publicação é ligada pela camada
+privada, porque `enable` e `fqdn` andam juntos e o FQDN é o dado que não entra
+aqui:
 
 ```nix
-modules.services.paseoProxy = {
+# hosts/desktop/default.nix, e igual em hosts/wsl/default.nix
+modules.services.paseo.enable = true;
+
+# camada privada, que é quem pode nomear a tailnet
+modules.services.paseoTailnet = {
   enable = true;
-  domain = "paseo.exemplo.dev";
-  bindAddress = "100.x.y.z";                     # o IP desta máquina na tailnet
-  cloudflareCredentialsFile = config.sops.templates."paseo-acme-cloudflare".path;
+  fqdn = "host.tailnet-name.ts.net";
 };
 ```
 
-O que cada peça faz:
+`paseoTailnet` publica esse daemon na tailnet: uma unidade systemd
+`paseo-tailnet-serve` que roda
+`tailscale serve --bg --https=443 http://127.0.0.1:6767`, e que preenche as duas
+checagens do daemon a partir do FQDN: `services.paseo.hostnames` recebe o nome
+(header `Host`), e `daemon.cors.allowedOrigins` recebe `https://<fqdn>` (header
+`Origin`). São duas checagens independentes e preencher só `hostnames` não
+basta: aquela olha o header `Host`, que quem manda é o `tailscaled`, e esta olha
+o `Origin`, que quem manda é o navegador. Mesma origem não isenta, o navegador
+manda `Origin` em todo handshake de WebSocket.
 
-- **ACME por DNS-01.** O certificado é Let's Encrypt de verdade, emitido pelo
-  desafio de DNS no Cloudflare. Ninguém precisa alcançar a máquina pela
-  internet, então HTTP-01 não serviria.
-- **`bindAddress`.** O nginx escuta em `127.0.0.1:443` e no IP da tailnet. É
-  deliberadamente específico em vez de `0.0.0.0`, que exporia o daemon também na
-  LAN. Junto vem `net.ipv4.ip_nonlocal_bind = 1`, porque o nginx sobe antes de o
-  `tailscaled` atribuir o IP, e sem isso o bind falharia no boot.
-- **`services.paseo.hostnames`.** Preenchido com o domínio automaticamente. Sem
-  isso o daemon responde `403 Invalid Host header`, por causa da proteção contra
-  DNS rebinding.
-- **`daemon.cors.allowedOrigins`.** Também preenchido com o domínio. São duas
-  checagens independentes e preencher só `hostnames` não basta: aquela olha o
-  header `Host`, que quem manda é o nginx, e esta olha o `Origin`, que quem
-  manda é o navegador. Mesma origem não isenta, o navegador manda `Origin` em
-  todo handshake de WebSocket.
-- **`passwordFile`.** Existe como opção, mas **não é usado aqui**. Veja "Quem
-  autentica" logo abaixo.
+O FQDN é `modules.services.paseoTailnet.fqdn`. Ele nasce vazio, com assertion
+exigindo valor quando o módulo está ligado, porque o valor real nomeia a
+tailnet e isso não entra em repositório público: quem preenche é o módulo
+privado que o `flake.nix` passa para cada host. A unidade ainda confere esse
+valor contra o que o `tailscale status` reporta e falha com mensagem se
+divergirem, porque servir por um nome que o daemon não conhece daria 403 em
+tudo, e um nó renomeado é exatamente como isso acontece.
+
+A unidade é de sistema e fala com o `tailscaled` como root, então o passo de
+operador que o laptop sem NixOS precisa não se aplica aqui. O `--bg` registra o
+handler no estado do `tailscaled`, que o mantém entre boots, e rodar de novo é
+idempotente.
+
+O `passwordFile` do daemon existe como opção, mas **não é usado**. Veja "Quem
+autentica" logo abaixo.
 
 ### Quem autentica: a ACL da tailnet, não uma senha
 
-O daemon nasce **sem autenticação**, e até existir proxy a única proteção era o
-bind em loopback. Com o proxy, a pergunta passa a ser quem alcança a porta 443
+O daemon nasce **sem autenticação**, e enquanto ele só escutava no loopback era
+o bind que protegia. Publicado, a pergunta passa a ser quem alcança a porta 443
 deste nó, e a resposta está na ACL da tailnet, não numa senha.
 
 A ACL já dava `autogroup:admin` para os devices do dono e deixava os tagueados
@@ -265,12 +280,17 @@ login** para oferecer. O único caminho documentado é `Add Host` >
 `Direct connection`, digitando a senha à mão em cada navegador.
 
 O que fica descoberto é o loopback: qualquer processo local alcança o daemon sem
-autenticar. Isso já era verdade antes de existir proxy.
+autenticar. Isso já era verdade antes de publicar qualquer coisa.
 
 Consequência que precisa estar escrita em algum lugar: a ACL virou
 **load-bearing**. Adicionar uma regra de `src` para um device tagueado, ou
 tagear uma máquina em que você não confia totalmente, entrega execução de código
 como o usuário nesta máquina.
+
+Liberar a 443 do nó é o passo que não é Nix, e ele não avisa: enquanto a regra
+não existe o celular não recebe 403 nem tela de login, recebe **timeout**,
+porque a conexão nem estabelece. A ACL é dado de infraestrutura pessoal e vive
+no repositório privado, junto com o FQDN.
 
 ### O que alcança o serviço
 
@@ -278,107 +298,19 @@ como o usuário nesta máquina.
 |---|---|---|
 | Devices do dono na tailnet | sim | `autogroup:admin` na ACL |
 | Devices tagueados | não | sem regra de `src`, deny implícito |
-| Outra máquina na LAN | não | o nginx não escuta no IP da LAN |
-| Internet | não | nada publicado, e o A aponta para um IP `100.x` |
+| Outra máquina na LAN | não | o `tailscaled` só serve dentro da tailnet |
+| Internet | não | nada publicado fora da tailnet |
 | Processos locais | sim, sem autenticar | loopback |
-
-O registro DNS é público e qualquer um no mundo resolve o nome, mas ele devolve
-um endereço CGNAT da tailnet. Expor o nome não expõe o serviço.
-
-### Os três passos que não são Nix
-
-1. **Token do Cloudflare** com permissão de editar DNS da zona, guardado como
-   secret SOPS. Sem ele o ACME não emite nada.
-2. **Registro A** apontando `paseo.exemplo.dev` para o IP `100.x.y.z` da tailnet.
-   DNS público pode apontar para IP privado sem problema: quem não está na
-   tailnet simplesmente não alcança.
-3. **Entrada no `hosts` do Windows** mapeando o mesmo nome para `127.0.0.1`,
-   feita como Administrador. Não é conforto: sem ela o nome resolve pelo DNS
-   público para o IP da tailnet, e o navegador só chega lá enquanto o Tailscale
-   do Windows estiver conectado.
-
-E um quarto passo que só vale na primeira vez: **disparar a emissão do
-certificado à mão**.
-
-```bash
-sudo systemctl start acme-order-renew-<dominio>.service
-```
-
-O `switch` sozinho não emite nada. O NixOS separa "garantir que existe algum
-certificado para o nginx subir", que gera um autoassinado com `minica`, de
-"pedir o certificado real", que é esta unidade e fica esperando o timer. O timer
-pode estar a mais de um dia de distância, então na primeira vez o navegador
-reclamaria de certificado inválido sem motivo aparente. Depois disso a renovação
-é automática.
 
 ### Efeito colateral no omp-collab
 
-Ligar o proxy move o `tailscale serve` do omp-collab de `:443` para `:8443`
-(`modules.services.ompCollab.servePort`), porque o `tailscaled` segura o bind da
-443 no IP da tailnet e o nginx precisa dela. O omp-collab continua funcionando,
-só muda de porta na URL.
-
-## Na tailnet: o desktop com `tailscale serve`
-
-O desktop é um host NixOS pessoal com os repositórios em disco, então ele quer
-o mesmo daemon do wsl, e é literalmente o mesmo: `modules/services/paseo.nix`
-carrega o módulo do flake do Paseo e concentra a forma que os dois hosts
-compartilham (package, user, grupo, `127.0.0.1:6767`, relay desligado e todo o
-bloco `settings`). Serviço de **sistema**, como no wsl, e não o serviço de
-usuário que o laptop sem NixOS usa.
-
-O host importa os dois módulos e liga o daemon; a publicação é ligada pela
-camada privada, porque `enable` e `fqdn` andam juntos e o FQDN é o dado que não
-entra aqui. A mesma divisão do `paseoProxy` no wsl:
-
-```nix
-# hosts/desktop/default.nix
-modules.services.paseo.enable = true;
-
-# camada privada, que é quem pode nomear a tailnet
-modules.services.paseoTailnet = {
-  enable = true;
-  fqdn = "host.tailnet-name.ts.net";
-};
-```
-
-`paseoTailnet` publica esse daemon na tailnet: uma unidade systemd
-`paseo-tailnet-serve` que roda
-`tailscale serve --bg --https=443 http://127.0.0.1:6767`, e que, como o proxy,
-preenche as duas checagens do daemon a partir do FQDN: `services.paseo.hostnames`
-recebe o nome (header `Host`), e `daemon.cors.allowedOrigins` recebe
-`https://<fqdn>` (header `Origin`).
-
-O FQDN é `modules.services.paseoTailnet.fqdn`. Ele nasce vazio, com assertion
-exigindo valor quando o módulo está ligado, porque o valor real nomeia a
-tailnet e isso não entra em repositório público: quem preenche é o módulo
-privado que o `flake.nix` passa para este host. A unidade ainda confere esse
-valor contra o que o `tailscale status` reporta e falha com mensagem se
-divergirem, porque servir por um nome que o daemon não conhece daria 403 em
-tudo, e um nó renomeado é exatamente como isso acontece.
-
-A unidade é de sistema e fala com o `tailscaled` como root, então o passo de
-operador que o laptop sem NixOS precisa não se aplica aqui. O `--bg` registra o
-handler no estado do `tailscaled`, que o mantém entre boots, e rodar de novo é
-idempotente.
-
-### Por que não o nginx do `paseoProxy`
-
-Porque aqui não há nada para o ACME fazer. O `tailscale serve` entrega TLS e
-nome de uma vez: o certificado é emitido pelo próprio `tailscaled` e o nome é o
-MagicDNS do nó. Desaparecem o domínio, o registro A, o token do Cloudflare e o
-passo manual da primeira emissão, e nada é publicado fora da tailnet. O que
-resta de configuração é uma porta.
-
-O nginx continua valendo onde o `tailscale serve` não chega: um nome próprio,
-alcançável por um cliente que não está na tailnet. É o caso do wsl, que serve o
-navegador do Windows pelo mesmo nome, com a entrada no `hosts`.
-
-E os dois não convivem no mesmo host, porque ambos querem a 443 do nó: com o
-serve ligado o `tailscaled` segura o bind de `<ip-tailnet>:443`, e o nginx do
-proxy não sobe mais nesse endereço. `modules/services/paseo-tailnet.nix` tem
-assertion contra ligar os dois juntos, e é a mesma disputa que move o
-omp-collab para `:8443` quando o proxy está ligado.
+`paseoTailnet` e `modules.services.ompCollab` querem os dois a porta 443 do
+mesmo nó, e o `tailscaled` serve um handler por porta.
+`modules/services/paseo-tailnet.nix` resolve a disputa forçando o omp-collab
+para `:8443` (`modules.services.ompCollab.servePort`), porque os convidados dele
+recebem a URL pronta na mão, enquanto o Paseo precisa da porta default para que
+o app desktop e o navegador cheguem nele só com o hostname. O omp-collab
+continua funcionando, só muda de porta na URL.
 
 ### O app Electron local, e a porta
 
@@ -391,18 +323,6 @@ precisa ser reiniciado uma vez para largar o daemon que já tinha subido.
 
 Quem ganha a porta importa: o app lança o daemon dele com `--no-web-ui`, então
 se ele vencer a corrida o celular alcança a API e recebe 404 em toda rota de UI.
-
-### O passo que não é Nix: a ACL da tailnet
-
-O daemon não tem senha, aqui como no wsl: quem autentica é a ACL, e é ela que
-precisa liberar a 443 deste nó. Enquanto a regra não existe o celular não recebe
-403 nem tela de login, recebe **timeout**, porque a conexão nem estabelece. A
-ACL é dado de infraestrutura pessoal e vive no repositório privado, junto com o
-FQDN.
-
-A tabela "o que alcança o serviço" acima vale igual aqui, com uma troca: a LAN
-fica de fora porque o `tailscaled` só serve dentro da tailnet, não porque um
-nginx escolheu em qual endereço escutar.
 
 ## Config declarativa: uma escolha, não duas
 
@@ -596,17 +516,14 @@ do `paseo .` procura. O alvo é um wrapper shell em volta do electron.
 **O acesso pelo celular depende da máquina ligada.** O nó da tailnet só existe
 enquanto a máquina existe: o do wsl enquanto a distro WSL estiver rodando, o do
 desktop enquanto o desktop estiver ligado. Nada disso é hospedado em outro
-lugar, e por isso o celular tem dois alvos e não um.
+lugar, e por isso o celular tem um alvo por máquina em vez de um só.
 
-**Cair na tela `/welcome` quase nunca é o proxy.** O HTML é estático e não passa
+**Cair na tela `/welcome` quase nunca é a publicação.** O HTML é estático e não passa
 por checagem de origem, então a página carrega inteira mesmo quando o daemon
 recusa a conexão. Sem WebSocket o app não completa o autoconnect e mostra o Add
 Host. Olhe o `daemon.log`: `Rejected connection from origin` é
 `daemon.cors.allowedOrigins`, e `Rejected WebSocket connection with invalid
 daemon password` é credencial.
-
-**O certificado não sai no primeiro switch.** Ver "Os três passos que não são
-Nix" acima.
 
 ## Diagnóstico
 
@@ -626,7 +543,7 @@ paseo terminal create --cwd /tmp --json
 
 ## Referências
 
-- Web UI e proxy reverso: <https://paseo.sh/docs/web-ui.md>
+- Web UI: <https://paseo.sh/docs/web-ui.md>
 - Conectividade, SSH e Tailscale: <https://paseo.sh/docs/connectivity.md>
 - Workspaces: <https://paseo.sh/docs/workspaces.md>
 - Worktrees e `paseo.json`: <https://paseo.sh/docs/worktrees.md>
