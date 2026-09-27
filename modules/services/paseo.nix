@@ -41,6 +41,8 @@ let
   # omp reescreve o arquivo no setup e a chave desaparece.
   ompConfigOverlay = import ../../home/features/cli/omp/config-overlay.nix { inherit pkgs; };
 
+  clearStalePidfile = import ../../home/features/cli/paseo/clear-stale-pidfile.nix { inherit pkgs; };
+
   # Os overlays de persona da omp. Cada um liga UM conjunto de skills que fica
   # escondido no resto do mundo (`hide: true`, ../../home/features/cli/
   # agent-skills/sources.nix). Aqui eles viram provider derivado: e o unico
@@ -449,6 +451,10 @@ in
     # systemd nao dispara restart. O que volta e so a saida do proprio
     # processo.
     systemd.services.paseo.serviceConfig.Restart = lib.mkForce "always";
+
+    # A paseo.pid from the previous boot can name a PID now owned by another
+    # service, and the daemon then refuses to start. See the script for why.
+    systemd.services.paseo.preStart = lib.getExe clearStalePidfile;
 
     # The Claude account pool (home/features/cli/claude/account-pool.nix) needs
     # nothing in this service's environment: it rides in the `claude` binary on

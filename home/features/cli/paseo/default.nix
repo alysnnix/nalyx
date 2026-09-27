@@ -58,6 +58,8 @@ let
   # Not a plain overwrite like the NixOS module does on WSL: here the desktop
   # app also writes into config.json at runtime, and clobbering it on every
   # start would undo whatever was toggled in its settings screen.
+  clearStalePidfile = import ./clear-stale-pidfile.nix { inherit pkgs; };
+
   configMerge = pkgs.writeShellApplication {
     name = "paseo-config-merge";
     runtimeInputs = [ pkgs.jq ];
@@ -343,9 +345,12 @@ in
             RestartSec = 5;
             KillSignal = "SIGTERM";
             TimeoutStopSec = 15;
-          }
-          // lib.optionalAttrs (cfg.daemon.settings != { }) {
-            ExecStartPre = "${lib.getExe configMerge} ${settingsFile}";
+            # A stale paseo.pid from the previous boot blocks the start, see
+            # clear-stale-pidfile.nix.
+            ExecStartPre = [
+              (lib.getExe clearStalePidfile)
+            ]
+            ++ lib.optional (cfg.daemon.settings != { }) "${lib.getExe configMerge} ${settingsFile}";
           };
           Install.WantedBy = [ "default.target" ];
         };
