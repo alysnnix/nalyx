@@ -661,11 +661,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789575073,
-        "narHash": "sha256-Zy4SsTlR+KmqL46r2MaMCdpsfwFPq0NSzwFV6jEMn8U=",
+        "lastModified": 1790477710,
+        "narHash": "sha256-A2tutq8m4uJvmJUMKBMxloS7qwyINt5JT3tAn3g307k=",
         "ref": "refs/heads/main",
-        "rev": "80e3086700b08595f17ae7c6dd41862185130fa0",
-        "revCount": 152,
+        "rev": "5fd25fc3a6a676eca600d0c20c319a98c028f288",
+        "revCount": 162,
         "type": "git",
         "url": "ssh://git@github.com/alysnnix/nix-priv-personal"
       },
