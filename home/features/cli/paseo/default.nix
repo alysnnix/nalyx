@@ -54,6 +54,12 @@ let
   paseoHome = "${config.home.homeDirectory}/.paseo";
   listen = "127.0.0.1:${toString cfg.daemon.port}";
 
+  # Same overlay the system daemon exports in modules/services/paseo.nix: a
+  # user unit never sources hm-session-vars either, so without this every omp
+  # agent the daemon spawns runs with no overlay (no ~/.claude surface, no
+  # `startup.quiet`, hence the `xd://: mounted ...` banner in every session).
+  ompConfigOverlay = import ../omp/config-overlay.nix { inherit pkgs; };
+
   # `existing * managed`, managed wins, same merge the Claude settings use.
   # Not a plain overwrite like the NixOS module does on WSL: here the desktop
   # app also writes into config.json at runtime, and clobbering it on every
@@ -339,6 +345,7 @@ in
               # Agents the daemon spawns need the nix userland, and a user unit
               # off NixOS starts with the distro's PATH only.
               "PATH=${config.home.profileDirectory}/bin:/usr/local/bin:/usr/bin:/bin"
+              "PI_CONFIG_FILES=${ompConfigOverlay}"
             ];
             ExecStart = "${pkgs.paseo}/bin/paseo-server --no-relay";
             Restart = "on-failure";
