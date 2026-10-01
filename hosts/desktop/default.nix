@@ -182,6 +182,25 @@
   # modification, which is every file a dev server or indexer touches.
   fileSystems."/".options = [ "noatime" ];
 
+  # The games SSD from the Windows install (WoW, a Steam library). Mounted at
+  # boot on the path udisks used to give it on click, because Steam's
+  # libraryfolders.vdf and the Lutris Battle.net prefix point there. It stays
+  # NTFS so Windows on the NVMe can still read it. nofail plus a short timeout
+  # keep a missing disk from holding the boot.
+  fileSystems."/run/media/${vars.user.name}/SDDA" = {
+    device = "/dev/disk/by-uuid/E8242F72242F4344";
+    fsType = "ntfs3";
+    options = [
+      "nofail"
+      "x-systemd.device-timeout=5s"
+      "noatime"
+      # ntfs3 has no Unix owners; files belong to the main user and group users.
+      "uid=1000"
+      "gid=100"
+      "windows_names"
+    ];
+  };
+
   # Builds, GC and store optimisation yield the disk to the desktop instead of
   # stalling it. mq-deadline honours the idle IO class.
   nix.daemonIOSchedClass = "idle";
