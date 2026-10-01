@@ -108,6 +108,7 @@ in
       Unit.Description = "agent-browser observability dashboard";
       Service = {
         Type = "oneshot";
+        RemainAfterExit = true;
         # tailscale is not in a user unit's PATH on either kind of host: on
         # NixOS it lives in the system profile, off NixOS it comes from apt.
         Environment = lib.optional cfg.enable "PATH=/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin";

@@ -614,11 +614,6 @@
             statix = {
               enable = true;
               excludes = [ "hardware-configuration\\.nix" ];
-              settings.ignore = [
-                "hosts/desktop/hardware-configuration.nix"
-                "hosts/vm/hardware-configuration.nix"
-                "hosts/homelab/hardware-configuration.nix"
-              ];
             };
             deadnix = {
               enable = true;
