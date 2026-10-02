@@ -2,6 +2,35 @@
   pkgs,
   ...
 }:
+let
+  # Battle.net treats a game whose folder is missing as uninstalled and drops
+  # it from its database; "Locate game" then fails with BLZBNTAGT00000AF0 even
+  # once the folder is back. Set as the Lutris "Command prefix" of a game
+  # ("require-mount /path/to/disk"), it refuses to start the game while that
+  # disk is not mounted.
+  requireMount = pkgs.writeShellApplication {
+    name = "require-mount";
+    runtimeInputs = [
+      pkgs.util-linux
+      pkgs.libnotify
+    ];
+    text = ''
+      if [ "$#" -lt 2 ]; then
+        echo "usage: require-mount <mountpoint> <command> [args...]" >&2
+        exit 2
+      fi
+      target=$1
+      shift
+      if ! mountpoint -q -- "$target"; then
+        msg="$target is not mounted, so the game was not started."
+        echo "require-mount: $msg" >&2
+        notify-send --app-name=Lutris --urgency=critical "Disk not mounted" "$msg" || true
+        exit 1
+      fi
+      exec "$@"
+    '';
+  };
+in
 {
   home.packages = with pkgs; [
     mangohud
@@ -25,6 +54,8 @@
         pkgs.gamemode
         pkgs.mangohud
         pkgs.vulkan-tools
+        # Inside the FHS env, so the Lutris "Command prefix" can find it.
+        requireMount
       ];
       extraLibraries = pkgs: [ pkgs.gamemode.lib ];
     })

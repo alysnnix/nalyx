@@ -201,6 +201,14 @@
     ];
   };
 
+  # A Docker container that ignores SIGTERM (a celery worker) held shutdown
+  # for the full 90 s default. A shutdown that long looks frozen, and forcing
+  # the power off in the middle of it is what left the NTFS games SSD dirty
+  # (and unmountable) on 2026-10-01. Wine games in the user manager get the
+  # same bound.
+  systemd.settings.Manager.DefaultTimeoutStopSec = "15s";
+  systemd.user.settings.Manager.DefaultTimeoutStopSec = "15s";
+
   # Builds, GC and store optimisation yield the disk to the desktop instead of
   # stalling it. mq-deadline honours the idle IO class.
   nix.daemonIOSchedClass = "idle";
