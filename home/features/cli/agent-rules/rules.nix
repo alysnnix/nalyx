@@ -33,6 +33,12 @@ let
       readWhen = "before splitting a task into subagents or writing a subagent brief";
     }
     {
+      name = "machine-capacity";
+      title = "Size Parallelism To The Machine";
+      sticky = "This machine is shared with other agents: before fanning out or running anything heavy (test suites, builds, linters), check `nproc`, `/proc/loadavg` and `free -h`, and size the work to what is free. Always pass an explicit worker cap (e.g. `vitest --maxWorkers=4`, `pytest -n 4`, `make -j4`); never let a tool default to every core.";
+      readWhen = "before running a test suite, build, or any parallel command, and when the machine feels slow";
+    }
+    {
       name = "simplicity-first";
       enable = false;
     }
