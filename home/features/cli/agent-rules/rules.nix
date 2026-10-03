@@ -1,4 +1,8 @@
-{ lib }:
+{
+  lib,
+  # Docs from `modules.cli.agentRules.extraDocs`, already carrying `body`.
+  extraDocs ? [ ],
+}:
 
 # Declarative source of the global agent rules, shared by every agent CLI.
 #
@@ -94,7 +98,7 @@ let
   ];
 
   enabled = lib.filter (s: s.enable or true) sections;
-  docSections = lib.filter (s: s ? readWhen) enabled;
+  docSections = lib.filter (s: s ? readWhen) enabled ++ extraDocs;
 
   docsDir = "agent-rules";
 
@@ -165,7 +169,7 @@ in
   docs = lib.listToAttrs (
     map (s: {
       name = "${docsDir}/${s.name}.md";
-      value = "# ${s.title}\n\n" + builtins.readFile (./sections + "/${s.name}.md");
+      value = "# ${s.title}\n\n" + (s.body or (builtins.readFile (./sections + "/${s.name}.md")));
     }) docSections
   );
 }

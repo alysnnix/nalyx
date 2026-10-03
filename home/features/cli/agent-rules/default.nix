@@ -51,7 +51,10 @@
 # discarded. Runtime edits meant to survive belong in CLAUDE.local.md, which
 # this module creates once and then never touches.
 let
-  rules = import ./rules.nix { inherit lib; };
+  rules = import ./rules.nix {
+    inherit lib;
+    inherit (config.modules.cli.agentRules) extraDocs;
+  };
 
   home = config.home.homeDirectory;
 
@@ -75,6 +78,8 @@ let
     src: targets: lib.concatMapStringsSep "\n" (t: ''deploy_managed "${src}" "${t}"'') targets;
 in
 {
+  imports = [ ./options.nix ];
+
   xdg.configFile = lib.mapAttrs (_: text: { inherit text; }) rules.docs;
 
   home.activation.agentRules = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

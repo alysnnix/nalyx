@@ -17,6 +17,7 @@ Both inputs are optional and detected with `private ? null` / `wrk ? null`, so a
 - `modules.cli.git.extraSigners` (`home/features/cli/git/options.nix`)
 - `modules.wrk.pritunl.enable` (`home/features/cli/wrk.nix`)
 - `modules.cli.syncthing.enable` (`home/features/cli/syncthing`)
+- `modules.cli.agentRules.extraDocs` (`home/features/cli/agent-rules/options.nix`): on-demand agent-rule docs scoped to a project's repos
 
 A layer plugs in by exporting `homeManagerModules.default`, and `nixosModules.default` when it has secrets to declare. The helpers in `flake.nix` are `privateHmModules`, `privateNixosModules`, `privateNixosModule <name>`, `wrkHmModules`, `wrkNixosModules`.
 
